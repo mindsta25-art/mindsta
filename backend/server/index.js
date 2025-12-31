@@ -248,25 +248,20 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-// Export for Vercel serverless
-export default app;
+// Start server
+console.log('[ServerBoot] Starting Express server on port', PORT);
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 API Health: http://localhost:${PORT}/api/health`);
+  console.log('[ServerBoot] Server is now listening for connections');
+});
 
-// Start server only if not in serverless environment
-if (process.env.VERCEL !== '1') {
-  console.log('[ServerBoot] Starting Express server on port', PORT);
-  const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📊 API Health: http://localhost:${PORT}/api/health`);
-    console.log('[ServerBoot] Server is now listening for connections');
-  });
+server.on('error', (error) => {
+  console.error('❌ Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please free the port or change PORT in .env`);
+  }
+  process.exit(1);
+});
 
-  server.on('error', (error) => {
-    console.error('❌ Server error:', error);
-    if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${PORT} is already in use. Please free the port or change PORT in .env`);
-    }
-    process.exit(1);
-  });
-
-  console.log('[ServerBoot] Server setup complete, keeping process alive...');
-}
+console.log('[ServerBoot] Server setup complete, keeping process alive...');
