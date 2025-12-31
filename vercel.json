@@ -5,13 +5,8 @@
   "installCommand": "npm install --prefix frontend && npm install --prefix backend",
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "destination": "/api"
     }
-  ],
-  "functions": {
-    "backend/server/index.js": {
-      "runtime": "@vercel/node@3.0.0"
-    }
-  }
+  ]
 }
