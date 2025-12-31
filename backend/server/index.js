@@ -118,12 +118,30 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : ['http://localhost:8081', 'http://localhost:8080', 'http://localhost:8082', 'http://localhost:5173'];
 
+// In production, also allow Vercel preview and production URLs
+if (IS_PRODUCTION) {
+  allowedOrigins.push(
+    /https:\/\/.*\.vercel\.app$/,  // All Vercel preview deployments
+    /https:\/\/mindsta.*\.vercel\.app$/  // Specific mindsta deployments
+  );
+}
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.includes(origin)) {
+    // Check if origin matches any allowed origin (string or regex)
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.warn(`[CORS] Blocked request from origin: ${origin}`);
