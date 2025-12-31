@@ -8,7 +8,8 @@
     "server": "node server/index.js",
     "server:dev": "nodemon server/index.js",
     "start": "concurrently \"npm run dev\" \"npm run server:dev\"",
-    "build": "vite build",
+    "build": "cd frontend && npm run build",
+    "vercel-build": "cd frontend && npm install && npm run build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
