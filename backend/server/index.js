@@ -166,27 +166,27 @@ mongoose.connect(MONGODB_URI, {
   socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
 })
   .then(() => {
-    console.log('✅ MongoDB Connected Successfully');
+    console.log(' MongoDB Connected Successfully');
     if (IS_PRODUCTION) {
       console.log('[MongoDB] Running in PRODUCTION mode');
     }
   })
   .catch((error) => {
-    console.error('❌ MongoDB Connection Error:', error);
+    console.error(' MongoDB Connection Error:', error);
     process.exit(1);
   });
 
 // MongoDB connection event handlers
 mongoose.connection.on('error', (err) => {
-  console.error('❌ MongoDB connection error:', err);
+  console.error(' MongoDB connection error:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.warn('⚠️  MongoDB disconnected. Attempting to reconnect...');
+  console.warn('  MongoDB disconnected. Attempting to reconnect...');
 });
 
 mongoose.connection.on('reconnected', () => {
-  console.log('✅ MongoDB reconnected');
+  console.log(' MongoDB reconnected');
 });
 
 // Health check endpoint with detailed status
@@ -240,24 +240,24 @@ app.use(errorHandler);
 
 // Global error handlers to prevent silent crashes
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error(' Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+  console.error(' Uncaught Exception:', error);
   process.exit(1);
 });
 
 // Start server
 console.log('[ServerBoot] Starting Express server on port', PORT);
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 API Health: http://localhost:${PORT}/api/health`);
+  console.log(` Server running on http://localhost:${PORT}`);
+  console.log(` API Health: http://localhost:${PORT}/api/health`);
   console.log('[ServerBoot] Server is now listening for connections');
 });
 
 server.on('error', (error) => {
-  console.error('❌ Server error:', error);
+  console.error(' Server error:', error);
   if (error.code === 'EADDRINUSE') {
     console.error(`Port ${PORT} is already in use. Please free the port or change PORT in .env`);
   }
