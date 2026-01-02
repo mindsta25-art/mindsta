@@ -1,9 +1,3 @@
-/**
- * Express Backend Server for Mindsta App
- * Handles MongoDB operations and authentication
- * Production-ready with security, logging, and monitoring
- */
-
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -12,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
+import mongoSanitize from 'express-mongo-sanitize'
 import compression from 'compression';
 import morgan from 'morgan';
 import authRoutes from './routes/auth.js';
@@ -64,8 +58,7 @@ console.log('[ServerBoot] __dirnameLocal:', __dirnameLocal);
 // Security Middleware
 // 1. Helmet - Sets various HTTP headers for security
 app.use(helmet({
-  contentSecurityPolicy: IS_PRODUCTION ? undefined : false, // Disable in dev for easier testing
-  crossOriginEmbedderPolicy: false, // Allow embedding for payment gateways
+  contentSecurityPolicy: IS_PRODUCTION ? undefined : false, 
 }));
 
 // 2. Rate Limiting - Prevent brute force attacks
