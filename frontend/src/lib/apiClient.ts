@@ -3,9 +3,14 @@
  * Makes HTTP requests to the Node.js backend
  */
 
-// Use relative path for API in production (same domain), localhost in development
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:3000/api');
+// Always use environment variable or fallback to localhost in development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+console.log('🔧 API Configuration:', {
+  MODE: import.meta.env.MODE,
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  API_BASE_URL
+});
 
 /**
  * Make an API request
