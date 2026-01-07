@@ -545,9 +545,12 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                         <SelectValue placeholder="Select grade..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="7">Grade 7</SelectItem>
-                        <SelectItem value="8">Grade 8</SelectItem>
-                        <SelectItem value="9">Grade 9</SelectItem>
+                        <SelectItem value="1">Grade 1</SelectItem>
+                        <SelectItem value="2">Grade 2</SelectItem>
+                        <SelectItem value="3">Grade 3</SelectItem>
+                        <SelectItem value="4">Grade 4</SelectItem>
+                        <SelectItem value="5">Grade 5</SelectItem>
+                        <SelectItem value="6">Grade 6</SelectItem>
                         <SelectItem value="Common Entrance">Common Entrance</SelectItem>
                       </SelectContent>
                     </Select>
@@ -617,9 +620,12 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                   <SelectValue placeholder="Select grade..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="7">Grade 7</SelectItem>
-                  <SelectItem value="8">Grade 8</SelectItem>
-                  <SelectItem value="9">Grade 9</SelectItem>
+                  <SelectItem value="1">Grade 1</SelectItem>
+                  <SelectItem value="2">Grade 2</SelectItem>
+                  <SelectItem value="3">Grade 3</SelectItem>
+                  <SelectItem value="4">Grade 4</SelectItem>
+                  <SelectItem value="5">Grade 5</SelectItem>
+                  <SelectItem value="6">Grade 6</SelectItem>
                   <SelectItem value="Common Entrance">Common Entrance</SelectItem>
                 </SelectContent>
               </Select>

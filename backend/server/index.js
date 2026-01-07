@@ -37,7 +37,7 @@ dotenv.config();
 const requiredEnvVars = ['MONGODB_URI', 'VITE_JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar] && !process.env[`VITE_${envVar}`]);
 if (missingEnvVars.length > 0) {
-  console.error(`❌ Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error(` Missing required environment variables: ${missingEnvVars.join(', ')}`);
   process.exit(1);
 }
 
@@ -57,8 +57,10 @@ console.log('[ServerBoot] __dirnameLocal:', __dirnameLocal);
 
 // Security Middleware
 // 1. Helmet - Sets various HTTP headers for security
+// Disable CSP since this is an API-only backend (frontend handles its own CSP)
 app.use(helmet({
-  contentSecurityPolicy: IS_PRODUCTION ? undefined : false, 
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
 }));
 
 // 2. Rate Limiting - Prevent brute force attacks
@@ -108,7 +110,7 @@ if (IS_PRODUCTION) {
 
 // CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',')
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : ['http://localhost:8081', 'http://localhost:8080', 'http://localhost:8082', 'http://localhost:5173'];
 
 // In production, also allow Vercel preview and production URLs
@@ -118,6 +120,8 @@ if (IS_PRODUCTION) {
     /https:\/\/mindsta.*\.vercel\.app$/  // Specific mindsta deployments
   );
 }
+
+console.log('[CORS] Allowed origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -142,7 +146,7 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -180,6 +184,23 @@ mongoose.connection.on('disconnected', () => {
 
 mongoose.connection.on('reconnected', () => {
   console.log(' MongoDB reconnected');
+});
+
+// Root API endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Mindsta Backend API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth/*',
+      students: '/api/students/*',
+      lessons: '/api/lessons/*',
+      admin: '/api/admin/*'
+    }
+  });
 });
 
 // Health check endpoint with detailed status
