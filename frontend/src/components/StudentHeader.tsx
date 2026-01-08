@@ -279,13 +279,13 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-6">
-              <Button
+              {/* <Button
                 variant="ghost"
                 onClick={() => navigate("/home")}
                 className="font-medium"
               >
                 Home
-              </Button>
+              </Button> */}
               <Button
                 variant="ghost"
                 onClick={() => navigate("/browse")}
@@ -631,7 +631,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               </Select>
             </div>
             
-            <Button
+            {/* <Button
               variant="ghost"
               onClick={() => {
                 navigate("/home");
@@ -641,7 +641,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             >
               <Home className="w-4 h-4 mr-2" />
               Home
-            </Button>
+            </Button> */}
             <Button
               variant="ghost"
               onClick={() => {
