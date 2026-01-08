@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { BookOpen, Star } from "lucide-react";
+import { Star } from "lucide-react";
+import mindstaLogo from "../assets/icons/mindsta2.png";
 
 interface GradeCardProps {
   grade: number;
@@ -44,7 +45,7 @@ export const GradeCard = ({ grade, onClick }: GradeCardProps) => {
           "p-3 rounded-2xl bg-gradient-to-br shadow-lg group-hover:scale-110 transition-transform",
           gradient
         )}>
-          <BookOpen className="w-8 h-8 text-white" />
+          <img src={mindstaLogo} alt="Mindsta" className="w-8 h-8 object-contain" />
         </div>
         <h3 className="text-2xl font-black text-foreground">Grade {grade}</h3>
         <div className="flex items-center gap-1">
