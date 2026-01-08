@@ -63,27 +63,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// 2. Rate Limiting - Prevent brute force attacks
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: IS_PRODUCTION ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/', limiter);
-
-// Stricter rate limit for authentication endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: IS_PRODUCTION ? 5 : 50, // 5 attempts per 15 minutes in production
-  message: 'Too many authentication attempts, please try again later.',
-  skipSuccessfulRequests: true, // Don't count successful logins
-});
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/signup', authLimiter);
-
-// 3. MongoDB Query Sanitization - Prevent NoSQL injection
+// 2. MongoDB Query Sanitization - Prevent NoSQL injection
 // KNOWN ISSUE: express-mongo-sanitize v2.2.0 has compatibility issues with Express 5.x
 // Error: "Cannot set property query of #<IncomingMessage> which has only a getter"
 // Workaround: Manual input validation in routes until package is updated

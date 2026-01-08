@@ -7,7 +7,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import compression from 'compression';
 import morgan from 'morgan';
 
@@ -47,7 +46,7 @@ async function connectToDatabase() {
   
   const connection = await mongoose.connect(process.env.MONGODB_URI);
   cachedDb = connection;
-  console.log('✅ MongoDB connected (Vercel)');
+  console.log(' MongoDB connected (Vercel)');
   return cachedDb;
 }
 
@@ -83,16 +82,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/', limiter);
 
 // Health check
 app.get('/api/health', (req, res) => {
