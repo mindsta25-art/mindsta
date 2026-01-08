@@ -274,7 +274,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <img src={mindstaLogo} alt="Logo" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain" />
-              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent hidden sm:inline">Mindsta</span>
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</span>
             </button>
 
             {/* Desktop Navigation */}

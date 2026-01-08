@@ -12,8 +12,9 @@ const NotFound = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="text-center">
-        <div className="mb-6 flex justify-center">
+        <div className="mb-6 flex justify-center items-center gap-3">
           <img src={mindstaLogo} alt="Mindsta Logo" className="w-20 h-20 rounded-xl object-contain" />
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</h2>
         </div>
         <h1 className="mb-4 text-4xl font-bold">404</h1>
         <p className="mb-4 text-xl text-gray-600">Oops! Page not found</p>

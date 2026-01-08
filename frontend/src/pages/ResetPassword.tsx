@@ -51,10 +51,11 @@ const ResetPassword = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-background dark:via-muted dark:to-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8 bg-white/95 dark:bg-card shadow-2xl border-4 border-purple-300">
         <div className="text-center mb-6">
-          <div className="inline-block p-3 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 mb-3">
+          <div className="inline-flex items-center gap-2 p-3 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 mb-3">
             <img src={mindstaLogo} alt="Mindsta Logo" className="w-12 h-12 object-contain" />
           </div>
-          <h1 className="text-2xl font-black">Reset your password</h1>
+          <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent mb-2">Mindsta</h1>
+          <p className="text-lg font-semibold">Reset your password</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

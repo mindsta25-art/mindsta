@@ -82,6 +82,7 @@ const TermSelection = () => {
               </h1>
             </div>
             <img src={mindstaLogo} alt="Mindsta Logo" className="w-10 h-10 rounded-lg object-contain" />
+            <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</span>
           </div>
         </div>
       </header>

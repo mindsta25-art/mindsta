@@ -65,6 +65,7 @@ const About = () => {
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 shadow-lg">
                 <img src={mindstaLogo} alt="Mindsta Logo" className="w-8 h-8 object-contain" />
+                <span className="text-base font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</span>
               </div>
               <div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
