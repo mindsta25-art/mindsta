@@ -13,7 +13,7 @@ console.log('🔧 API Configuration:', {
 });
 
 /**
- * Make an API request
+ * Make an API request with timeout
  */
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -32,11 +32,19 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
+  // Create timeout promise
+  const timeout = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Request timeout - please check your internet connection')), 30000);
+  });
+  
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    const response = await Promise.race([
+      fetch(url, {
+        ...options,
+        headers,
+      }),
+      timeout
+    ]) as Response;
     
     console.log(`📡 API Response: ${response.status} ${response.statusText}`);
     

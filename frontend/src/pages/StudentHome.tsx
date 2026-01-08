@@ -48,6 +48,7 @@ const StudentHome = () => {
   const [allLessons, setAllLessons] = useState<Lesson[]>([]);
   const [enrolledLessons, setEnrolledLessons] = useState<EnrolledLesson[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,12 +56,18 @@ const StudentHome = () => {
 
       try {
         setLoading(true);
+        setError(null);
+        
         const [studentData, progressData, enrollmentsData, lessonsData] = await Promise.all([
           getStudentByUserId(user.id),
           getUserProgress(user.id),
           getEnrollments(),
           getLessons(),
         ]);
+
+        if (!studentData) {
+          throw new Error('Failed to load student information. Please check your connection and try again.');
+        }
 
         setStudentInfo(studentData);
         setProgress(progressData || []);
@@ -80,8 +87,12 @@ const StudentHome = () => {
         }));
 
         setEnrolledLessons(enrolled);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching student data:', error);
+        setError(
+          error?.message || 
+          'Unable to load student information. Please check your internet connection and try again.'
+        );
       } finally {
         setLoading(false);
       }
@@ -89,6 +100,13 @@ const StudentHome = () => {
 
     fetchData();
   }, [user?.id]);
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+    // Trigger re-fetch by updating a dependency or calling fetchData directly
+    window.location.reload();
+  };
 
   const completedCount = progress.filter(p => p.completed).length;
   const totalEnrollments = enrolledLessons.length;
@@ -165,6 +183,42 @@ const StudentHome = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
             <p className="mt-4 text-gray-600 dark:text-gray-400">Loading your dashboard...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <StudentHeader studentName={studentInfo?.fullName} />
+        <div className="pt-20 flex items-center justify-center min-h-screen">
+          <Card className="max-w-md mx-4">
+            <CardContent className="pt-6 text-center">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Failed to Load Student Information
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                {error}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={handleRetry} className="bg-indigo-600 hover:bg-indigo-700">
+                  Try Again
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/browse')}
+                >
+                  Browse Courses
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

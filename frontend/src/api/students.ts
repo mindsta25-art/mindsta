@@ -22,9 +22,24 @@ export interface StudentData {
 export const getStudentByUserId = async (userId: string): Promise<StudentData | null> => {
   try {
     const result = await api.get(`/students/${userId}`);
+    
+    // Ensure we have a valid student object
+    if (!result || !result.fullName) {
+      console.error('Invalid student data received:', result);
+      return null;
+    }
+    
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching student:', error);
+    
+    // Provide more specific error information
+    if (error?.response?.status === 404) {
+      console.error('Student profile not found for user:', userId);
+    } else if (error?.response?.status === 0) {
+      console.error('Network error - cannot reach backend server');
+    }
+    
     return null;
   }
 };
