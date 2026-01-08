@@ -58,10 +58,8 @@ const notificationSchema = new mongoose.Schema({
     },
   }],
   metadata: {
-    icon: String,
-    color: String,
-    actionUrl: String,
-    actionLabel: String,
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
 }, {
   timestamps: true,

@@ -34,3 +34,36 @@ export const initializePayment = async (
 export const verifyPayment = async (reference: string) => {
   return api.get(`/payments/verify/${reference}`);
 };
+
+export interface SalesAnalytics {
+  totalRevenue: number;
+  totalTransactions: number;
+  averageOrderValue: number;
+  monthlyRevenue: Array<{
+    month: string;
+    revenue: number;
+    transactions: number;
+  }>;
+  topCourses: Array<{
+    subject: string;
+    grade: string;
+    term: string;
+    sales: number;
+    revenue: number;
+  }>;
+  recentTransactions: Array<{
+    id: string;
+    amount: number;
+    reference: string;
+    paidAt: string;
+    user: {
+      email: string;
+      fullName: string;
+    };
+    itemCount: number;
+  }>;
+}
+
+export const getSalesAnalytics = async (): Promise<SalesAnalytics> => {
+  return api.get('/payments/admin/analytics');
+};

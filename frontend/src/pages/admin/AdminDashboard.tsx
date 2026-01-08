@@ -18,7 +18,7 @@ import {
   Package
 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading";
-import { getDashboardStats, getOverviewStats, getRecentPurchases } from "@/api";
+import { getDashboardStats, getOverviewStats, getRecentPurchases } from "@/api";\nimport { getSalesAnalytics, SalesAnalytics } from "@/api/payments";
 import {
   LineChart,
   Line,
@@ -78,6 +78,7 @@ const AdminDashboard = () => {
   const [paymentStatusData, setPaymentStatusData] = useState<any[]>([]);
   const [gradeDistribution, setGradeDistribution] = useState<any[]>([]);
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
+  const [salesAnalytics, setSalesAnalytics] = useState<SalesAnalytics | null>(null);
 
   const COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b'];
 
@@ -85,7 +86,17 @@ const AdminDashboard = () => {
     fetchDashboardStats();
     fetchAnalyticsData();
     fetchRecentPurchases();
+    fetchSalesAnalytics();
   }, []);
+
+  const fetchSalesAnalytics = async () => {
+    try {
+      const data = await getSalesAnalytics();
+      setSalesAnalytics(data);
+    } catch (error) {
+      console.error('Error fetching sales analytics:', error);
+    }
+  };
 
   const fetchRecentPurchases = async () => {
     try {
@@ -180,9 +191,9 @@ const AdminDashboard = () => {
     },
     {
       title: "Total Revenue",
-      value: stats.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : '₦0',
+      value: salesAnalytics?.totalRevenue ? `₦${salesAnalytics.totalRevenue.toLocaleString()}` : (stats.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : '₦0'),
       icon: DollarSign,
-      description: "Lifetime revenue",
+      description: `${salesAnalytics?.totalTransactions || 0} transactions`,
       color: "text-emerald-500",
     },
     {

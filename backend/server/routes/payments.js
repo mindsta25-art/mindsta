@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
-import { Student, Payment, Referral, ReferralProfile, ReferralTransaction, User, Enrollment, Cart } from '../models/index.js';
+import { Student, Payment, Referral, ReferralProfile, ReferralTransaction, User, Enrollment, Cart, Notification } from '../models/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { sendPaymentSuccessEmail, sendCommissionEarnedEmail } from '../services/emailService.js';
 
@@ -10,6 +10,39 @@ const router = express.Router();
 // Helper to generate unique Paystack reference
 function generateReference(userId) {
   return `PSK_${Date.now()}_${userId}_${Math.random().toString(36).slice(2,8)}`;
+}
+
+// Notify admin about new purchase
+async function notifyAdminOfPurchase({ userId, amount, items, paymentId }) {
+  try {
+    const user = await User.findById(userId);
+    const itemsList = items.map(item => `${item.subject} (Grade ${item.grade}, Term ${item.term})`).join(', ');
+    
+    // Get all admin users
+    const admins = await User.find({ userType: 'admin' });
+    
+    // Create notification for each admin
+    for (const admin of admins) {
+      await Notification.create({
+        title: '💰 New Course Purchase',
+        message: `${user?.fullName || 'A student'} (${user?.email}) purchased: ${itemsList}. Amount: ₦${amount.toLocaleString()}`,
+        type: 'success',
+        priority: 'high',
+        targetAudience: 'individual',
+        targetUsers: [admin._id],
+        createdBy: userId,
+        metadata: {
+          paymentId: paymentId.toString(),
+          amount,
+          itemCount: items.length,
+        }
+      });
+    }
+    
+    console.log(`[Admin Notification] Purchase notification sent for payment ${paymentId}`);
+  } catch (error) {
+    console.error('[Admin Notification Error]', error.message);
+  }
 }
 
 async function handleReferralCommission({ userId, studentId, paymentId, amount }) {
@@ -61,6 +94,24 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
       const referrer = await User.findById(referral.referrerId);
       if (referrer) {
         await sendCommissionEarnedEmail(referrer, transaction, { amount });
+        
+        // Create in-app notification for referrer
+        await Notification.create({
+          title: '🎉 Commission Earned!',
+          message: `You earned ₦${commission.toLocaleString()} commission from a referral purchase! Amount paid: ₦${amount.toLocaleString()}.`,
+          type: 'success',
+          priority: 'high',
+          targetAudience: 'individual',
+          targetUsers: [referrer._id],
+          createdBy: userId,
+          metadata: {
+            transactionId: transaction._id.toString(),
+            commission,
+            amountPaid: amount,
+          }
+        });
+        
+        console.log(`[Referral Notification] Commission notification sent to ${referrer.email}`);
       }
     } catch (emailError) {
       console.error('[Email Error]', emailError.message);
@@ -229,6 +280,14 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
           console.error('[Payment Success Email Error]', emailError.message);
         }
       }
+      // Notify admin of purchase
+      await notifyAdminOfPurchase({
+        userId: req.user.id,
+        amount: payment.amount,
+        items: payment.items || [],
+        paymentId: payment._id
+      });
+      
       // Referral commission
       await handleReferralCommission({ userId: req.user.id, studentId: student?._id, paymentId: payment._id, amount: payment.amount });
     }
@@ -326,6 +385,15 @@ router.post('/webhook', express.json(), async (req, res) => {
             console.error('[Payment Success Email Error]', emailError.message);
           }
         }
+        
+        // Notify admin of purchase
+        await notifyAdminOfPurchase({
+          userId: payment.userId,
+          amount: payment.amount,
+          items: payment.items || [],
+          paymentId: payment._id
+        });
+        
         await handleReferralCommission({ userId: payment.userId, studentId: student?._id, paymentId: payment._id, amount: payment.amount });
       }
     }
@@ -333,6 +401,107 @@ router.post('/webhook', express.json(), async (req, res) => {
   } catch (error) {
     console.error('[Paystack Webhook Error]', error.message);
     res.status(500).json({ error: 'Webhook processing failed', message: error.message });
+  }
+});
+
+// GET /api/payments/admin/analytics - sales analytics for admin dashboard
+router.get('/admin/analytics', requireAdmin, async (req, res) => {
+  try {
+    // Total revenue from successful payments
+    const revenueStats = await Payment.aggregate([
+      { $match: { status: 'success' } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amount' },
+          totalTransactions: { $sum: 1 },
+          averageOrderValue: { $avg: '$amount' }
+        }
+      }
+    ]);
+
+    // Revenue by month (last 12 months)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const monthlyRevenue = await Payment.aggregate([
+      { 
+        $match: { 
+          status: 'success',
+          paidAt: { $gte: twelveMonthsAgo }
+        } 
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$paidAt' },
+            month: { $month: '$paidAt' }
+          },
+          revenue: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    // Top selling courses
+    const topCourses = await Payment.aggregate([
+      { $match: { status: 'success' } },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: {
+            subject: '$items.subject',
+            grade: '$items.grade',
+            term: '$items.term'
+          },
+          totalSales: { $sum: 1 },
+          totalRevenue: { $sum: '$items.price' }
+        }
+      },
+      { $sort: { totalSales: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Recent transactions
+    const recentTransactions = await Payment.find({ status: 'success' })
+      .sort({ paidAt: -1 })
+      .limit(10)
+      .populate('userId', 'email fullName');
+
+    const stats = revenueStats[0] || { totalRevenue: 0, totalTransactions: 0, averageOrderValue: 0 };
+
+    res.json({
+      totalRevenue: stats.totalRevenue,
+      totalTransactions: stats.totalTransactions,
+      averageOrderValue: Math.round(stats.averageOrderValue || 0),
+      monthlyRevenue: monthlyRevenue.map(m => ({
+        month: `${m._id.year}-${String(m._id.month).padStart(2, '0')}`,
+        revenue: m.revenue,
+        transactions: m.count
+      })),
+      topCourses: topCourses.map(c => ({
+        subject: c._id.subject,
+        grade: c._id.grade,
+        term: c._id.term,
+        sales: c.totalSales,
+        revenue: c.totalRevenue
+      })),
+      recentTransactions: recentTransactions.map(t => ({
+        id: t._id.toString(),
+        amount: t.amount,
+        reference: t.reference,
+        paidAt: t.paidAt,
+        user: {
+          email: t.userId?.email,
+          fullName: t.userId?.fullName
+        },
+        itemCount: t.items?.length || 0
+      }))
+    });
+  } catch (error) {
+    console.error('[Sales Analytics Error]', error.message);
+    res.status(500).json({ error: 'Failed to fetch analytics', message: error.message });
   }
 });
 
