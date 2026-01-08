@@ -199,7 +199,7 @@ const Auth = () => {
       <Card className="w-full max-w-md p-8 bg-white/95 dark:bg-card shadow-2xl border-4 border-purple-300 relative z-10">
         <div className="flex flex-col items-center mb-8">
           <div className="p-4 rounded-3xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 mb-4 animate-pulse">
-            <BookOpen className="w-12 h-12 text-white" />
+            <img src={mindstaLogo} alt="Mindsta Logo" className="w-12 h-12 object-contain" />
           </div>
           <h1 className="text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</h1>
           <p className="text-muted-foreground mt-2 font-bold text-lg">
