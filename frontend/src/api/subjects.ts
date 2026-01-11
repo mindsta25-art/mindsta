@@ -1,55 +1,56 @@
-import { apiClient } from './index';
+import { apiClient } from '@/lib/apiClient';
 
 export interface Subject {
-  _id?: string;
-  id?: string;
+  _id: string;
   name: string;
-  description: string;
   category: string;
+  description: string;
   icon: string;
   color: string;
   isActive: boolean;
   order: number;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Get all active subjects
+// Get all active subjects (public)
 export const getSubjects = async (): Promise<Subject[]> => {
   const response = await apiClient.get('/subjects');
   return response.data;
 };
 
-// Get all subjects (including inactive) - Admin only
+// Get all subjects including inactive (admin only)
 export const getAllSubjects = async (): Promise<Subject[]> => {
   const response = await apiClient.get('/subjects/all');
   return response.data;
 };
 
-// Get a single subject by ID
+// Get single subject
 export const getSubjectById = async (id: string): Promise<Subject> => {
   const response = await apiClient.get(`/subjects/${id}`);
   return response.data;
 };
 
-// Create a new subject - Admin only
-export const createSubject = async (subject: Partial<Subject>): Promise<Subject> => {
-  const response = await apiClient.post('/subjects', subject);
-  return response.data.subject;
+// Create new subject (admin only)
+export const createSubject = async (data: Partial<Subject>): Promise<Subject> => {
+  const response = await apiClient.post('/subjects', data);
+  return response.data;
 };
 
-// Update a subject - Admin only
-export const updateSubject = async (id: string, subject: Partial<Subject>): Promise<Subject> => {
-  const response = await apiClient.put(`/subjects/${id}`, subject);
-  return response.data.subject;
+// Update subject (admin only)
+export const updateSubject = async (id: string, data: Partial<Subject>): Promise<Subject> => {
+  const response = await apiClient.put(`/subjects/${id}`, data);
+  return response.data;
 };
 
-// Delete (deactivate) a subject - Admin only
-export const deleteSubject = async (id: string): Promise<void> => {
-  await apiClient.delete(`/subjects/${id}`);
+// Delete subject (admin only)
+export const deleteSubject = async (id: string): Promise<{ message: string }> => {
+  const response = await apiClient.delete(`/subjects/${id}`);
+  return response.data;
 };
 
-// Permanently delete a subject - Admin only
-export const permanentlyDeleteSubject = async (id: string): Promise<void> => {
-  await apiClient.delete(`/subjects/${id}/permanent`);
+// Toggle subject active status (admin only)
+export const toggleSubjectStatus = async (id: string): Promise<Subject> => {
+  const response = await apiClient.patch(`/subjects/${id}/toggle`);
+  return response.data;
 };

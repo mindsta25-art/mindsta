@@ -22,7 +22,6 @@ import {
 
 import { useAuth } from '@/contexts/AuthContext';
 import { getStudentByUserId } from '@/api';
-import { getSubjects, type Subject as SubjectType } from '@/api/subjects';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 
@@ -39,8 +38,8 @@ const AllSubjects = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedGrade, setSelectedGrade] = useState('All Grades');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [subjects, setSubjects] = useState<SubjectType[]>([]);
-  const [filteredSubjects, setFilteredSubjects] = useState<SubjectType[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,13 +55,16 @@ const AllSubjects = () => {
     load();
   }, [user]);
 
-  // Fetch subjects from the database
+
+  // Fetch subjects dynamically from the database
   useEffect(() => {
     const fetchSubjects = async () => {
       setLoading(true);
       try {
-        const fetchedSubjects = await getSubjects();
-        setSubjects(fetchedSubjects);
+        // Fetch active subjects from the backend
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/subjects`);
+        const data = await response.json();
+        setSubjects(data || []);
       } catch (error) {
         console.error('Error fetching subjects:', error);
         setSubjects([]);
@@ -77,8 +79,7 @@ const AllSubjects = () => {
     let filtered = subjects;
     if (searchQuery) {
       filtered = filtered.filter(subject =>
-        subject.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        subject.description.toLowerCase().includes(searchQuery.toLowerCase())
+        subject.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     if (selectedCategory !== 'All') {
@@ -87,10 +88,11 @@ const AllSubjects = () => {
     setFilteredSubjects(filtered);
   }, [subjects, searchQuery, selectedCategory]);
 
-  const handleSubjectClick = (subject: SubjectType) => {
-    navigate(`/browse?subject=${encodeURIComponent(subject.name)}`);
+  const handleSubjectClick = (subject: string) => {
+    navigate(`/subject/${subject.toLowerCase().replace(/\s+/g, '-')}`);
   };
 
+  const totalLessons = subjects.reduce((sum, subject) => sum + (subject.lessonCount || 0), 0);
   const totalSubjects = subjects.length;
 
   return (

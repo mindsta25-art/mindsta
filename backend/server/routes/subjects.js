@@ -1,10 +1,11 @@
 import express from 'express';
-import { Subject } from '../models/index.js';
-import { authenticateToken, authorizeAdmin } from '../middleware/auth.js';
+import Subject from '../models/Subject.js';
+import Lesson from '../models/Lesson.js';
+import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all active subjects
+// Get all subjects (public - for students)
 router.get('/', async (req, res) => {
   try {
     const subjects = await Subject.find({ isActive: true }).sort({ order: 1, name: 1 });
@@ -15,8 +16,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get all subjects (including inactive) - Admin only
-router.get('/all', authenticateToken, authorizeAdmin, async (req, res) => {
+// Get all subjects including inactive (admin only)
+router.get('/all', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const subjects = await Subject.find().sort({ order: 1, name: 1 });
     res.json(subjects);
@@ -26,7 +27,7 @@ router.get('/all', authenticateToken, authorizeAdmin, async (req, res) => {
   }
 });
 
-// Get a single subject by ID
+// Get single subject by ID
 router.get('/:id', async (req, res) => {
   try {
     const subject = await Subject.findById(req.params.id);
@@ -40,47 +41,39 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create a new subject - Admin only
-router.post('/', authenticateToken, authorizeAdmin, async (req, res) => {
+// Create new subject (admin only)
+router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { name, description, category, icon, color, order } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ error: 'Subject name is required' });
-    }
+    const { name, category, description, icon, color, order } = req.body;
 
     // Check if subject already exists
-    const existing = await Subject.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+    const existing = await Subject.findOne({ name: new RegExp(`^${name}$`, 'i') });
     if (existing) {
       return res.status(400).json({ error: 'Subject already exists' });
     }
 
     const subject = new Subject({
       name,
-      description: description || '',
-      category: category || 'Core',
-      icon: icon || 'BookOpen',
-      color: color || '#6366f1',
+      category,
+      description,
+      icon,
+      color,
       order: order || 0,
-      createdBy: req.user.userId,
+      isActive: true
     });
 
     await subject.save();
-
-    res.status(201).json({
-      message: 'Subject created successfully',
-      subject,
-    });
+    res.status(201).json(subject);
   } catch (error) {
     console.error('Error creating subject:', error);
-    res.status(500).json({ error: error.message || 'Failed to create subject' });
+    res.status(500).json({ error: 'Failed to create subject' });
   }
 });
 
-// Update a subject - Admin only
-router.put('/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+// Update subject (admin only)
+router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { name, description, category, icon, color, order, isActive } = req.body;
+    const { name, category, description, icon, color, order, isActive } = req.body;
 
     const subject = await Subject.findById(req.params.id);
     if (!subject) {
@@ -90,7 +83,7 @@ router.put('/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     // Check if new name conflicts with existing subject
     if (name && name !== subject.name) {
       const existing = await Subject.findOne({ 
-        name: { $regex: new RegExp(`^${name}$`, 'i') },
+        name: new RegExp(`^${name}$`, 'i'),
         _id: { $ne: req.params.id }
       });
       if (existing) {
@@ -98,63 +91,62 @@ router.put('/:id', authenticateToken, authorizeAdmin, async (req, res) => {
       }
     }
 
-    // Update fields
     if (name) subject.name = name;
-    if (description !== undefined) subject.description = description;
     if (category) subject.category = category;
+    if (description !== undefined) subject.description = description;
     if (icon) subject.icon = icon;
     if (color) subject.color = color;
     if (order !== undefined) subject.order = order;
     if (isActive !== undefined) subject.isActive = isActive;
 
     await subject.save();
-
-    res.json({
-      message: 'Subject updated successfully',
-      subject,
-    });
+    res.json(subject);
   } catch (error) {
     console.error('Error updating subject:', error);
-    res.status(500).json({ error: error.message || 'Failed to update subject' });
+    res.status(500).json({ error: 'Failed to update subject' });
   }
 });
 
-// Delete a subject - Admin only
-router.delete('/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+// Delete subject (admin only)
+router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const subject = await Subject.findById(req.params.id);
     if (!subject) {
       return res.status(404).json({ error: 'Subject not found' });
     }
 
-    // Soft delete - just deactivate
-    subject.isActive = false;
-    await subject.save();
+    // Check if subject has lessons
+    const lessonCount = await Lesson.countDocuments({ subject: subject.name });
+    
+    if (lessonCount > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete subject with ${lessonCount} associated lessons. Please delete or reassign lessons first.` 
+      });
+    }
 
-    res.json({
-      message: 'Subject deactivated successfully',
-      subject,
-    });
+    await subject.deleteOne();
+    res.json({ message: 'Subject deleted successfully' });
   } catch (error) {
     console.error('Error deleting subject:', error);
     res.status(500).json({ error: 'Failed to delete subject' });
   }
 });
 
-// Permanently delete a subject - Admin only (dangerous)
-router.delete('/:id/permanent', authenticateToken, authorizeAdmin, async (req, res) => {
+// Toggle subject active status (admin only)
+router.patch('/:id/toggle', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const subject = await Subject.findByIdAndDelete(req.params.id);
+    const subject = await Subject.findById(req.params.id);
     if (!subject) {
       return res.status(404).json({ error: 'Subject not found' });
     }
 
-    res.json({
-      message: 'Subject permanently deleted',
-    });
+    subject.isActive = !subject.isActive;
+    await subject.save();
+    
+    res.json(subject);
   } catch (error) {
-    console.error('Error permanently deleting subject:', error);
-    res.status(500).json({ error: 'Failed to permanently delete subject' });
+    console.error('Error toggling subject status:', error);
+    res.status(500).json({ error: 'Failed to toggle subject status' });
   }
 });
 

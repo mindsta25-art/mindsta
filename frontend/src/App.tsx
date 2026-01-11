@@ -48,6 +48,7 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContentManagement = lazy(() => import("./pages/admin/ContentManagement"));
 const LessonManagement = lazy(() => import("./pages/admin/LessonManagement"));
+const SubjectManagement = lazy(() => import("./pages/SubjectManagement"));
 const ReferralManagement = lazy(() => import("./pages/admin/ReferralManagement"));
 const ReferralPayouts = lazy(() => import("./pages/admin/ReferralPayouts"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
@@ -318,6 +319,14 @@ const App = () => (
                   element={
                     <ProtectedRoute requireAdmin>
                       <LessonManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/subjects" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <SubjectManagement />
                     </ProtectedRoute>
                   } 
                 />
