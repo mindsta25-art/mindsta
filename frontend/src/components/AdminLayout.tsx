@@ -131,6 +131,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     },
     {
       icon: BookOpen,
+      label: "Subject Management",
+      path: "/admin/subjects",
+    },
+    {
+      icon: Package,
       label: "Content Management",
       path: "/admin/content",
     },

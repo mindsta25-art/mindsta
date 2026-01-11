@@ -17,6 +17,7 @@ import { CurriculumBuilder } from "@/components/CurriculumBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { getAllLessons, createLesson, updateLesson, deleteLesson, type Lesson, type Section } from "@/api/lessons";
 import { getAllQuizzes, createQuiz, updateQuiz, deleteQuiz, type Quiz, type QuizQuestion } from "@/api/quizzes";
+import { getSubjects, type Subject } from "@/api/subjects";
 import { 
   Plus, 
   Search, 
@@ -65,6 +66,7 @@ const ContentManagement = () => {
   const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [dbSubjects, setDbSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"lesson" | "quiz">("lesson");
@@ -173,12 +175,14 @@ const ContentManagement = () => {
   const fetchContent = async () => {
     setLoading(true);
     try {
-      const [lessonsData, quizzesData] = await Promise.all([
+      const [lessonsData, quizzesData, subjectsData] = await Promise.all([
         getAllLessons(),
         getAllQuizzes(),
+        getSubjects(),
       ]);
       setLessons(lessonsData);
       setQuizzes(quizzesData);
+      setDbSubjects(subjectsData);
     } catch (error) {
       toast({
         title: "Error",
@@ -746,7 +750,7 @@ const ContentManagement = () => {
   });
 
   // Get unique subjects and grades
-  const subjects = Array.from(new Set(lessons.map(l => l.subject)));
+  const subjects = dbSubjects.map(s => s.name);
   const grades = Array.from(new Set(lessons.map(l => l.grade))).sort();
 
   // Filtered lessons for quiz creation based on selected grade, term, and subject
@@ -876,11 +880,9 @@ const ContentManagement = () => {
                                 <SelectValue placeholder="Select subject" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Mathematics">Mathematics</SelectItem>
-                                <SelectItem value="English">English</SelectItem>
-                                <SelectItem value="Science">Science</SelectItem>
-                                <SelectItem value="Social Studies">Social Studies</SelectItem>
-                                <SelectItem value="Arts & Crafts">Arts & Crafts</SelectItem>
+                                {dbSubjects.map((subject) => (
+                                  <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -1067,11 +1069,9 @@ const ContentManagement = () => {
                                 <SelectValue placeholder="Select subject" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Mathematics">Mathematics</SelectItem>
-                                <SelectItem value="English">English</SelectItem>
-                                <SelectItem value="Science">Science</SelectItem>
-                                <SelectItem value="Social Studies">Social Studies</SelectItem>
-                                <SelectItem value="Arts & Crafts">Arts & Crafts</SelectItem>
+                                {dbSubjects.map((subject) => (
+                                  <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -2051,11 +2051,9 @@ const ContentManagement = () => {
                           <SelectValue placeholder="Select subject" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Mathematics">Mathematics</SelectItem>
-                          <SelectItem value="English">English</SelectItem>
-                          <SelectItem value="Science">Science</SelectItem>
-                          <SelectItem value="Social Studies">Social Studies</SelectItem>
-                          <SelectItem value="Arts & Crafts">Arts & Crafts</SelectItem>
+                          {dbSubjects.map((subject) => (
+                            <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -2228,11 +2226,9 @@ const ContentManagement = () => {
                               <SelectValue placeholder="Select subject" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Mathematics">Mathematics</SelectItem>
-                              <SelectItem value="English">English</SelectItem>
-                              <SelectItem value="Science">Science</SelectItem>
-                              <SelectItem value="Social Studies">Social Studies</SelectItem>
-                              <SelectItem value="Arts & Crafts">Arts & Crafts</SelectItem>
+                              {dbSubjects.map((subject) => (
+                                <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
