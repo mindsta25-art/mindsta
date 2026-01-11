@@ -18,7 +18,8 @@ import {
   Package
 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading";
-import { getDashboardStats, getOverviewStats, getRecentPurchases } from "@/api";\nimport { getSalesAnalytics, SalesAnalytics } from "@/api/payments";
+import { getDashboardStats, getOverviewStats, getRecentPurchases } from "@/api";
+import { getSalesAnalytics, SalesAnalytics } from "@/api/payments";
 import {
   LineChart,
   Line,
