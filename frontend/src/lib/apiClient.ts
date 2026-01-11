@@ -3,13 +3,30 @@
  * Makes HTTP requests to the Node.js backend
  */
 
-// Always use environment variable or fallback to localhost in development
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Determine API URL based on environment
+const getApiBaseUrl = () => {
+  // First check for environment variable
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production, use Railway backend URL (hardcoded fallback)
+  if (import.meta.env.PROD || import.meta.env.MODE === 'production') {
+    return 'https://mindstabackend2-production-d53e.up.railway.app/api';
+  }
+  
+  // In development, use localhost
+  return 'http://localhost:3000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 console.log('🔧 API Configuration:', {
   MODE: import.meta.env.MODE,
+  PROD: import.meta.env.PROD,
   VITE_API_URL: import.meta.env.VITE_API_URL,
-  API_BASE_URL
+  API_BASE_URL,
+  timestamp: new Date().toISOString()
 });
 
 /**

@@ -150,6 +150,7 @@ const BrowseCourses = () => {
 
   useEffect(() => {
     filterAndSortCourses();
+    updateAvailableSubjects();
   }, [searchQuery, selectedGrade, selectedSubject, selectedTerm, sortBy, courses, showOnlyPurchased]);
 
   // Reset to page 1 when filters change
@@ -325,6 +326,27 @@ const BrowseCourses = () => {
     });
 
     setFilteredCourses(filtered);
+  };
+
+  const updateAvailableSubjects = () => {
+    // Filter courses by selected grade first, then extract unique subjects
+    let coursesToCheck = [...courses];
+    
+    // If a specific grade is selected, only get subjects for that grade
+    if (selectedGrade !== 'all') {
+      coursesToCheck = coursesToCheck.filter(course => course.grade === selectedGrade);
+    }
+    
+    // Extract unique subjects from the filtered courses
+    const subjectsSet = new Set(coursesToCheck.map(course => course.subject));
+    const sortedSubjects = Array.from(subjectsSet).sort();
+    
+    setAvailableSubjects(sortedSubjects);
+    
+    // Reset selected subject if it's not available in the new grade
+    if (selectedSubject !== 'all' && !sortedSubjects.includes(selectedSubject)) {
+      setSelectedSubject('all');
+    }
   };
 
   const handleAddToCart = (course: Course) => {
@@ -572,12 +594,15 @@ const BrowseCourses = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Grades</SelectItem>
-                    {grades.map((grade) => (
-                      <SelectItem key={grade} value={grade}>
-                        {grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">All Grades ({courses.length})</SelectItem>
+                    {grades.map((grade) => {
+                      const count = courses.filter(c => c.grade === grade).length;
+                      return (
+                        <SelectItem key={grade} value={grade}>
+                          {grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`} ({count})
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -592,10 +617,24 @@ const BrowseCourses = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Subjects</SelectItem>
-                    {availableSubjects.map((subject) => (
-                      <SelectItem key={subject} value={subject}>
-                        {subject}
+                    <SelectItem value="all">
+                      All Subjects ({availableSubjects.length})
+                    </SelectItem>
+                    {availableSubjects.map((subject) => {
+                      // Count courses for this subject in the current grade
+                      const count = courses.filter(c => 
+                        c.subject === subject && 
+                        (selectedGrade === 'all' || c.grade === selectedGrade)
+                      ).length;
+                      return (
+                        <SelectItem key={subject} value={subject}>
+                          {subject} ({count})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -613,11 +652,18 @@ const BrowseCourses = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Terms</SelectItem>
-                    {terms.map((term) => (
-                      <SelectItem key={term} value={term}>
-                        {term}
-                      </SelectItem>
-                    ))}
+                    {terms.map((term) => {
+                      const count = courses.filter(c => 
+                        c.term === term && 
+                        (selectedGrade === 'all' || c.grade === selectedGrade) &&
+                        (selectedSubject === 'all' || c.subject === selectedSubject)
+                      ).length;
+                      return (
+                        <SelectItem key={term} value={term}>
+                          {term} ({count})
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
