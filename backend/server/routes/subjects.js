@@ -1,7 +1,7 @@
 import express from 'express';
 import Subject from '../models/Subject.js';
 import Lesson from '../models/Lesson.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get all subjects including inactive (admin only)
-router.get('/all', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/all', requireAdmin, async (req, res) => {
   try {
     const subjects = await Subject.find().sort({ order: 1, name: 1 });
     res.json(subjects);
@@ -42,7 +42,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new subject (admin only)
-router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const { name, category, description, icon, color, order } = req.body;
 
@@ -71,7 +71,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Update subject (admin only)
-router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { name, category, description, icon, color, order, isActive } = req.body;
 
@@ -108,7 +108,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Delete subject (admin only)
-router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const subject = await Subject.findById(req.params.id);
     if (!subject) {
@@ -133,7 +133,7 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Toggle subject active status (admin only)
-router.patch('/:id/toggle', authMiddleware, adminMiddleware, async (req, res) => {
+router.patch('/:id/toggle', requireAdmin, async (req, res) => {
   try {
     const subject = await Subject.findById(req.params.id);
     if (!subject) {
