@@ -48,6 +48,9 @@ export * from './wishlist';
 // Assessment API
 export * from './assessment';
 
+// Subjects API
+export * from './subjects';
+
 
 
 

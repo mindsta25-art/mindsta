@@ -135,7 +135,7 @@ const PaymentCallback = () => {
                   {status === 'success' ? (
                     <>
                       <Button 
-                        onClick={() => navigate('/learning')}
+                        onClick={() => navigate('/my-learning')}
                         className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                         size="lg"
                       >
@@ -143,12 +143,12 @@ const PaymentCallback = () => {
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                       <Button 
-                        onClick={() => navigate('/dashboard')} 
+                        onClick={() => navigate('/browse')} 
                         variant="outline"
                         size="lg"
                         className="w-full sm:w-auto"
                       >
-                        Go to Dashboard
+                        Browse More Courses
                       </Button>
                     </>
                   ) : (

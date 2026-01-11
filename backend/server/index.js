@@ -28,6 +28,7 @@ import assessmentRoutes from './routes/assessment.js';
 import bundleRoutes from './routes/bundles.js';
 import reviewRoutes from './routes/reviews.js';
 import enrollmentRoutes from './routes/enrollments.js';
+import subjectRoutes from './routes/subjects.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 // Load environment variables
@@ -225,6 +226,7 @@ app.use('/api/assessment', assessmentRoutes);
 app.use('/api/bundles', bundleRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
+app.use('/api/subjects', subjectRoutes);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);

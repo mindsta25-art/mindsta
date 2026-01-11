@@ -22,6 +22,7 @@ import {
 
 import { useAuth } from '@/contexts/AuthContext';
 import { getStudentByUserId } from '@/api';
+import { getSubjects, type Subject as SubjectType } from '@/api/subjects';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 
@@ -38,8 +39,8 @@ const AllSubjects = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedGrade, setSelectedGrade] = useState('All Grades');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [filteredSubjects, setFilteredSubjects] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<SubjectType[]>([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<SubjectType[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -55,30 +56,29 @@ const AllSubjects = () => {
     load();
   }, [user]);
 
-
-  // Fetch subjects dynamically from the database
+  // Fetch subjects from the database
   useEffect(() => {
     const fetchSubjects = async () => {
       setLoading(true);
       try {
-        // If a grade is selected, fetch for that grade, else fetch for all (use '1' as default for demo)
-        const grade = selectedGrade !== 'All Grades' ? selectedGrade : '1';
-        const fetched = await import('@/api/lessons').then(m => m.getSubjectsByGrade(grade));
-        setSubjects(fetched || []);
+        const fetchedSubjects = await getSubjects();
+        setSubjects(fetchedSubjects);
       } catch (error) {
+        console.error('Error fetching subjects:', error);
         setSubjects([]);
       }
       setLoading(false);
     };
     fetchSubjects();
-  }, [selectedGrade]);
+  }, []);
 
   // Filter subjects based on search and category
   useEffect(() => {
     let filtered = subjects;
     if (searchQuery) {
       filtered = filtered.filter(subject =>
-        subject.name.toLowerCase().includes(searchQuery.toLowerCase())
+        subject.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        subject.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     if (selectedCategory !== 'All') {
@@ -87,11 +87,10 @@ const AllSubjects = () => {
     setFilteredSubjects(filtered);
   }, [subjects, searchQuery, selectedCategory]);
 
-  const handleSubjectClick = (subject: string) => {
-    navigate(`/subject/${subject.toLowerCase().replace(/\s+/g, '-')}`);
+  const handleSubjectClick = (subject: SubjectType) => {
+    navigate(`/browse?subject=${encodeURIComponent(subject.name)}`);
   };
 
-  const totalLessons = subjects.reduce((sum, subject) => sum + (subject.lessonCount || 0), 0);
   const totalSubjects = subjects.length;
 
   return (

@@ -14,6 +14,7 @@ import Notification from './Notification.js';
 import Bundle from './Bundle.js';
 import Review from './Review.js';
 import Enrollment from './Enrollment.js';
+import Subject from './Subject.js';
 
 export {
   User,
@@ -28,6 +29,12 @@ export {
   SystemSettings,
   Cart,
   Wishlist,
+  Notification,
+  Bundle,
+  Review,
+  Enrollment,
+  Subject,
+};
   Notification,
   Bundle,
   Review,

@@ -88,6 +88,8 @@ const BrowseCourses = () => {
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [showOnlyPurchased, setShowOnlyPurchased] = useState(false);
+  const [loadedGrades, setLoadedGrades] = useState<Set<string>>(new Set());
+  const [isLoadingBackground, setIsLoadingBackground] = useState(false);
   
   // Preview dialog state
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -98,7 +100,7 @@ const BrowseCourses = () => {
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const terms = ["Term 1", "Term 2", "Term 3"];
+  const terms = ["First Term", "Second Term", "Third Term"];
   const grades = ["1", "2", "3", "4", "5", "6", "Common Entrance"];
 
   // Animation variants
@@ -144,9 +146,17 @@ const BrowseCourses = () => {
 
   useEffect(() => {
     if (enrollments.length >= 0) {
-      fetchCourses();
+      // Load student's grade first, then others in background
+      if (studentGrade && !loadedGrades.has(studentGrade)) {
+        fetchCoursesForGrade(studentGrade);
+      } else if (selectedGrade !== 'all' && !loadedGrades.has(selectedGrade)) {
+        fetchCoursesForGrade(selectedGrade);
+      } else if (loadedGrades.size === 0) {
+        // Initial load - load first available grade
+        fetchCoursesForGrade(grades[0]);
+      }
     }
-  }, [enrollments]);
+  }, [enrollments, studentGrade, selectedGrade]);
 
   useEffect(() => {
     filterAndSortCourses();
@@ -176,6 +186,11 @@ const BrowseCourses = () => {
     if (selectedSubject !== 'all') params.set('subject', selectedSubject);
     if (selectedTerm !== 'all') params.set('term', selectedTerm);
     setSearchParams(params);
+    
+    // Load courses for newly selected grade if not loaded
+    if (selectedGrade !== 'all' && !loadedGrades.has(selectedGrade)) {
+      fetchCoursesForGrade(selectedGrade);
+    }
   }, [searchQuery, selectedGrade, selectedSubject, selectedTerm, setSearchParams]);
 
   const fetchStudentInfo = async () => {
@@ -199,88 +214,125 @@ const BrowseCourses = () => {
     }
   };
 
-  const fetchCourses = async () => {
+  const fetchCoursesForGrade = async (grade: string) => {
+    if (loadedGrades.has(grade)) return; // Already loaded
+    
     try {
-      setLoading(true);
-      const allCourses: Course[] = [];
-      const subjectsSet = new Set<string>();
+      setLoading(loadedGrades.size === 0); // Only show main loading on first load
+      
+      const gradeValue = grade === "Common Entrance" ? "Common Entrance" : grade;
+      const newCourses: Course[] = [];
+      const subjectsSet = new Set(availableSubjects);
 
-      // Fetch courses for all grades
-      for (const grade of grades) {
-        try {
-          const gradeValue = grade === "Common Entrance" ? "Common Entrance" : grade;
-          const terms = await getTermsByGrade(gradeValue);
+      const terms = await getTermsByGrade(gradeValue);
 
-          for (const term of terms) {
-            const subjects = await getSubjectsByGrade(gradeValue, term.name);
+      // Fetch all subjects for all terms in parallel
+      const subjectsPromises = terms.map(term => 
+        getSubjectsByGrade(gradeValue, term.name)
+          .then(subjects => ({ term: term.name, subjects }))
+          .catch(err => {
+            console.error(`Error fetching subjects for ${gradeValue} ${term.name}:`, err);
+            return { term: term.name, subjects: [] };
+          })
+      );
 
-            for (const subject of subjects) {
-              subjectsSet.add(subject.name);
-              
-              const lessons = await getLessonsBySubjectAndGrade(
-                subject.name,
-                gradeValue,
-                term.name
-              );
+      const termSubjects = await Promise.all(subjectsPromises);
 
-              if (lessons.length > 0) {
-                // Calculate quiz count - estimate based on lesson count
-                const quizCount = Math.floor(lessons.length * 0.7); // ~70% of lessons have quizzes
-                
-                // Check if enrolled from database enrollments (not just progress)
-                const enrolled = enrollments.some(e => 
-                  e.subject === subject.name && 
-                  e.grade === gradeValue && 
-                  e.term === term.name
-                );
-                
-                // Calculate completion based on progress
-                const courseProgress = userProgress.filter(p => 
-                  lessons.some(l => l.id === p.lessonId)
-                );
-                const completedCount = courseProgress.filter(p => p.completed).length;
-                const completionRate = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
-                
-                const validDifficulty = subject.difficulty && 
-                  ['beginner', 'intermediate', 'advanced', 'easy', 'medium', 'hard', 'Beginner', 'Intermediate', 'Advanced'].includes(subject.difficulty)
-                  ? subject.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'easy' | 'medium' | 'hard' | 'Beginner' | 'Intermediate' | 'Advanced'
-                  : 'beginner' as const;
-                
-                allCourses.push({
-                  id: `${grade}-${term.name}-${subject.name}`,
-                  subject: subject.name,
-                  grade: grade,
-                  term: term.name,
-                  lessonCount: lessons.length,
-                  quizCount,
-                  description: `Master ${subject.name} concepts for ${grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`} - ${term.name}. Build strong foundations and ace your tests.`,
-                  difficulty: validDifficulty,
-                  estimatedHours: subject.duration ? Math.ceil(subject.duration / 60) : Math.ceil(lessons.length * 0.5),
-                  completionRate,
-                  enrolled,
-                  price: subject.price || 0,
-                  rating: subject.rating || 0,
-                  studentCount: subject.enrolledStudents || 0
-                });
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`Error fetching courses for grade ${grade}:`, error);
+      // Fetch lessons for all subject-term combinations in parallel (with limit)
+      const lessonPromises = termSubjects.flatMap(({ term, subjects }) =>
+        subjects.map(subject =>
+          getLessonsBySubjectAndGrade(subject.name, gradeValue, term)
+            .then(lessons => ({ subject, term, lessons, gradeValue }))
+            .catch(err => {
+              console.error(`Error fetching lessons for ${subject.name}:`, err);
+              return { subject, term, lessons: [], gradeValue };
+            })
+        )
+      );
+
+      const allLessons = await Promise.all(lessonPromises);
+
+      // Process all results
+      allLessons.forEach(({ subject, term, lessons, gradeValue }) => {
+        if (lessons.length > 0) {
+          subjectsSet.add(subject.name);
+          
+          const quizCount = Math.floor(lessons.length * 0.7);
+          const enrolled = enrollments.some(e => 
+            e.subject === subject.name && 
+            e.grade === gradeValue && 
+            e.term === term
+          );
+          
+          const courseProgress = userProgress.filter(p => 
+            lessons.some(l => l.id === p.lessonId)
+          );
+          const completedCount = courseProgress.filter(p => p.completed).length;
+          const completionRate = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+          
+          const validDifficulty = subject.difficulty && 
+            ['beginner', 'intermediate', 'advanced', 'easy', 'medium', 'hard', 'Beginner', 'Intermediate', 'Advanced'].includes(subject.difficulty)
+            ? subject.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'easy' | 'medium' | 'hard' | 'Beginner' | 'Intermediate' | 'Advanced'
+            : 'beginner' as const;
+          
+          newCourses.push({
+            id: `${grade}-${term}-${subject.name}`,
+            subject: subject.name,
+            grade: grade,
+            term: term,
+            lessonCount: lessons.length,
+            quizCount,
+            description: `Master ${subject.name} concepts for ${grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`} - ${term}. Build strong foundations and ace your tests.`,
+            difficulty: validDifficulty,
+            estimatedHours: subject.duration ? Math.ceil(subject.duration / 60) : Math.ceil(lessons.length * 0.5),
+            completionRate,
+            enrolled,
+            price: subject.price || 0,
+            rating: subject.rating || 0,
+            studentCount: subject.enrolledStudents || 0
+          });
         }
-      }
+      });
 
       setAvailableSubjects(Array.from(subjectsSet).sort());
-      setCourses(allCourses);
+      setCourses(prev => [...prev, ...newCourses]);
+      setLoadedGrades(prev => new Set([...prev, grade]));
+      
+      // Load other grades in background after initial load
+      if (loadedGrades.size === 0) {
+        setTimeout(() => loadRemainingGrades(grade), 100);
+      }
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      console.error(`Error fetching courses for grade ${grade}:`, error);
       toast({
         title: "Error",
-        description: "Failed to load courses. Please try again.",
+        description: `Failed to load courses for grade ${grade}.`,
         variant: "destructive"
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRemainingGrades = async (excludeGrade: string) => {
+    setIsLoadingBackground(true);
+    const remainingGrades = grades.filter(g => g !== excludeGrade && !loadedGrades.has(g));
+    
+    for (const grade of remainingGrades) {
+      await fetchCoursesForGrade(grade);
+      // Small delay to prevent overwhelming the server
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    setIsLoadingBackground(false);
+  };
+
+  const fetchCourses = async () => {
+    // Legacy function - redirect to new implementation
+    if (studentGrade) {
+      await fetchCoursesForGrade(studentGrade);
+    } else {
+      await fetchCoursesForGrade(grades[0]);
     }
   };
 
@@ -635,11 +687,6 @@ const BrowseCourses = () => {
                   </SelectContent>
                 </Select>
               </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -749,15 +796,23 @@ const BrowseCourses = () => {
               </div>
             ) : (
               <div>
-                <h2 className="text-2xl font-bold mb-1">
+                <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
                   {filteredCourses.length === 0 ? 'No Courses Found' : 
                    filteredCourses.length === 1 ? '1 Course Available' : 
                    `${filteredCourses.length} Courses Available`}
+                  {isLoadingBackground && (
+                    <span title="Loading more courses in background">
+                      <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+                    </span>
+                  )}
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {filteredCourses.filter(c => c.enrolled).length} enrolled • {filteredCourses.length - filteredCourses.filter(c => c.enrolled).length} available
                   {displayedCourses.length < filteredCourses.length && (
                     <> • Showing {displayedCourses.length} of {filteredCourses.length}</>
+                  )}
+                  {isLoadingBackground && (
+                    <> • Loading more grades...</>
                   )}
                 </p>
               </div>
