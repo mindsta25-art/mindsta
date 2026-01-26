@@ -57,7 +57,7 @@ export const SUBJECTS = [
 ] as const;
 
 export const TOAST_MESSAGES = {
-  LOGIN_SUCCESS: "Welcome back! Logged in successfully.",
+  LOGIN_SUCCESS: "Welcome back to Mindsta! Ready to continue your learning journey.",
   LOGIN_ERROR: "Failed to log in. Please check your credentials.",
   LOGOUT_SUCCESS: "Logged out successfully. See you next time!",
   SAVE_SUCCESS: "Changes saved successfully.",

@@ -36,12 +36,23 @@ const AdvancedSchema = new mongoose.Schema({
   coursesPerPage: { type: Number, default: 12, min: 6, max: 48 },
 }, { _id: false });
 
+const SalesStatsSchema = new mongoose.Schema({
+  totalSales: { type: Number, default: 0 }, // Total number of sales transactions
+  totalRevenue: { type: Number, default: 0 }, // Total revenue in kobo (divide by 100 for Naira)
+  totalItems: { type: Number, default: 0 }, // Total items sold across all transactions
+  lastSaleDate: { type: Date, default: null },
+  monthlySales: { type: Number, default: 0 }, // Current month sales count
+  monthlyRevenue: { type: Number, default: 0 }, // Current month revenue in kobo (divide by 100 for Naira)
+  lastMonthReset: { type: Date, default: () => new Date() },
+}, { _id: false });
+
 const SystemSettingsSchema = new mongoose.Schema({
   general: { type: GeneralSchema, default: () => ({}) },
   notifications: { type: NotificationSchema, default: () => ({}) },
   security: { type: SecuritySchema, default: () => ({}) },
   appearance: { type: AppearanceSchema, default: () => ({}) },
   advanced: { type: AdvancedSchema, default: () => ({}) },
+  salesStats: { type: SalesStatsSchema, default: () => ({}) },
 }, { timestamps: true });
 
 // Singleton constraint: ensure only one settings document

@@ -1,5 +1,7 @@
 import express from 'express';
 import Cart from '../models/Cart.js';
+import Topic from '../models/Topic.js';
+import { Lesson } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -7,7 +9,9 @@ const router = express.Router();
 // Get user's cart
 router.get('/', requireAuth, async (req, res) => {
   try {
-    let cart = await Cart.findOne({ userId: req.user.id });
+    let cart = await Cart.findOne({ userId: req.user.id })
+      .populate('items.topicId')
+      .populate('items.lessonId');
     
     if (!cart) {
       // Create empty cart if doesn't exist
@@ -26,13 +30,131 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// Add item to cart
+// Add topic to cart
+router.post('/add-topic', requireAuth, async (req, res) => {
+  try {
+    console.log('[Cart] POST /add-topic called by user:', req.user?.id);
+    console.log('[Cart] Request body:', req.body);
+    
+    const { topicId } = req.body;
+
+    if (!topicId) {
+      return res.status(400).json({ message: 'Topic ID is required' });
+    }
+
+    // Fetch topic details
+    const topic = await Topic.findById(topicId);
+    if (!topic) {
+      return res.status(404).json({ message: 'Topic not found' });
+    }
+
+    let cart = await Cart.findOne({ userId: req.user.id });
+
+    if (!cart) {
+      cart = new Cart({
+        userId: req.user.id,
+        items: [],
+      });
+    }
+
+    // Check if topic already exists in cart
+    const existingItem = cart.items.find(
+      item => item.itemType === 'topic' && item.topicId?.toString() === topicId
+    );
+
+    if (existingItem) {
+      return res.status(400).json({ message: 'Topic already in cart' });
+    }
+
+    // Add new topic to cart
+    cart.items.push({
+      itemType: 'topic',
+      topicId: topic._id,
+      title: topic.title,
+      subject: topic.subject,
+      grade: topic.grade,
+      term: topic.term,
+      price: topic.price,
+      imageUrl: topic.imageUrl,
+      addedAt: new Date(),
+    });
+
+    await cart.save();
+    await cart.populate('items.topicId');
+
+    res.json({ message: 'Topic added to cart', cart });
+  } catch (error) {
+    console.error('[Cart] Error in POST /add-topic:', error);
+    res.status(500).json({ message: 'Error adding topic to cart', error: error.message });
+  }
+});
+
+// Add lesson to cart
+router.post('/add-lesson', requireAuth, async (req, res) => {
+  try {
+    console.log('[Cart] POST /add-lesson called by user:', req.user?.id);
+    console.log('[Cart] Request body:', req.body);
+    
+    const { lessonId } = req.body;
+
+    if (!lessonId) {
+      return res.status(400).json({ message: 'Lesson ID is required' });
+    }
+
+    // Fetch lesson details
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ message: 'Lesson not found' });
+    }
+
+    let cart = await Cart.findOne({ userId: req.user.id });
+
+    if (!cart) {
+      cart = new Cart({
+        userId: req.user.id,
+        items: [],
+      });
+    }
+
+    // Check if lesson already exists in cart
+    const existingItem = cart.items.find(
+      item => item.itemType === 'lesson' && item.lessonId?.toString() === lessonId
+    );
+
+    if (existingItem) {
+      return res.status(400).json({ message: 'Lesson already in cart' });
+    }
+
+    // Add new lesson to cart
+    cart.items.push({
+      itemType: 'lesson',
+      lessonId: lesson._id,
+      title: lesson.title,
+      subject: lesson.subject,
+      grade: lesson.grade,
+      term: lesson.term,
+      price: lesson.price,
+      imageUrl: lesson.imageUrl,
+      addedAt: new Date(),
+    });
+
+    await cart.save();
+    await cart.populate('items.lessonId');
+
+    res.json({ message: 'Lesson added to cart', cart });
+  } catch (error) {
+    console.error('[Cart] Error in POST /add-lesson:', error);
+    res.status(500).json({ message: 'Error adding lesson to cart', error: error.message });
+  }
+});
+
+// Legacy add item endpoint (for backward compatibility)
 router.post('/add', requireAuth, async (req, res) => {
   try {
     console.log('[Cart] POST /add called by user:', req.user?.id);
     console.log('[Cart] Request body:', req.body);
     
-    const { subject, grade, term, price = 0 } = req.body;
+    const { subject, grade, term, price = 0, title = 'Item' } = req.body;
 
     if (!subject || !grade) {
       console.log('[Cart] Validation failed: missing subject or grade');
@@ -62,6 +184,8 @@ router.post('/add', requireAuth, async (req, res) => {
 
     // Add new item
     cart.items.push({
+      itemType: 'subject',
+      title,
       subject,
       grade,
       term,

@@ -1,5 +1,5 @@
 import express from 'express';
-import { Student, Lesson, Quiz, UserProgress, User, Payment, Referral, ReferralTransaction, Enrollment } from '../models/index.js';
+import { Student, Lesson, Quiz, UserProgress, User, Payment, Referral, ReferralTransaction, Enrollment, SystemSettings } from '../models/index.js';
 import { requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -258,7 +258,8 @@ router.get('/overview', requireAdmin, async (req, res) => {
       totalRevenue,
       activeUsers,
       totalEnrollments,
-      uniquePurchasers
+      uniquePurchasers,
+      settings
     ] = await Promise.all([
       User.countDocuments(),
       Student.countDocuments(),
@@ -272,7 +273,8 @@ router.get('/overview', requireAdmin, async (req, res) => {
         createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
       }),
       Enrollment.countDocuments(),
-      Enrollment.distinct('userId')
+      Enrollment.distinct('userId'),
+      SystemSettings.getSingleton()
     ]);
 
     const conversionRate = totalStudents > 0 
@@ -284,17 +286,39 @@ router.get('/overview', requireAdmin, async (req, res) => {
       { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
     ]);
 
+    // Get sales stats from SystemSettings (persistent storage)
+    const salesStats = settings?.salesStats || {};
+    
+    // Use persistent sales stats as primary source, fallback to Payment aggregation if needed
+    const persistentTotalRevenue = (salesStats.totalRevenue || 0) / 100;
+    const aggregatedTotalRevenue = (totalRevenue[0]?.total || 0) / 100;
+    
+    // Prefer persistent stats, use aggregated only as fallback
+    const finalTotalRevenue = salesStats.totalRevenue ? persistentTotalRevenue : aggregatedTotalRevenue;
+
     res.json({
       totalUsers,
       totalStudents,
       paidStudents,
       totalReferrals,
-      totalRevenue: (totalRevenue[0]?.total || 0) / 100,
+      totalRevenue: finalTotalRevenue, // Use persistent stats
       totalCommissions: (totalCommissions[0]?.total || 0) / 100,
       conversionRate: parseFloat(conversionRate),
       activeUsers,
       totalEnrollments,
-      totalPurchasers: uniquePurchasers.length
+      totalPurchasers: uniquePurchasers.length,
+      // Include persistent sales stats
+      salesStats: {
+        totalSales: salesStats.totalSales || 0,
+        totalRevenue: persistentTotalRevenue,
+        totalItems: salesStats.totalItems || 0,
+        monthlySales: salesStats.monthlySales || 0,
+        monthlyRevenue: (salesStats.monthlyRevenue || 0) / 100,
+        lastSaleDate: salesStats.lastSaleDate,
+        averageOrderValue: salesStats.totalSales > 0 
+          ? ((salesStats.totalRevenue / salesStats.totalSales) / 100).toFixed(2)
+          : 0,
+      }
     });
   } catch (error) {
     console.error('Error fetching overview analytics:', error);

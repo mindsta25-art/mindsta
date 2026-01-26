@@ -26,7 +26,6 @@ import { BookOpen } from "lucide-react";
 import { signUp, signIn, requestPasswordReset } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { signInSchema, signUpSchema, SignInFormData, SignUpFormData } from "@/lib/validations";
-import mindstaLogo from "../assets/icons/mindsta2.png";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -199,11 +198,13 @@ const Auth = () => {
       <Card className="w-full max-w-md p-8 bg-white/95 dark:bg-card shadow-2xl border-4 border-purple-300 relative z-10">
         <div className="flex flex-col items-center mb-8">
           <div className="p-4 rounded-3xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 mb-4 animate-pulse">
-            <img src={mindstaLogo} alt="Mindsta Logo" className="w-12 h-12 object-contain" />
+            <div className="p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
           </div>
           <h1 className="text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</h1>
           <p className="text-muted-foreground mt-2 font-bold text-lg">
-            {isLogin ? "Welcome Back! " : `Join the Fun! `}
+            {isLogin ? "Welcome Back to Excellence! " : `Begin Your Learning Journey! `}
           </p>
           {/* Removed alt statement from logo as requested */}
           {!isLogin && (
@@ -376,7 +377,7 @@ const Auth = () => {
             className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 text-white font-black text-lg py-6 shadow-lg hover:shadow-xl transition-all hover:scale-105"
             disabled={loading}
           >
-            {loading ? "Please wait... " : isLogin ? "Let's Go! " : "Start Learning! "}
+            {loading ? "Processing... " : isLogin ? "Access Account " : "Begin Learning Journey! "}
           </Button>
         </form>
 
@@ -397,7 +398,7 @@ const Auth = () => {
             className="text-purple-600 dark:text-purple-400 hover:underline font-bold text-base"
           >
             {isLogin
-              ? "New here? Join the fun! "
+              ? "New here? Begin your journey! "
               : "Already a member? Log in! "}
           </button>
         </div>

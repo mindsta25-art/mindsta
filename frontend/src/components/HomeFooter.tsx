@@ -87,12 +87,14 @@ export const HomeFooter = () => {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <div className="flex flex-col items-center mb-2">
-              <img src="/mindsta2.png" alt="Mindsta Logo" className="h-14 w-auto block mb-2" />
+              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg inline-block mb-2">
+                <BookOpen className="w-8 h-8 text-white" />
+              </div>
             </div>
             <p className="text-sm text-gray-300 mb-4 sm:mb-6 leading-relaxed">
-              Empowering students with quality education. Access thousands of lessons, 
-              track your progress, and achieve your academic goals with our comprehensive 
-              learning platform.
+              Empowering minds through exceptional education. Access comprehensive lessons, 
+              track your learning journey, and achieve academic excellence with our 
+              innovative platform designed for student success.
             </p>
             
             {/* Newsletter */}

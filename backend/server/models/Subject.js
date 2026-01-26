@@ -50,7 +50,7 @@ SubjectSchema.pre('save', function(next) {
 
 // Index for faster queries
 SubjectSchema.index({ isActive: 1, order: 1 });
-SubjectSchema.index({ name: 1 });
+// Note: name index is defined in schema with unique: true, so no need to add here
 
 const Subject = mongoose.model('Subject', SubjectSchema);
 

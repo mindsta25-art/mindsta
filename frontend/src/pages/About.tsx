@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, BookOpen, Target, Clock, Palette, Edit, Timer, Sparkles } from "lucide-react";
-import mindstaLogo from "../assets/icons/mindsta2.png";
 
 const About = () => {
   const navigate = useNavigate();
@@ -64,12 +63,14 @@ const About = () => {
             </Button>
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 shadow-lg">
-                <img src={mindstaLogo} alt="Mindsta Logo" className="w-8 h-8 object-contain" />
+                <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
+                  <BookOpen className="w-4 h-4 text-white" />
+                </div>
                 <span className="text-base font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</span>
               </div>
               <div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
-                <span className="text-xs block text-muted-foreground">Learn • Grow • Excel</span>
+                <span className="text-xs block text-muted-foreground">Learn • Excel • Achieve</span>
               </div>
             </div>
           </div>
@@ -88,9 +89,9 @@ const About = () => {
             About <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-4xl mx-auto">
-            Remembering and retaining of lessons can be difficult, but you don't have to do it alone.
+            Mastering and retaining knowledge shouldn't be a solitary challenge.
             <span className="block mt-4 font-semibold text-purple-600 dark:text-purple-400">
-              Mindsta is built to be the ultimate support system for the modern student, transforming how you learn and retain information.
+              Mindsta delivers comprehensive educational support, revolutionizing how students learn, engage, and excel academically.
             </span>
           </p>
         </div>
@@ -131,7 +132,7 @@ const About = () => {
             <CardContent className="p-12 text-center">
               <div className="text-6xl mb-6">✨</div>
               <h2 className="text-4xl md:text-5xl font-black text-foreground mb-6 leading-tight">
-                Welcome to <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
+                Welcome to <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span> – Your Partner in Educational Excellence
               </h2>
               <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
                 Where every child can do well.

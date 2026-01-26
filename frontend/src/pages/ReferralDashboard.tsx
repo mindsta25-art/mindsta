@@ -500,12 +500,12 @@ export default function ReferralDashboard() {
 
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-2">9. Intellectual Property</h4>
-                    <p>You may use Mindsta branding and materials for referral purposes only. Do not modify logos, create derivative works, or use our brand in a way that implies endorsement without permission.</p>
+                    <p>You may use Mindsta branding materials exclusively for referral purposes. Our brand identity, including logos and design elements, must not be modified or used in ways that imply unauthorized endorsement. Respect our intellectual property while promoting educational excellence.</p>
                   </div>
 
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-2">10. Changes to Terms</h4>
-                    <p>Mindsta may update these terms at any time. Continued participation after changes constitutes acceptance of the new terms. We will notify you of significant changes via email.</p>
+                    <p>Mindsta reserves the right to update these terms as our platform evolves. Continued participation signifies acceptance of revised terms. We will communicate significant changes through email notifications to ensure transparency.</p>
                   </div>
 
                   <div>

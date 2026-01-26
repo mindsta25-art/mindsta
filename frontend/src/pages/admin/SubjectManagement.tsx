@@ -50,6 +50,11 @@ const CATEGORIES = ['Core', 'Science', 'Social', 'Languages', 'Arts', 'Technolog
 const COLORS = ['blue', 'purple', 'green', 'teal', 'orange', 'red', 'pink', 'indigo', 'yellow'];
 const ICONS = ['BookOpen', 'Calculator', 'Computer', 'Flask', 'Globe', 'Palette', 'Music', 'Heart', 'Briefcase'];
 
+// Helper to safely get subject ID
+const getSubjectId = (subject: Subject): string => {
+  return subject._id || subject.id || '';
+};
+
 const SubjectManagement = () => {
   const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -74,14 +79,18 @@ const SubjectManagement = () => {
   const fetchSubjects = async () => {
     try {
       setLoading(true);
+      console.log('[fetchSubjects] Fetching subjects...');
       const data = await getAllSubjects();
-      setSubjects(data);
+      console.log('[fetchSubjects] Received subjects:', data);
+      setSubjects(data || []);
     } catch (error: any) {
+      console.error('[fetchSubjects] Error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to load subjects',
         variant: 'destructive'
       });
+      setSubjects([]);
     } finally {
       setLoading(false);
     }
@@ -127,17 +136,36 @@ const SubjectManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Subject name is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
+      console.log('[handleSubmit] Form data:', formData);
+      
       if (editingSubject) {
-        await updateSubject(editingSubject._id, formData);
+        const subjectId = getSubjectId(editingSubject);
+        if (!subjectId) {
+          throw new Error('Subject ID is missing');
+        }
+        console.log('[handleSubmit] Updating subject:', subjectId);
+        await updateSubject(subjectId, formData);
         toast({
           title: 'Success',
           description: 'Subject updated successfully'
         });
       } else {
-        await createSubject(formData);
+        console.log('[handleSubmit] Creating new subject');
+        const result = await createSubject(formData);
+        console.log('[handleSubmit] Subject created:', result);
         toast({
           title: 'Success',
           description: 'Subject created successfully'
@@ -145,8 +173,9 @@ const SubjectManagement = () => {
       }
       
       handleCloseDialog();
-      fetchSubjects();
+      await fetchSubjects(); // Wait for fetch to complete
     } catch (error: any) {
+      console.error('[handleSubmit] Error:', error);
       toast({
         title: 'Error',
         description: error.response?.data?.error || error.message || 'Operation failed',
@@ -159,13 +188,18 @@ const SubjectManagement = () => {
 
   const handleToggleStatus = async (subject: Subject) => {
     try {
-      await toggleSubjectStatus(subject._id);
+      const subjectId = getSubjectId(subject);
+      if (!subjectId) {
+        throw new Error('Subject ID is missing');
+      }
+      await toggleSubjectStatus(subjectId);
       toast({
         title: 'Success',
         description: `Subject ${subject.isActive ? 'deactivated' : 'activated'} successfully`
       });
       fetchSubjects();
     } catch (error: any) {
+      console.error('[handleToggleStatus] Error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to toggle status',
@@ -180,13 +214,18 @@ const SubjectManagement = () => {
     }
 
     try {
-      await deleteSubject(subject._id);
+      const subjectId = getSubjectId(subject);
+      if (!subjectId) {
+        throw new Error('Subject ID is missing');
+      }
+      await deleteSubject(subjectId);
       toast({
         title: 'Success',
         description: 'Subject deleted successfully'
       });
       fetchSubjects();
     } catch (error: any) {
+      console.error('[handleDelete] Error:', error);
       toast({
         title: 'Error',
         description: error.response?.data?.error || error.message || 'Failed to delete subject',
@@ -241,55 +280,62 @@ const SubjectManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {subjects.map((subject) => (
-                    <TableRow key={subject._id}>
-                      <TableCell className="font-medium">{subject.order}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full bg-${subject.color}-500`} />
-                          {subject.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{subject.category}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-md truncate">
-                        {subject.description}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={subject.isActive ? 'default' : 'secondary'}>
-                          {subject.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleStatus(subject)}
-                            title={subject.isActive ? 'Deactivate' : 'Activate'}
-                          >
-                            <Power className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenDialog(subject)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(subject)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {subjects.map((subject) => {
+                    if (!subject || !subject._id) {
+                      console.warn('[SubjectTable] Invalid subject:', subject);
+                      return null;
+                    }
+                    
+                    return (
+                      <TableRow key={subject._id}>
+                        <TableCell className="font-medium">{subject.order || 0}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full bg-${subject.color || 'blue'}-500`} />
+                            {subject.name || 'Unnamed'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{subject.category || 'Core'}</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {subject.description || ''}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={subject.isActive ? 'default' : 'secondary'}>
+                            {subject.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleStatus(subject)}
+                              title={subject.isActive ? 'Deactivate' : 'Activate'}
+                            >
+                              <Power className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenDialog(subject)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(subject)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }).filter(Boolean)}
                 </TableBody>
               </Table>
             )}
@@ -308,7 +354,7 @@ const SubjectManagement = () => {
               <DialogDescription>
                 {editingSubject 
                   ? 'Update subject information below'
-                  : 'Create a new subject for students to learn'}
+                  : 'Enter the subject name to add it to the database'}
               </DialogDescription>
             </DialogHeader>
             
@@ -324,85 +370,89 @@ const SubjectManagement = () => {
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="category">Category *</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {editingSubject && (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="category">Category *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
-                <Input
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Brief description of the subject"
-                />
-              </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Input
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Brief description of the subject"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="icon">Icon</Label>
-                  <Select
-                    value={formData.icon}
-                    onValueChange={(value) => setFormData({ ...formData, icon: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ICONS.map((icon) => (
-                        <SelectItem key={icon} value={icon}>{icon}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="icon">Icon</Label>
+                      <Select
+                        value={formData.icon}
+                        onValueChange={(value) => setFormData({ ...formData, icon: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ICONS.map((icon) => (
+                            <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="color">Color</Label>
-                  <Select
-                    value={formData.color}
-                    onValueChange={(value) => setFormData({ ...formData, color: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COLORS.map((color) => (
-                        <SelectItem key={color} value={color}>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded bg-${color}-500`} />
-                            {color}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="color">Color</Label>
+                      <Select
+                        value={formData.color}
+                        onValueChange={(value) => setFormData({ ...formData, color: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COLORS.map((color) => (
+                            <SelectItem key={color} value={color}>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-4 h-4 rounded bg-${color}-500`} />
+                                {color}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="order">Display Order</Label>
-                <Input
-                  id="order"
-                  type="number"
-                  value={formData.order}
-                  onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
-                  placeholder="0"
-                  min="0"
-                />
-              </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="order">Display Order</Label>
+                    <Input
+                      id="order"
+                      type="number"
+                      value={formData.order}
+                      onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             <DialogFooter>

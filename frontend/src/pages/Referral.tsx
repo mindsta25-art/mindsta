@@ -15,7 +15,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import mindstaLogo from "../assets/icons/mindsta2.png";
 import { 
   BookOpen, 
   LogOut, 
@@ -257,7 +256,9 @@ const Referral = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 animate-pulse">
-                <img src={mindstaLogo} alt="Mindsta Logo" className="w-6 h-6 object-contain" />
+                <div className="p-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
+                  <BookOpen className="w-3 h-3 text-white" />
+                </div>
               </div>
               <div>
                 <h1 className="text-2xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</h1>

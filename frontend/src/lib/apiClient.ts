@@ -7,15 +7,20 @@
 const getApiBaseUrl = () => {
   // First check for environment variable
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+    const url = import.meta.env.VITE_API_URL;
+    // Log for debugging
+    console.log('Using VITE_API_URL from env:', url);
+    return url;
   }
   
   // In production, use Railway backend URL (hardcoded fallback)
   if (import.meta.env.PROD || import.meta.env.MODE === 'production') {
+    console.log('Production mode: using Railway URL');
     return 'https://mindstabackend2-production-d53e.up.railway.app/api';
   }
   
   // In development, use localhost
+  console.log('Development mode: using localhost');
   return 'http://localhost:3000/api';
 };
 

@@ -13,7 +13,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import mindstaLogo from "../assets/icons/mindsta2.png";
+import { BookOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -86,17 +86,15 @@ const StudentFooterComponent = () => {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <img 
-                src={mindstaLogo} 
-                alt="Mindsta Logo" 
-                className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
-              />
+              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </div>
               <span className="text-lg sm:text-xl font-bold">Mindsta</span>
             </div>
             <p className="text-sm text-gray-300 mb-4 sm:mb-6 leading-relaxed">
-              Empowering students with quality education. Access thousands of lessons, 
-              track your progress, and achieve your academic goals with our comprehensive 
-              learning platform.
+              Empowering minds through quality education. Access comprehensive lessons, 
+              track your learning journey, and achieve academic excellence with our 
+              innovative platform designed for student success.
             </p>
             
             {/* Newsletter */}

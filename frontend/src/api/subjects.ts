@@ -22,8 +22,26 @@ export const getSubjects = async (): Promise<Subject[]> => {
 
 // Get all subjects including inactive (admin only)
 export const getAllSubjects = async (): Promise<Subject[]> => {
-  const response = await api.get('/subjects/all');
-  return response.data.map((s: any) => ({ ...s, id: s._id }));
+  try {
+    const response = await api.get('/subjects/all');
+    console.log('[getAllSubjects] Response:', response.data);
+    
+    if (!response.data || !Array.isArray(response.data)) {
+      console.error('[getAllSubjects] Invalid response format:', response.data);
+      return [];
+    }
+    
+    return response.data.map((s: any) => {
+      if (!s || !s._id) {
+        console.warn('[getAllSubjects] Subject missing _id:', s);
+        return null;
+      }
+      return { ...s, id: s._id };
+    }).filter((s): s is Subject => s !== null);
+  } catch (error) {
+    console.error('[getAllSubjects] Error:', error);
+    throw error;
+  }
 };
 
 // Get single subject
@@ -34,14 +52,42 @@ export const getSubjectById = async (id: string): Promise<Subject> => {
 
 // Create new subject (admin only)
 export const createSubject = async (data: Partial<Subject>): Promise<Subject> => {
-  const response = await api.post('/subjects', data);
-  return { ...response.data, id: response.data._id };
+  try {
+    console.log('[createSubject] Sending data:', data);
+    const response = await api.post('/subjects', data);
+    console.log('[createSubject] Full response:', response);
+    console.log('[createSubject] Response data:', response.data);
+    console.log('[createSubject] Response status:', response.status);
+    
+    if (!response || response.status !== 201) {
+      console.error('[createSubject] Unexpected response status:', response?.status);
+    }
+    
+    if (!response.data) {
+      console.error('[createSubject] No data in response');
+      throw new Error('No data returned from server');
+    }
+    
+    const subject = response.data;
+    if (!subject._id && !subject.id) {
+      console.error('[createSubject] Subject missing ID:', subject);
+      throw new Error('Invalid subject data returned');
+    }
+    
+    return { ...subject, id: subject._id || subject.id };
+  } catch (error: any) {
+    console.error('[createSubject] Full error object:', error);
+    console.error('[createSubject] Error response:', error.response);
+    console.error('[createSubject] Error message:', error.message);
+    throw error;
+  }
 };
 
 // Update subject (admin only)
 export const updateSubject = async (id: string, data: Partial<Subject>): Promise<Subject> => {
   const response = await api.put(`/subjects/${id}`, data);
-  return { ...response.data, id: response.data._id };
+  const subject = response.data;
+  return { ...subject, id: subject._id || subject.id };
 };
 
 // Delete subject (admin only)

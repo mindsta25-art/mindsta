@@ -20,6 +20,7 @@ import {
 import { LoadingScreen } from "@/components/ui/loading";
 import { getDashboardStats, getOverviewStats, getRecentPurchases } from "@/api";
 import { getSalesAnalytics, SalesAnalytics } from "@/api/payments";
+import { getSalesStats, SalesStats } from "@/api/admin";
 import {
   LineChart,
   Line,
@@ -80,6 +81,7 @@ const AdminDashboard = () => {
   const [gradeDistribution, setGradeDistribution] = useState<any[]>([]);
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
   const [salesAnalytics, setSalesAnalytics] = useState<SalesAnalytics | null>(null);
+  const [salesStats, setSalesStats] = useState<SalesStats | null>(null);
 
   const COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b'];
 
@@ -88,7 +90,17 @@ const AdminDashboard = () => {
     fetchAnalyticsData();
     fetchRecentPurchases();
     fetchSalesAnalytics();
+    fetchSalesStats();
   }, []);
+
+  const fetchSalesStats = async () => {
+    try {
+      const data = await getSalesStats();
+      setSalesStats(data);
+    } catch (error) {
+      console.error('Error fetching sales stats:', error);
+    }
+  };
 
   const fetchSalesAnalytics = async () => {
     try {
@@ -192,10 +204,17 @@ const AdminDashboard = () => {
     },
     {
       title: "Total Revenue",
-      value: salesAnalytics?.totalRevenue ? `₦${salesAnalytics.totalRevenue.toLocaleString()}` : (stats.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : '₦0'),
+      value: salesStats?.formattedTotalRevenue || (salesAnalytics?.totalRevenue ? `₦${salesAnalytics.totalRevenue.toLocaleString()}` : (stats.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : '₦0')),
       icon: DollarSign,
-      description: `${salesAnalytics?.totalTransactions || 0} transactions`,
+      description: `${salesStats?.totalSales || salesAnalytics?.totalTransactions || 0} transactions`,
       color: "text-emerald-500",
+    },
+    {
+      title: "Monthly Revenue",
+      value: salesStats?.formattedMonthlyRevenue || '₦0',
+      icon: ShoppingCart,
+      description: `${salesStats?.monthlySales || 0} sales this month`,
+      color: "text-teal-500",
     },
     {
       title: "Total Referrals",
@@ -234,7 +253,7 @@ const AdminDashboard = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Welcome to the Mindsta admin panel. Monitor and manage your educational platform.
+            Welcome to Mindsta's Administrative Excellence Portal. Monitor, manage, and elevate your educational platform.
           </p>
         </div>
 
@@ -324,6 +343,51 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Sales Statistics Card */}
+            {salesStats && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-emerald-500" />
+                    Sales Statistics
+                  </CardTitle>
+                  <CardDescription>
+                    Comprehensive sales performance metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Total Sales</p>
+                      <p className="text-2xl font-bold">{salesStats.totalSales.toLocaleString()}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Total Items Sold</p>
+                      <p className="text-2xl font-bold">{salesStats.totalItems.toLocaleString()}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Average Order Value</p>
+                      <p className="text-2xl font-bold">₦{typeof salesStats.averageOrderValue === 'number' ? salesStats.averageOrderValue.toLocaleString() : salesStats.averageOrderValue}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Monthly Sales</p>
+                      <p className="text-2xl font-bold text-green-500">{salesStats.monthlySales.toLocaleString()}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Monthly Revenue</p>
+                      <p className="text-2xl font-bold text-green-500">{salesStats.formattedMonthlyRevenue}</p>
+                    </div>
+                    {salesStats.lastSaleDate && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Last Sale</p>
+                        <p className="text-lg font-semibold">{new Date(salesStats.lastSaleDate).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="recent" className="space-y-4">

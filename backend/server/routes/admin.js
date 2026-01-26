@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { requireAdmin } from '../middleware/auth.js';
-import { User } from '../models/index.js';
+import { User, SystemSettings } from '../models/index.js';
 
 const router = express.Router();
 
@@ -113,6 +113,46 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Delete user error:', err);
     return res.status(500).json({ error: 'Failed to delete user', message: err.message });
+  }
+});
+
+// Get sales statistics
+// GET /api/admin/sales-stats
+router.get('/sales-stats', requireAdmin, async (req, res) => {
+  try {
+    const settings = await SystemSettings.getSingleton();
+    
+    if (!settings.salesStats) {
+      return res.json({
+        totalSales: 0,
+        totalRevenue: 0,
+        totalItems: 0,
+        lastSaleDate: null,
+        monthlySales: 0,
+        monthlyRevenue: 0,
+        formattedTotalRevenue: '₦0',
+        formattedMonthlyRevenue: '₦0',
+      });
+    }
+
+    const stats = settings.salesStats;
+    
+    return res.json({
+      totalSales: stats.totalSales || 0,
+      totalRevenue: (stats.totalRevenue || 0) / 100, // Convert from kobo to naira
+      totalItems: stats.totalItems || 0,
+      lastSaleDate: stats.lastSaleDate,
+      monthlySales: stats.monthlySales || 0,
+      monthlyRevenue: (stats.monthlyRevenue || 0) / 100, // Convert from kobo to naira
+      formattedTotalRevenue: `₦${((stats.totalRevenue || 0) / 100).toLocaleString()}`,
+      formattedMonthlyRevenue: `₦${((stats.monthlyRevenue || 0) / 100).toLocaleString()}`,
+      averageOrderValue: stats.totalSales > 0 
+        ? ((stats.totalRevenue / stats.totalSales) / 100).toFixed(2)
+        : 0,
+    });
+  } catch (err) {
+    console.error('Get sales stats error:', err);
+    return res.status(500).json({ error: 'Failed to fetch sales statistics', message: err.message });
   }
 });
 

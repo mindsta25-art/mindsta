@@ -100,6 +100,9 @@ const BrowseCourses = () => {
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const isInitialLoad = useRef(true);
+  const isFetchingRef = useRef(false);
+
   const terms = ["First Term", "Second Term", "Third Term"];
   const grades = ["1", "2", "3", "4", "5", "6", "Common Entrance"];
 
@@ -119,6 +122,102 @@ const BrowseCourses = () => {
     }
   };
 
+  // Define callback functions first before useEffects
+  const filterAndSortCourses = useCallback(() => {
+    let filtered = [...courses];
+
+    // Filter by purchased status
+    if (showOnlyPurchased) {
+      filtered = filtered.filter(course => course.enrolled);
+    }
+
+    // Apply filters
+    if (searchQuery) {
+      filtered = filtered.filter(course =>
+        course.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        course.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    if (selectedGrade !== 'all') {
+      filtered = filtered.filter(course => course.grade === selectedGrade);
+    }
+
+    if (selectedSubject !== 'all') {
+      filtered = filtered.filter(course => course.subject === selectedSubject);
+    }
+
+    if (selectedTerm !== 'all') {
+      filtered = filtered.filter(course => course.term === selectedTerm);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'alphabetical':
+          return a.subject.localeCompare(b.subject);
+        case 'newest':
+          return b.lessonCount - a.lessonCount;
+        case 'popular':
+        default:
+          return (b.lessonCount + b.quizCount) - (a.lessonCount + a.quizCount);
+      }
+    });
+
+    setFilteredCourses(filtered);
+  }, [courses, showOnlyPurchased, searchQuery, selectedGrade, selectedSubject, selectedTerm, sortBy]);
+
+  const updateAvailableSubjects = useCallback(() => {
+    // Filter courses by selected grade first, then extract unique subjects
+    let coursesToCheck = [...courses];
+    
+    // If a specific grade is selected, only get subjects for that grade
+    if (selectedGrade !== 'all') {
+      coursesToCheck = coursesToCheck.filter(course => course.grade === selectedGrade);
+    }
+    
+    // Extract unique subjects from the filtered courses
+    const subjectsSet = new Set(coursesToCheck.map(course => course.subject));
+    const sortedSubjects = Array.from(subjectsSet).sort();
+    
+    // Only update if we have subjects OR if courses are loaded
+    if (sortedSubjects.length > 0 || courses.length > 0) {
+      setAvailableSubjects(prev => {
+        const prevStr = prev.join(',');
+        const newStr = sortedSubjects.join(',');
+        // Only update if actually different to prevent infinite loop
+        return prevStr !== newStr ? sortedSubjects : prev;
+      });
+    }
+    
+    // Reset selected subject if it's not available in the new grade
+    if (selectedSubject !== 'all' && sortedSubjects.length > 0 && !sortedSubjects.includes(selectedSubject)) {
+      setSelectedSubject('all');
+    }
+  }, [courses, selectedGrade, selectedSubject]);
+
+  const fetchStudentInfo = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const [studentData, progress, enrollmentsData] = await Promise.all([
+        getStudentByUserId(user.id),
+        getUserProgress(user.id),
+        getEnrollments()
+      ]);
+      
+      setStudentGrade(studentData.grade);
+      if (selectedGrade === 'all') {
+        setSelectedGrade(studentData.grade);
+      }
+
+      setUserProgress(progress);
+      setEnrollments(enrollmentsData);
+    } catch (error) {
+      console.error('Error fetching student info:', error);
+    }
+  }, [user?.id, selectedGrade]);
+
+  // useEffects after function definitions
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -130,7 +229,7 @@ const BrowseCourses = () => {
     };
     loadSettings();
     fetchStudentInfo();
-  }, []);
+  }, [fetchStudentInfo]);
 
   // Refetch enrollments when page becomes visible (e.g., after purchase)
   useEffect(() => {
@@ -142,26 +241,35 @@ const BrowseCourses = () => {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user]);
+  }, [user, fetchStudentInfo]);
 
   useEffect(() => {
-    if (enrollments.length >= 0) {
-      // Load student's grade first, then others in background
+    // Only fetch on initial load or when enrollments are fetched
+    if (enrollments.length >= 0 && loadedGrades.size === 0) {
+      // Load student's grade first
       if (studentGrade && !loadedGrades.has(studentGrade)) {
         fetchCoursesForGrade(studentGrade);
-      } else if (selectedGrade !== 'all' && !loadedGrades.has(selectedGrade)) {
-        fetchCoursesForGrade(selectedGrade);
-      } else if (loadedGrades.size === 0) {
+      } else {
         // Initial load - load first available grade
         fetchCoursesForGrade(grades[0]);
       }
     }
-  }, [enrollments, studentGrade, selectedGrade]);
+  }, [enrollments]);
+
+  // Separate effect for fetching courses when grade changes
+  useEffect(() => {
+    if (selectedGrade !== 'all' && !loadedGrades.has(selectedGrade) && loadedGrades.size > 0) {
+      fetchCoursesForGrade(selectedGrade);
+    }
+  }, [selectedGrade]);
 
   useEffect(() => {
     filterAndSortCourses();
+  }, [filterAndSortCourses]);
+
+  useEffect(() => {
     updateAvailableSubjects();
-  }, [searchQuery, selectedGrade, selectedSubject, selectedTerm, sortBy, courses, showOnlyPurchased]);
+  }, [updateAvailableSubjects]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -186,43 +294,18 @@ const BrowseCourses = () => {
     if (selectedSubject !== 'all') params.set('subject', selectedSubject);
     if (selectedTerm !== 'all') params.set('term', selectedTerm);
     setSearchParams(params);
-    
-    // Load courses for newly selected grade if not loaded
-    if (selectedGrade !== 'all' && !loadedGrades.has(selectedGrade)) {
-      fetchCoursesForGrade(selectedGrade);
-    }
   }, [searchQuery, selectedGrade, selectedSubject, selectedTerm, setSearchParams]);
 
-  const fetchStudentInfo = async () => {
-    if (!user?.id) return;
-    try {
-      const [studentData, progress, enrollmentsData] = await Promise.all([
-        getStudentByUserId(user.id),
-        getUserProgress(user.id),
-        getEnrollments()
-      ]);
-      
-      setStudentGrade(studentData.grade);
-      if (selectedGrade === 'all') {
-        setSelectedGrade(studentData.grade);
-      }
-
-      setUserProgress(progress);
-      setEnrollments(enrollmentsData);
-    } catch (error) {
-      console.error('Error fetching student info:', error);
-    }
-  };
-
   const fetchCoursesForGrade = async (grade: string) => {
-    if (loadedGrades.has(grade)) return; // Already loaded
+    if (loadedGrades.has(grade) || isFetchingRef.current) return; // Already loaded or currently fetching
     
     try {
+      isFetchingRef.current = true;
       setLoading(loadedGrades.size === 0); // Only show main loading on first load
       
       const gradeValue = grade === "Common Entrance" ? "Common Entrance" : grade;
       const newCourses: Course[] = [];
-      const subjectsSet = new Set(availableSubjects);
+      const subjectsSet = new Set<string>();
 
       const terms = await getTermsByGrade(gradeValue);
 
@@ -294,12 +377,17 @@ const BrowseCourses = () => {
         }
       });
 
-      setAvailableSubjects(Array.from(subjectsSet).sort());
+      // Merge with existing subjects instead of replacing
+      setAvailableSubjects(prev => {
+        const merged = new Set([...prev, ...Array.from(subjectsSet)]);
+        return Array.from(merged).sort();
+      });
       setCourses(prev => [...prev, ...newCourses]);
       setLoadedGrades(prev => new Set([...prev, grade]));
       
       // Load other grades in background after initial load
-      if (loadedGrades.size === 0) {
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false;
         setTimeout(() => loadRemainingGrades(grade), 100);
       }
     } catch (error) {
@@ -311,6 +399,7 @@ const BrowseCourses = () => {
       });
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -333,71 +422,6 @@ const BrowseCourses = () => {
       await fetchCoursesForGrade(studentGrade);
     } else {
       await fetchCoursesForGrade(grades[0]);
-    }
-  };
-
-  const filterAndSortCourses = () => {
-    let filtered = [...courses];
-
-    // Filter by purchased status
-    if (showOnlyPurchased) {
-      filtered = filtered.filter(course => course.enrolled);
-    }
-
-    // Apply filters
-    if (searchQuery) {
-      filtered = filtered.filter(course =>
-        course.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (selectedGrade !== 'all') {
-      filtered = filtered.filter(course => course.grade === selectedGrade);
-    }
-
-    if (selectedSubject !== 'all') {
-      filtered = filtered.filter(course => course.subject === selectedSubject);
-    }
-
-    if (selectedTerm !== 'all') {
-      filtered = filtered.filter(course => course.term === selectedTerm);
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'alphabetical':
-          return a.subject.localeCompare(b.subject);
-        case 'newest':
-          return b.lessonCount - a.lessonCount;
-        case 'popular':
-        default:
-          return (b.lessonCount + b.quizCount) - (a.lessonCount + a.quizCount);
-      }
-    });
-
-    setFilteredCourses(filtered);
-  };
-
-  const updateAvailableSubjects = () => {
-    // Filter courses by selected grade first, then extract unique subjects
-    let coursesToCheck = [...courses];
-    
-    // If a specific grade is selected, only get subjects for that grade
-    if (selectedGrade !== 'all') {
-      coursesToCheck = coursesToCheck.filter(course => course.grade === selectedGrade);
-    }
-    
-    // Extract unique subjects from the filtered courses
-    const subjectsSet = new Set(coursesToCheck.map(course => course.subject));
-    const sortedSubjects = Array.from(subjectsSet).sort();
-    
-    setAvailableSubjects(sortedSubjects);
-    
-    // Reset selected subject if it's not available in the new grade
-    if (selectedSubject !== 'all' && !sortedSubjects.includes(selectedSubject)) {
-      setSelectedSubject('all');
     }
   };
 
@@ -850,7 +874,30 @@ const BrowseCourses = () => {
               </Card>
             ))}
           </div>
+        ) : courses.length === 0 && !loading && !isLoadingBackground ? (
+          // No courses in database at all
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={fadeInUp}
+          >
+            <Card className="p-16 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 border-2 border-dashed border-gray-300 dark:border-gray-800">
+              <div className="text-center max-w-md mx-auto">
+                <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <BookOpen className="w-12 h-12 text-gray-500 dark:text-gray-400" />
+                </div>
+                <h3 className="text-2xl font-bold mb-3">No Courses Available</h3>
+                <p className="text-muted-foreground mb-4 text-lg">
+                  There are currently no courses available in the database. Please check back later or contact support.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  If you believe this is an error, try refreshing the page.
+                </p>
+              </div>
+            </Card>
+          </motion.div>
         ) : filteredCourses.length === 0 ? (
+          // Courses exist but filters returned nothing
           <motion.div
             initial="hidden"
             animate="visible"

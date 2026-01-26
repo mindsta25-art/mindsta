@@ -19,7 +19,9 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
-  Award
+  Award,
+  Layers,
+  BookMarked
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingScreen } from "@/components/ui/loading";
@@ -130,11 +132,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       path: "/admin/users",
     },
     {
-      icon: BookOpen,
-      label: "Subject Management",
-      path: "/admin/subjects",
-    },
-    {
       icon: Package,
       label: "Content Management",
       path: "/admin/content",
@@ -199,15 +196,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between">
             <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-              <img 
-                src="/assets/icons/mindsta2.png" 
-                alt="Mindsta Logo" 
-                className="w-10 h-10 object-contain"
-              />
+              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+                {/* <BookOpen className="w-6 h-6 text-white" /> */}
+              </div>
               {!sidebarCollapsed && (
                 <div>
                   <h1 className="text-lg font-bold text-foreground">Mindsta</h1>
-                  <p className="text-xs text-muted-foreground">Admin Panel</p>
+                  <p className="text-xs text-muted-foreground">Administrative Excellence</p>
                 </div>
               )}
             </div>
@@ -295,6 +290,22 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                           >
                             <Award className="w-4 h-4 flex-shrink-0" />
                             <span>Create Quiz</span>
+                          </Link>
+                          <Link
+                            to="/admin/topics"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+                          >
+                            <Layers className="w-4 h-4 flex-shrink-0" />
+                            <span>Topic Management</span>
+                          </Link>
+                          <Link
+                            to="/admin/subjects"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+                          >
+                            <BookMarked className="w-4 h-4 flex-shrink-0" />
+                            <span>Subject Management</span>
                           </Link>
                         </div>
                       )}

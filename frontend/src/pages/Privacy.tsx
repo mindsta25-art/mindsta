@@ -21,7 +21,7 @@ export default function Privacy() {
             </h1>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Welcome to Mindsta's Privacy Notice. We are committed to safeguarding the privacy of your information at all times.
+            Welcome to Mindsta's Privacy Notice. We maintain unwavering commitment to safeguarding your information and ensuring data privacy excellence.
           </p>
           <p className="text-sm text-muted-foreground mt-2">
             Last Updated: November 17, 2025

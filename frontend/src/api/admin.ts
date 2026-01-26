@@ -46,3 +46,35 @@ export const deactivateUser = async (id: string) => {
 export const deleteUser = async (id: string) => {
 	return api.delete(`/admin/users/${id}`);
 };
+
+export interface SalesStats {
+	totalSales: number;
+	totalRevenue: number;
+	totalItems: number;
+	lastSaleDate: string | null;
+	monthlySales: number;
+	monthlyRevenue: number;
+	formattedTotalRevenue: string;
+	formattedMonthlyRevenue: string;
+	averageOrderValue: string | number;
+}
+
+export const getSalesStats = async (): Promise<SalesStats> => {
+	try {
+		const res = await api.get('/admin/sales-stats');
+		return res;
+	} catch (error) {
+		console.error('Error fetching sales stats:', error);
+		return {
+			totalSales: 0,
+			totalRevenue: 0,
+			totalItems: 0,
+			lastSaleDate: null,
+			monthlySales: 0,
+			monthlyRevenue: 0,
+			formattedTotalRevenue: '₦0',
+			formattedMonthlyRevenue: '₦0',
+			averageOrderValue: 0,
+		};
+	}
+};

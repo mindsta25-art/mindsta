@@ -124,16 +124,16 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
         completedReferrals,
         conversionRate: totalReferrals > 0 ? (completedReferrals / totalReferrals * 100).toFixed(1) : 0,
         
-        // Earnings
+        // Earnings (convert from kobo to Naira)
         commissionRate: profile?.commissionRate || 0.1,
-        totalEarnings: profile?.totalEarnings || 0,
-        pendingEarnings: profile?.pendingEarnings || 0,
-        paidOutEarnings: profile?.paidOutEarnings || 0,
+        totalEarnings: (profile?.totalEarnings || 0) / 100,
+        pendingEarnings: (profile?.pendingEarnings || 0) / 100,
+        paidOutEarnings: (profile?.paidOutEarnings || 0) / 100,
         pendingTransactions,
       });
     }
     
-    // Calculate totals
+    // Calculate totals (convert from kobo to Naira)
     const totals = {
       totalReferrers: overview.length,
       totalReferrals: overview.reduce((sum, r) => sum + r.totalReferrals, 0),
@@ -462,10 +462,10 @@ router.get('/me/dashboard', requireAuth, async (req, res) => {
       completedReferrals,
       conversionRate: parseFloat(conversionRate),
       
-      // Earnings
-      totalEarnings: profile.totalEarnings || 0,
-      pendingEarnings: profile.pendingEarnings || 0,
-      paidOutEarnings: profile.paidOutEarnings || 0,
+      // Earnings (convert from kobo to Naira)
+      totalEarnings: (profile.totalEarnings || 0) / 100,
+      pendingEarnings: (profile.pendingEarnings || 0) / 100,
+      paidOutEarnings: (profile.paidOutEarnings || 0) / 100,
       commissionRate: profile.commissionRate || 0.1,
       
       // Bank details status
@@ -478,18 +478,18 @@ router.get('/me/dashboard', requireAuth, async (req, res) => {
         referredUserName: ref.referredUserId?.fullName || 'Pending',
         referredUserId: ref.referredUserId?._id?.toString(),
         status: ref.status,
-        rewardAmount: ref.rewardAmount,
+        rewardAmount: (ref.rewardAmount || 0) / 100,
         createdAt: ref.createdAt,
         registeredAt: ref.referredUserId?.createdAt,
       })),
       
-      // Recent transactions
+      // Recent transactions (convert from kobo to Naira)
       recentTransactions: recentTransactions.map(tx => ({
         id: tx._id.toString(),
         studentName: tx.studentId?.fullName || 'Unknown',
         studentEmail: tx.studentId?.email,
-        amountPaid: tx.amountPaid,
-        commissionAmount: tx.commissionAmount,
+        amountPaid: (tx.amountPaid || 0) / 100,
+        commissionAmount: (tx.commissionAmount || 0) / 100,
         status: tx.status,
         paymentReference: tx.paymentId?.reference,
         createdAt: tx.createdAt,
@@ -568,8 +568,8 @@ router.get('/me/transactions', requireAuth, async (req, res) => {
       userId: t.userId.toString(),
       studentId: t.studentId?.toString(),
       paymentId: t.paymentId?.toString(),
-      amountPaid: t.amountPaid,
-      commissionAmount: t.commissionAmount,
+      amountPaid: (t.amountPaid || 0) / 100, // Convert from kobo to Naira
+      commissionAmount: (t.commissionAmount || 0) / 100, // Convert from kobo to Naira
       status: t.status,
       paidAt: t.paidAt,
       createdAt: t.createdAt,

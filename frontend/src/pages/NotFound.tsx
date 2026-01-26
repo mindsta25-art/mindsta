@@ -1,6 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import mindstaLogo from "../assets/icons/mindsta2.png";
+import { BookOpen } from "lucide-react";
 
 const NotFound = () => {
   const location = useLocation();
@@ -13,7 +13,9 @@ const NotFound = () => {
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="text-center">
         <div className="mb-6 flex justify-center items-center gap-3">
-          <img src={mindstaLogo} alt="Mindsta Logo" className="w-20 h-20 rounded-xl object-contain" />
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-2xl">
+            <BookOpen className="w-10 h-10 text-white" />
+          </div>
           <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</h2>
         </div>
         <h1 className="mb-4 text-4xl font-bold">404</h1>

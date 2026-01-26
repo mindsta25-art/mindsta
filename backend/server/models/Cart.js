@@ -1,6 +1,26 @@
 import mongoose from 'mongoose';
 
 const cartItemSchema = new mongoose.Schema({
+  // Item type: 'topic' or 'lesson'
+  itemType: {
+    type: String,
+    enum: ['topic', 'lesson', 'subject'],
+    default: 'lesson',
+  },
+  // Reference to Topic or Lesson
+  topicId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Topic',
+  },
+  lessonId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Lesson',
+  },
+  // Metadata for quick access
+  title: {
+    type: String,
+    required: true,
+  },
   subject: {
     type: String,
     required: true,
@@ -17,6 +37,9 @@ const cartItemSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 0,
+  },
+  imageUrl: {
+    type: String,
   },
   addedAt: {
     type: Date,

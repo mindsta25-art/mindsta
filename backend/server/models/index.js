@@ -15,6 +15,7 @@ import Bundle from './Bundle.js';
 import Review from './Review.js';
 import Enrollment from './Enrollment.js';
 import Subject from './Subject.js';
+import Topic from './Topic.js';
 
 export {
   User,
@@ -34,4 +35,5 @@ export {
   Review,
   Enrollment,
   Subject,
+  Topic,
 };

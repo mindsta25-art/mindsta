@@ -19,10 +19,13 @@ router.get('/', async (req, res) => {
 // Get all subjects including inactive (admin only)
 router.get('/all', requireAdmin, async (req, res) => {
   try {
+    console.log('[GET /api/subjects/all] Request received');
     const subjects = await Subject.find().sort({ order: 1, name: 1 });
+    console.log('[GET /api/subjects/all] Found subjects:', subjects.length);
+    console.log('[GET /api/subjects/all] Subjects:', subjects.map(s => ({ name: s.name, _id: s._id, isActive: s.isActive })));
     res.json(subjects);
   } catch (error) {
-    console.error('Error fetching all subjects:', error);
+    console.error('[GET /api/subjects/all] Error fetching all subjects:', error);
     res.status(500).json({ error: 'Failed to fetch subjects' });
   }
 });
@@ -44,29 +47,37 @@ router.get('/:id', async (req, res) => {
 // Create new subject (admin only)
 router.post('/', requireAdmin, async (req, res) => {
   try {
+    console.log('[SubjectCreate] Request body:', req.body);
     const { name, category, description, icon, color, order } = req.body;
 
+    if (!name || !name.trim()) {
+      console.log('[SubjectCreate] Error: Missing subject name');
+      return res.status(400).json({ error: 'Subject name is required' });
+    }
+
     // Check if subject already exists
-    const existing = await Subject.findOne({ name: new RegExp(`^${name}$`, 'i') });
+    const existing = await Subject.findOne({ name: new RegExp(`^${name.trim()}$`, 'i') });
     if (existing) {
+      console.log('[SubjectCreate] Error: Subject already exists:', name);
       return res.status(400).json({ error: 'Subject already exists' });
     }
 
     const subject = new Subject({
-      name,
-      category,
-      description,
-      icon,
-      color,
+      name: name.trim(),
+      category: category || 'Core',
+      description: description || '',
+      icon: icon || 'BookOpen',
+      color: color || 'blue',
       order: order || 0,
       isActive: true
     });
 
     await subject.save();
+    console.log('[SubjectCreate] Success: Created subject:', subject.name, subject._id);
     res.status(201).json(subject);
   } catch (error) {
-    console.error('Error creating subject:', error);
-    res.status(500).json({ error: 'Failed to create subject' });
+    console.error('[SubjectCreate] Error creating subject:', error);
+    res.status(500).json({ error: 'Failed to create subject', details: error.message });
   }
 });
 

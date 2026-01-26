@@ -6,7 +6,7 @@ const PaymentSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     studentId: { type: Schema.Types.ObjectId, ref: 'Student' },
-    amount: { type: Number, required: true }, // Stored in base currency units (e.g. NGN Naira, not kobo)
+    amount: { type: Number, required: true }, // Stored in Naira (e.g. 5000 for ₦5,000, not 500000 kobo)
     currency: { type: String, default: 'NGN' },
     reference: { type: String, required: true, unique: true },
     status: { type: String, enum: ['initialized','pending','success','failed','abandoned'], default: 'initialized', index: true },

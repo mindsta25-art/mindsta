@@ -163,7 +163,7 @@ const Index = () => {
       { text: "Mastery Through Practice: Curated sets of 49+ key questions per subject to solidify knowledge.", emoji: "💪"},
       { text: "Timed Exam Simulation: Build speed, accuracy, and real test confidence.", emoji: "⏱️" }
     ],
-    tagline: "Welcome to Mindsta—where every child can do well."
+    tagline: "Welcome to Mindsta—where educational excellence meets innovation."
   };
 
   return (
@@ -186,7 +186,9 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <img src="/assets/icons/mindsta2.png" alt="Mindsta Logo" className="w-10 h-10 object-contain" />
+              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
+                <BookOpen className="w-6 h-6 text-white" />
+              </div>
               <div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
                 <span className="text-xs block text-muted-foreground">Learn • Play • Grow! </span>
@@ -288,12 +290,12 @@ const Index = () => {
           </h1>
           
           <p className="text-2xl md:text-3xl font-bold text-purple-600 dark:text-purple-400 max-w-3xl mx-auto animate-in slide-in-from-bottom duration-700 delay-100 leading-relaxed">
-            Where Learning Feels Like Playing! 🚀
+            Where Learning Transforms Into Adventure! 🚀
           </p>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto animate-in slide-in-from-bottom duration-700 delay-200">
-            Cool lessons, fun games, and awesome prizes for grades 1-6! 
-            Get ready for the most exciting learning adventure ever! ✨
+            Engaging lessons, interactive experiences, and rewarding achievements for grades 1-6! 
+            Embark on an extraordinary educational journey designed for excellence! ✨
           </p>
 
           <div className="flex flex-wrap justify-center gap-4 mt-8 animate-in fade-in duration-700 delay-200">

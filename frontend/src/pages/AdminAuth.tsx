@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Mail, Lock, ArrowLeft, Menu, X } from "lucide-react";
+import { Shield, Mail, Lock, ArrowLeft, Menu, X, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { adminSignIn } from "@/api";
-import mindstaLogo from "../assets/icons/mindsta2.png";
 
 const AdminAuth = () => {
   const navigate = useNavigate();
@@ -110,11 +109,11 @@ const AdminAuth = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
-                <img src={mindstaLogo} alt="Mindsta Logo" className="w-6 h-6 object-contain" />
+                <BookOpen className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Mindsta Admin</h1>
-                <span className="text-xs text-muted-foreground font-medium">Secure Access Portal</span>
+                <span className="text-xs text-muted-foreground font-medium">Administrative Excellence Portal</span>
               </div>
             </div>
             

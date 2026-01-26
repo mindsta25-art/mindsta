@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, BookOpen, Calendar, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getSubjectsByGrade, SubjectInfo } from "@/api/lessons";
-import mindstaLogo from "../assets/icons/mindsta2.png";
 
 const TermSelection = () => {
   const { grade, term } = useParams<{ grade: string; term: string }>();
@@ -81,7 +80,9 @@ const TermSelection = () => {
                 {getGradeDisplayName()} • {getTermDisplayName()}
               </h1>
             </div>
-            <img src={mindstaLogo} alt="Mindsta Logo" className="w-10 h-10 rounded-lg object-contain" />
+            <div className="p-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
             <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</span>
           </div>
         </div>

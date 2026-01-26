@@ -1,11 +1,59 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
-import { Student, Payment, Referral, ReferralProfile, ReferralTransaction, User, Enrollment, Cart, Notification } from '../models/index.js';
+import { Student, Payment, Referral, ReferralProfile, ReferralTransaction, User, Enrollment, Cart, Notification, SystemSettings } from '../models/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { sendPaymentSuccessEmail, sendCommissionEarnedEmail } from '../services/emailService.js';
 
 const router = express.Router();
+
+// Helper to update sales statistics in SystemSettings
+async function updateSalesStats({ amount, itemCount }) {
+  try {
+    const settings = await SystemSettings.getSingleton();
+    
+    if (!settings.salesStats) {
+      settings.salesStats = {
+        totalSales: 0,
+        totalRevenue: 0,
+        totalItems: 0,
+        lastSaleDate: null,
+        monthlySales: 0,
+        monthlyRevenue: 0,
+        lastMonthReset: new Date()
+      };
+    }
+
+    // Check if we need to reset monthly stats
+    const now = new Date();
+    const lastReset = settings.salesStats.lastMonthReset || new Date();
+    const currentMonth = now.getMonth();
+    const lastResetMonth = lastReset.getMonth();
+    
+    if (currentMonth !== lastResetMonth) {
+      // New month - reset monthly stats
+      settings.salesStats.monthlySales = 0;
+      settings.salesStats.monthlyRevenue = 0;
+      settings.salesStats.lastMonthReset = now;
+    }
+
+    // Update statistics (convert amount from Naira to kobo for consistent storage)
+    const amountInKobo = Math.round(amount * 100);
+    settings.salesStats.totalSales += 1;
+    settings.salesStats.totalRevenue += amountInKobo;
+    settings.salesStats.totalItems += (itemCount || 0);
+    settings.salesStats.lastSaleDate = now;
+    settings.salesStats.monthlySales += 1;
+    settings.salesStats.monthlyRevenue += amountInKobo;
+
+    await settings.save();
+    
+    console.log(`[Sales Stats Updated] Total Sales: ${settings.salesStats.totalSales}, Total Revenue: ₦${(settings.salesStats.totalRevenue / 100).toLocaleString()}`);
+  } catch (error) {
+    console.error('[Sales Stats Update Error]', error.message);
+    // Don't fail the payment if stats update fails
+  }
+}
 
 // Helper to generate unique Paystack reference
 function generateReference(userId) {
@@ -98,7 +146,7 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
         // Create in-app notification for referrer
         await Notification.create({
           title: '🎉 Commission Earned!',
-          message: `You earned ₦${commission.toLocaleString()} commission from a referral purchase! Amount paid: ₦${amount.toLocaleString()}.`,
+          message: `You earned ₦${(commission / 100).toLocaleString()} commission from a referral purchase! Amount paid: ₦${(amount / 100).toLocaleString()}.`,
           type: 'success',
           priority: 'high',
           targetAudience: 'individual',
@@ -106,8 +154,8 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
           createdBy: userId,
           metadata: {
             transactionId: transaction._id.toString(),
-            commission,
-            amountPaid: amount,
+            commission: commission / 100,
+            amountPaid: amount / 100,
           }
         });
         
@@ -288,6 +336,12 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
         paymentId: payment._id
       });
       
+      // Update sales statistics in SystemSettings
+      await updateSalesStats({
+        amount: payment.amount,
+        itemCount: payment.items?.length || 0
+      });
+      
       // Referral commission
       await handleReferralCommission({ userId: req.user.id, studentId: student?._id, paymentId: payment._id, amount: payment.amount });
     }
@@ -392,6 +446,12 @@ router.post('/webhook', express.json(), async (req, res) => {
           amount: payment.amount,
           items: payment.items || [],
           paymentId: payment._id
+        });
+        
+        // Update sales statistics in SystemSettings
+        await updateSalesStats({
+          amount: payment.amount,
+          itemCount: payment.items?.length || 0
         });
         
         await handleReferralCommission({ userId: payment.userId, studentId: student?._id, paymentId: payment._id, amount: payment.amount });
