@@ -108,6 +108,8 @@ const Dashboard = () => {
     subjects,
     displayedSubjects,
     allGradeLessons,
+    enrollments,
+    isEnrolled,
     hasMoreSubjects,
     loadMoreSubjects,
     loadingTerms,
@@ -586,34 +588,50 @@ const Dashboard = () => {
 
                             {/* Mobile action buttons */}
                             <div className="grid grid-cols-2 gap-2 mt-2 md:hidden">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddToCart(subject.name, selectedGrade, selectedTerm, DEFAULT_LESSON_PRICE);
-                                }}
-                                disabled={isInCart(subject.name, selectedGrade || '', selectedTerm || '')}
-                              >
-                                {isInCart(subject.name, selectedGrade || '', selectedTerm || '')
-                                  ? 'In Cart'
-                                  : `Add (${formatNaira(DEFAULT_LESSON_PRICE)})`}
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="w-full"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddToWishlist(subject.name, selectedGrade, selectedTerm);
-                                }}
-                                disabled={isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')}
-                              >
-                                {isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')
-                                  ? 'Saved'
-                                  : 'Wishlist'}
-                              </Button>
+                              {isEnrolled(subject.name, selectedGrade, selectedTerm) ? (
+                                <Button
+                                  className="col-span-2 w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/subjects/${selectedGrade}/${subject.name}${selectedTerm ? `?term=${selectedTerm}` : ''}`);
+                                  }}
+                                >
+                                  <PlayCircle className="w-4 h-4 mr-2" />
+                                  Start Learning
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddToCart(subject.name, selectedGrade, selectedTerm, DEFAULT_LESSON_PRICE);
+                                    }}
+                                    disabled={isInCart(subject.name, selectedGrade || '', selectedTerm || '')}
+                                  >
+                                    {isInCart(subject.name, selectedGrade || '', selectedTerm || '')
+                                      ? 'In Cart'
+                                      : `Add (${formatNaira(DEFAULT_LESSON_PRICE)})`}
+                                  </Button>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddToWishlist(subject.name, selectedGrade, selectedTerm);
+                                    }}
+                                    disabled={isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')}
+                                  >
+                                    {isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')
+                                      ? 'Saved'
+                                      : 'Wishlist'}
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -656,37 +674,54 @@ const Dashboard = () => {
                             <p className="font-medium">{subject.lessonCount}</p>
                           </div>
                           <div className="grid grid-cols-2 gap-2 pt-2">
-                            <Button
-                              size="sm"
-                              className="w-full gap-2"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleAddToCart(subject.name, selectedGrade, selectedTerm, DEFAULT_LESSON_PRICE);
-                              }}
-                              disabled={isInCart(subject.name, selectedGrade || '', selectedTerm || '')}
-                            >
-                              <ShoppingCart className="w-4 h-4" />
-                              {isInCart(subject.name, selectedGrade || '', selectedTerm || '')
-                                ? 'In Cart'
-                                : `Add (${formatNaira(DEFAULT_LESSON_PRICE)})`}
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="w-full gap-2"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleAddToWishlist(subject.name, selectedGrade, selectedTerm);
-                              }}
-                              disabled={isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')}
-                            >
-                              <Heart className="w-4 h-4" />
-                              {isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')
-                                ? 'Saved'
-                                : 'Wishlist'}
-                            </Button>
+                            {isEnrolled(subject.name, selectedGrade, selectedTerm) ? (
+                              <Button
+                                className="col-span-2 w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 gap-2"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  navigate(`/subjects/${selectedGrade}/${subject.name}${selectedTerm ? `?term=${selectedTerm}` : ''}`);
+                                }}
+                              >
+                                <PlayCircle className="w-4 h-4" />
+                                Start Learning
+                              </Button>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="w-full gap-2"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleAddToCart(subject.name, selectedGrade, selectedTerm, DEFAULT_LESSON_PRICE);
+                                  }}
+                                  disabled={isInCart(subject.name, selectedGrade || '', selectedTerm || '')}
+                                >
+                                  <ShoppingCart className="w-4 h-4" />
+                                  {isInCart(subject.name, selectedGrade || '', selectedTerm || '')
+                                    ? 'In Cart'
+                                    : `Add (${formatNaira(DEFAULT_LESSON_PRICE)})`}
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="w-full gap-2"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleAddToWishlist(subject.name, selectedGrade, selectedTerm);
+                                  }}
+                                  disabled={isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')}
+                                >
+                                  <Heart className="w-4 h-4" />
+                                  {isInWishlist(subject.name, selectedGrade || '', selectedTerm || '')
+                                    ? 'Saved'
+                                    : 'Wishlist'}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </HoverCardContent>

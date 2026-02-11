@@ -495,13 +495,13 @@ export const AllGrades = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (gradeInfo.grade === "Common Entrance") {
-                        navigate(`/grade/common-entrance`);
+                        navigate(`/browse-topics/common-entrance`);
                       } else {
-                        navigate(`/grade/${gradeInfo.grade}`);
+                        navigate(`/browse-topics/${gradeInfo.grade}`);
                       }
                     }}
                   >
-                    Browse All Subjects
+                    Browse Topics
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </CardContent>

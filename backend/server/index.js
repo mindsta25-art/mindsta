@@ -30,6 +30,10 @@ import reviewRoutes from './routes/reviews.js';
 import enrollmentRoutes from './routes/enrollments.js';
 import subjectRoutes from './routes/subjects.js';
 import topicRoutes from './routes/topics.js';
+import suggestionRoutes from './routes/suggestions.js';
+import searchHistoryRoutes from './routes/search-history.js';
+import courseReviewRoutes from './routes/course-reviews.js';
+import courseQuestionRoutes from './routes/course-questions.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 // Load environment variables
@@ -99,7 +103,15 @@ if (IS_PRODUCTION) {
 // CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : ['http://localhost:8081', 'http://localhost:8080', 'http://localhost:8082', 'http://localhost:5173'];
+  : [
+      'http://localhost:8081', 
+      'http://localhost:8080', 
+      'http://localhost:8082', 
+      'http://localhost:5173',
+      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:808\d$/,  // Local network IPs (10.x.x.x:8080-8089)
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:808\d$/,  // Local network IPs (192.168.x.x:8080-8089)
+      /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}:808\d$/,  // Local network IPs (172.16-31.x.x:8080-8089)
+    ];
 
 // In production, also allow Vercel preview and production URLs
 if (IS_PRODUCTION) {
@@ -235,6 +247,10 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/topics', topicRoutes);
+app.use('/api/suggestions', suggestionRoutes);
+app.use('/api/search-history', searchHistoryRoutes);
+app.use('/api/course-reviews', courseReviewRoutes);
+app.use('/api/course-questions', courseQuestionRoutes);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);

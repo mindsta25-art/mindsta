@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";import { RichTextEditor } from "@/components/RichTextEditor";import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Plus, 
@@ -237,13 +236,12 @@ export const CurriculumBuilder = ({ curriculum, onChange }: CurriculumBuilderPro
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="sectionDescription">Section Description</Label>
-            <Textarea
-              id="sectionDescription"
+            <RichTextEditor
+              label="Section Description"
               value={sectionForm.description}
-              onChange={(e) => setSectionForm({ ...sectionForm, description: e.target.value })}
+              onChange={(value) => setSectionForm({ ...sectionForm, description: value })}
               placeholder="Optional: Describe what this section covers"
-              rows={2}
+              minHeight="80px"
             />
           </div>
           <Button onClick={addSection} disabled={!sectionForm.title.trim()} className="w-full gap-2">
@@ -269,11 +267,11 @@ export const CurriculumBuilder = ({ curriculum, onChange }: CurriculumBuilderPro
                           onChange={(e) => updateSection(sectionIdx, { title: e.target.value })}
                           placeholder="Section title"
                         />
-                        <Textarea
+                        <RichTextEditor
                           value={section.description || ""}
-                          onChange={(e) => updateSection(sectionIdx, { description: e.target.value })}
+                          onChange={(value) => updateSection(sectionIdx, { description: value })}
                           placeholder="Section description"
-                          rows={2}
+                          minHeight="80px"
                         />
                         <div className="flex gap-2">
                           <Button size="sm" onClick={() => setEditingSection(null)}>
@@ -391,11 +389,11 @@ export const CurriculumBuilder = ({ curriculum, onChange }: CurriculumBuilderPro
                               />
                             )}
                             {(lecture.type === 'article' || lecture.type === 'assignment') && (
-                              <Textarea
+                              <RichTextEditor
                                 value={lecture.content || ""}
-                                onChange={(e) => updateLecture(sectionIdx, lectureIdx, { content: e.target.value })}
-                                placeholder="Lecture content (Markdown supported)"
-                                rows={4}
+                                onChange={(value) => updateLecture(sectionIdx, lectureIdx, { content: value })}
+                                placeholder="Lecture content"
+                                minHeight="150px"
                               />
                             )}
                             <Input
@@ -593,12 +591,11 @@ export const CurriculumBuilder = ({ curriculum, onChange }: CurriculumBuilderPro
                       />
                     )}
                     {(lectureForm.type === 'article' || lectureForm.type === 'assignment') && (
-                      <Textarea
+                      <RichTextEditor
                         value={lectureForm.content}
-                        onChange={(e) => setLectureForm({ ...lectureForm, content: e.target.value })}
-                        placeholder="Content (Markdown supported)"
-                        rows={3}
-                        className="text-sm"
+                        onChange={(value) => setLectureForm({ ...lectureForm, content: value })}
+                        placeholder="Content"
+                        minHeight="120px"
                       />
                     )}
                     <Button 

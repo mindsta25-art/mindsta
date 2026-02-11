@@ -14,11 +14,17 @@ import { LoadingScreen } from '@/components/ui/loading';
 const Analytics = () => {
   const [analytics, setAnalytics] = useState<DetailedAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [dateRange, setDateRange] = useState<string>('30');
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const { toast } = useToast();
 
-  const fetchAnalytics = async () => {
-    setLoading(true);
+  const fetchAnalytics = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const endDate = new Date();
       const startDate = new Date();
@@ -84,12 +90,24 @@ const Analytics = () => {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchAnalytics();
   }, [dateRange]);
+
+  // Auto-refresh every 30 seconds when enabled
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      fetchAnalytics(true);
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, dateRange]);
 
   const handleExport = async (format: 'json' | 'csv') => {
     try {
@@ -175,9 +193,33 @@ const Analytics = () => {
             </SelectContent>
           </Select>
           
-          <Button variant="outline" size="sm" onClick={fetchAnalytics}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+          <Button 
+            variant={autoRefresh ? "default" : "outline"}
+            size="sm" 
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+            Auto-Refresh {autoRefresh ? 'ON' : 'OFF'}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => fetchAnalytics(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          
+          <Button
+            variant={autoRefresh ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            {autoRefresh ? 'Auto: ON' : 'Auto: OFF'}
           </Button>
           
           <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
@@ -193,48 +235,53 @@ const Analytics = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:scale-105">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Users</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.engagementMetrics.activeUsers}</div>
+            <div className="text-2xl font-bold transition-all">{analytics.engagementMetrics.activeUsers}</div>
             <p className="text-xs text-muted-foreground mt-1">Last {dateRange} days</p>
+            {refreshing && <div className="text-xs text-blue-600 mt-1">Updating...</div>}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:scale-105">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Time / Lesson</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.engagementMetrics.avgTimePerLesson} min</div>
+            <div className="text-2xl font-bold transition-all">{analytics.engagementMetrics.avgTimePerLesson} min</div>
             <p className="text-xs text-muted-foreground mt-1">Average session duration</p>
+            {refreshing && <div className="text-xs text-blue-600 mt-1">Updating...</div>}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:scale-105">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.engagementMetrics.completionRate}%</div>
+            <div className="text-2xl font-bold transition-all">{analytics.engagementMetrics.completionRate}%</div>
             <p className="text-xs text-muted-foreground mt-1">Lessons completed</p>
-            <Progress value={analytics.engagementMetrics.completionRate} className="mt-2" />
+            <Progress value={analytics.engagementMetrics.completionRate} className="mt-2 transition-all" />
+            {refreshing && <div className="text-xs text-blue-600 mt-1">Updating...</div>}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:scale-105">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Quiz Accuracy</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.engagementMetrics.quizAccuracy}%</div>
+            <div className="text-2xl font-bold transition-all">{analytics.engagementMetrics.quizAccuracy}%</div>
             <p className="text-xs text-muted-foreground mt-1">Average score</p>
+            <Progress value={analytics.engagementMetrics.quizAccuracy} className="mt-2 transition-all" />
+            {refreshing && <div className="text-xs text-blue-600 mt-1">Updating...</div>}
           </CardContent>
         </Card>
       </div>

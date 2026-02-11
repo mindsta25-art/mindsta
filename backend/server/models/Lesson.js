@@ -81,6 +81,10 @@ const LessonSchema = new Schema(
     subtitle: {
       type: String,
     },
+    // Overview field for student preview before purchase
+    overview: {
+      type: String,
+    },
     // Legacy content field for backward compatibility
     content: {
       type: String,

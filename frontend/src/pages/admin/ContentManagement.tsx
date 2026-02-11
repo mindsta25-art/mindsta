@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,7 +18,7 @@ import { CurriculumBuilder } from "@/components/CurriculumBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { getAllLessons, createLesson, updateLesson, deleteLesson, type Lesson, type Section } from "@/api/lessons";
 import { getAllQuizzes, createQuiz, updateQuiz, deleteQuiz, type Quiz, type QuizQuestion } from "@/api/quizzes";
-import { getSubjects, type Subject } from "@/api/subjects";
+import { getAllSubjects, type Subject } from "@/api/subjects";
 import { 
   Plus, 
   Search, 
@@ -88,6 +89,7 @@ const ContentManagement = () => {
     subtitle: "",
     description: "",
     content: "",
+    overview: "",
     subject: "",
     grade: "",
     term: "",
@@ -178,11 +180,11 @@ const ContentManagement = () => {
       const [lessonsData, quizzesData, subjectsData] = await Promise.all([
         getAllLessons(),
         getAllQuizzes(),
-        getSubjects(),
+        getAllSubjects(),
       ]);
       setLessons(lessonsData);
       setQuizzes(quizzesData);
-      setDbSubjects(subjectsData);
+      setDbSubjects(subjectsData || []);
     } catch (error) {
       toast({
         title: "Error",
@@ -274,6 +276,7 @@ const ContentManagement = () => {
       subtitle: "",
       description: "",
       content: "",
+      overview: "",
       subject: "",
       grade: "",
       term: "",
@@ -351,6 +354,7 @@ const ContentManagement = () => {
         subtitle: lesson.subtitle || "",
         description: lesson.description,
         content: lesson.content || "",
+        overview: (lesson as any).overview || "",
         subject: lesson.subject,
         grade: lesson.grade,
         term: lesson.term,
@@ -392,29 +396,63 @@ const ContentManagement = () => {
   const handleLessonSubmit = async () => {
     // Validate based on mode
     if (curriculumMode === "simple") {
-      if (!lessonForm.title || !lessonForm.description || !lessonForm.content || 
-          !lessonForm.subject || !lessonForm.grade || !lessonForm.term || !lessonForm.difficulty) {
+      const missingFields = [];
+      if (!lessonForm.title) missingFields.push("Title");
+      if (!lessonForm.description) missingFields.push("Description");
+      if (!lessonForm.content) missingFields.push("Content");
+      if (!lessonForm.subject) missingFields.push("Subject");
+      if (!lessonForm.grade) missingFields.push("Grade");
+      if (!lessonForm.term) missingFields.push("Term");
+      if (!lessonForm.difficulty) missingFields.push("Difficulty");
+
+      if (missingFields.length > 0) {
         toast({
-          title: "Validation Error",
-          description: "Please fill in all required fields (including term)",
+          title: "Missing Required Fields",
+          description: `Please fill in: ${missingFields.join(", ")}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (lessonForm.title.length < 5) {
+        toast({
+          title: "Invalid Title",
+          description: "Title must be at least 5 characters long",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (lessonForm.content.length < 50) {
+        toast({
+          title: "Insufficient Content",
+          description: "Please provide more detailed lesson content (at least 50 characters)",
           variant: "destructive",
         });
         return;
       }
     } else {
-      if (!lessonForm.title || !lessonForm.description || 
-          !lessonForm.subject || !lessonForm.grade || !lessonForm.term || !lessonForm.difficulty) {
+      const missingFields = [];
+      if (!lessonForm.title) missingFields.push("Title");
+      if (!lessonForm.description) missingFields.push("Description");
+      if (!lessonForm.subject) missingFields.push("Subject");
+      if (!lessonForm.grade) missingFields.push("Grade");
+      if (!lessonForm.term) missingFields.push("Term");
+      if (!lessonForm.difficulty) missingFields.push("Difficulty");
+
+      if (missingFields.length > 0) {
         toast({
-          title: "Validation Error",
-          description: "Please fill in all required fields",
+          title: "Missing Required Fields",
+          description: `Please fill in: ${missingFields.join(", ")}`,
           variant: "destructive",
         });
         return;
       }
+
       if (curriculum.length === 0) {
         toast({
-          title: "Validation Error",
-          description: "Please add at least one section to your curriculum",
+          title: "Empty Curriculum",
+          description: "Please add at least one section with lectures to your course curriculum",
           variant: "destructive",
         });
         return;
@@ -861,39 +899,62 @@ const ContentManagement = () => {
                   </TabsList>
 
                   <TabsContent value="simple" className="space-y-4 py-4">
+                    {/* Basic Information Card */}
                     <Card>
-                      <CardContent className="pt-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <BookOpen className="w-5 h-5" />
+                          Basic Lesson Information
+                        </CardTitle>
+                        <CardDescription>
+                          Enter the fundamental details about this lesson
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="title">Title *</Label>
+                            <Label htmlFor="title" className="text-sm font-medium">
+                              Lesson Title *
+                            </Label>
                             <Input
                               id="title"
                               value={lessonForm.title}
                               onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                              placeholder="Lesson title"
+                              placeholder="e.g., Introduction to Algebra"
+                              className="w-full"
                             />
+                            <p className="text-xs text-muted-foreground">Give your lesson a clear, descriptive title</p>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="subject">Subject *</Label>
+                            <Label htmlFor="subject" className="text-sm font-medium">
+                              Subject *
+                            </Label>
                             <Select value={lessonForm.subject} onValueChange={(value) => setLessonForm({ ...lessonForm, subject: value })}>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select subject" />
+                                <SelectValue placeholder="Choose a subject" />
                               </SelectTrigger>
                               <SelectContent>
-                                {dbSubjects.map((subject) => (
-                                  <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
-                                ))}
+                                {dbSubjects.length === 0 ? (
+                                  <SelectItem value="none" disabled>No subjects available - Create one first</SelectItem>
+                                ) : (
+                                  dbSubjects.map((subject) => (
+                                    <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
+                                  ))
+                                )}
                               </SelectContent>
                             </Select>
+                            <p className="text-xs text-muted-foreground">Select the academic subject</p>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="grade">Grade *</Label>
+                            <Label htmlFor="grade" className="text-sm font-medium">
+                              Grade Level *
+                            </Label>
                             <Select value={lessonForm.grade} onValueChange={(value) => setLessonForm({ ...lessonForm, grade: value })}>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select grade" />
+                                <SelectValue placeholder="Grade" />
                               </SelectTrigger>
                               <SelectContent>
                                 {[1, 2, 3, 4, 5, 6].map((g) => (
@@ -903,10 +964,12 @@ const ContentManagement = () => {
                             </Select>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="term">Term *</Label>
+                            <Label htmlFor="term" className="text-sm font-medium">
+                              Academic Term *
+                            </Label>
                             <Select value={lessonForm.term} onValueChange={(value) => setLessonForm({ ...lessonForm, term: value })}>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select term" />
+                                <SelectValue placeholder="Term" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="First Term">First Term</SelectItem>
@@ -916,77 +979,147 @@ const ContentManagement = () => {
                             </Select>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="difficulty">Difficulty *</Label>
+                            <Label htmlFor="difficulty" className="text-sm font-medium">
+                              Difficulty Level *
+                            </Label>
                             <Select value={lessonForm.difficulty} onValueChange={(value) => setLessonForm({ ...lessonForm, difficulty: value })}>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select difficulty" />
+                                <SelectValue placeholder="Difficulty" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="easy">Easy</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="hard">Hard</SelectItem>
+                                <SelectItem value="easy">🟢 Easy</SelectItem>
+                                <SelectItem value="medium">🟡 Medium</SelectItem>
+                                <SelectItem value="hard">🔴 Hard</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="duration">Duration (min)</Label>
+                            <Label htmlFor="duration" className="text-sm font-medium">
+                              Duration (minutes)
+                            </Label>
                             <Input
                               id="duration"
                               type="number"
+                              min="5"
+                              max="300"
                               value={lessonForm.duration}
                               onChange={(e) => setLessonForm({ ...lessonForm, duration: parseInt(e.target.value) || 30 })}
+                              placeholder="30"
                             />
+                            <p className="text-xs text-muted-foreground">Estimated completion time</p>
                           </div>
                         </div>
+                      </CardContent>
+                    </Card>
 
-                        <div className="grid grid-cols-2 gap-4">
+                    {/* Lesson Content Card */}
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Lesson Content & Media</CardTitle>
+                        <CardDescription>
+                          Add the main educational content and supporting materials
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <RichTextEditor
+                            label="Brief Description *"
+                            value={lessonForm.description}
+                            onChange={(value) => setLessonForm({ ...lessonForm, description: value })}
+                            placeholder="A short overview that helps students understand what they'll learn..."
+                            minHeight="120px"
+                          />
+                          <p className="text-xs text-muted-foreground">Keep it concise - this appears in lesson previews</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <RichTextEditor
+                            label="Course Overview (For Student Preview)"
+                            value={lessonForm.overview}
+                            onChange={(value) => setLessonForm({ ...lessonForm, overview: value })}
+                            placeholder="What will students learn in this course? List key topics, skills, and learning outcomes..."
+                            minHeight="150px"
+                          />
+                          <p className="text-xs text-muted-foreground">This overview helps students decide if this course is right for them before purchasing</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <RichTextEditor
+                            label="Full Lesson Content *"
+                            value={lessonForm.content}
+                            onChange={(value) => setLessonForm({ ...lessonForm, content: value })}
+                            placeholder="Write your complete lesson content here..."
+                            minHeight="400px"
+                          />
+                          <p className="text-xs text-muted-foreground">💡 Tip: Use the toolbar to format your content with headings, lists, bold, italics, and more</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="price">Price (₦)</Label>
+                            <Label htmlFor="videoUrl" className="text-sm font-medium">
+                              Video URL (Optional)
+                            </Label>
+                            <Input
+                              id="videoUrl"
+                              value={lessonForm.videoUrl}
+                              onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
+                              placeholder="https://youtube.com/embed/..."
+                              type="url"
+                            />
+                            <p className="text-xs text-muted-foreground">YouTube, Vimeo, or direct video link</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="imageUrl" className="text-sm font-medium">
+                              Thumbnail Image URL (Optional)
+                            </Label>
+                            <Input
+                              id="imageUrl"
+                              value={lessonForm.imageUrl}
+                              onChange={(e) => setLessonForm({ ...lessonForm, imageUrl: e.target.value })}
+                              placeholder="https://..."
+                              type="url"
+                            />
+                            <p className="text-xs text-muted-foreground">Cover image for the lesson card</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Pricing Card */}
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Pricing</CardTitle>
+                        <CardDescription>
+                          Set the price for this lesson
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="price" className="text-sm font-medium">
+                              Lesson Price (₦) *
+                            </Label>
                             <Input
                               id="price"
                               type="number"
                               min="0"
+                              step="100"
                               required
                               value={lessonForm.price}
                               onChange={(e) => setLessonForm({ ...lessonForm, price: parseInt(e.target.value) || 0 })}
-                              placeholder="Enter price in Naira"
+                              placeholder="0"
+                              className="text-lg"
                             />
+                            <p className="text-xs text-muted-foreground">
+                              {lessonForm.price === 0 
+                                ? "💚 This lesson will be FREE for students" 
+                                : `Students will pay ₦${lessonForm.price.toLocaleString()} for this lesson`}
+                            </p>
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="description">Description *</Label>
-                          <Textarea
-                            id="description"
-                            value={lessonForm.description}
-                            onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
-                            placeholder="Brief description of the lesson"
-                            rows={3}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="content">Content * (Markdown supported)</Label>
-                          <Textarea
-                            id="content"
-                            value={lessonForm.content}
-                            onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                            placeholder="# Lesson Content&#10;&#10;Write your lesson content here..."
-                            rows={12}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="videoUrl">Video URL (Optional)</Label>
-                          <Input
-                            id="videoUrl"
-                            value={lessonForm.videoUrl}
-                            onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
-                            placeholder="https://youtube.com/embed/..."
-                          />
-                        </div>
-
-                        <div className="flex justify-between items-center pt-4">
+                        <div className="flex justify-between items-center pt-4 border-t">
                           <Button 
                             variant="secondary" 
                             onClick={saveProgressDraft}
@@ -999,7 +1132,8 @@ const ContentManagement = () => {
                             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                               Cancel
                             </Button>
-                            <Button onClick={handleLessonSubmit}>
+                            <Button onClick={handleLessonSubmit} className="gap-2">
+                              <BookOpen className="w-4 h-4" />
                               {editingId ? "Update" : "Create"} Lesson
                             </Button>
                           </div>
@@ -1368,11 +1502,12 @@ const ContentManagement = () => {
                                   </div>
                                 ))}
                               </div>
-                              <Textarea
+                              <RichTextEditor
+                                label="Explanation for the correct answer"
                                 value={question.explanation}
-                                onChange={(e) => updateQuestion(qIndex, "explanation", e.target.value)}
-                                placeholder="Explanation for the correct answer"
-                                rows={2}
+                                onChange={(value) => updateQuestion(qIndex, "explanation", value)}
+                                placeholder="Explain why this is the correct answer"
+                                minHeight="100px"
                               />
 
                               <div className="flex items-center justify-between pt-2">
@@ -1422,10 +1557,21 @@ const ContentManagement = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Content Management</h1>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <BookOpen className="w-8 h-8" />
+              Lessons & Quizzes
+            </h1>
             <p className="text-muted-foreground mt-2">
-              Create and manage lessons and quizzes
+              Create engaging lessons and assessments for your students
             </p>
+            <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                💡 Tip: Use the "Simple Lesson" mode for quick content creation
+              </span>
+              <span className="flex items-center gap-1">
+                📚 Advanced mode for full courses with sections
+              </span>
+            </div>
           </div>
           <div className="flex gap-2">
             {hasSavedDraft() && (
@@ -1445,37 +1591,37 @@ const ContentManagement = () => {
             )}
             <Button onClick={() => openCreateDialog("lesson")} className="gap-2">
               <Plus className="w-4 h-4" />
-              Create Lesson
+              New Lesson
             </Button>
             <Button onClick={() => openCreateDialog("quiz")} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" />
-              Create Quiz
+              New Quiz
             </Button>
           </div>
         </div>
 
         {/* Content Type Stats */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Lessons</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <BookOpen className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{contentStats.lessons}</div>
+              <div className="text-3xl font-bold">{contentStats.lessons}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Educational content
+                Educational content items
               </p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-yellow-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Quizzes</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
+              <Award className="h-5 w-5 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{contentStats.quizzes}</div>
+              <div className="text-3xl font-bold">{contentStats.quizzes}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Assessment tools
               </p>
@@ -2123,24 +2269,22 @@ const ContentManagement = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description *</Label>
-                    <Textarea
-                      id="description"
+                    <RichTextEditor
+                      label="Description *"
                       value={lessonForm.description}
-                      onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
+                      onChange={(value) => setLessonForm({ ...lessonForm, description: value })}
                       placeholder="Brief description of the lesson"
-                      rows={3}
+                      minHeight="120px"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="content">Content * (Markdown supported)</Label>
-                    <Textarea
-                      id="content"
+                    <RichTextEditor
+                      label="Content * (Markdown supported)"
                       value={lessonForm.content}
-                      onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                      placeholder="# Lesson Content&#10;&#10;Write your lesson content here..."
-                      rows={8}
+                      onChange={(value) => setLessonForm({ ...lessonForm, content: value })}
+                      placeholder="Write your lesson content here..."
+                      minHeight="300px"
                     />
                   </div>
 
@@ -2248,13 +2392,12 @@ const ContentManagement = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="description-adv">Course Description *</Label>
-                        <Textarea
-                          id="description-adv"
+                        <RichTextEditor
+                          label="Course Description *"
                           value={lessonForm.description}
-                          onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
+                          onChange={(value) => setLessonForm({ ...lessonForm, description: value })}
                           placeholder="Comprehensive description of what this course covers..."
-                          rows={4}
+                          minHeight="150px"
                         />
                       </div>
 

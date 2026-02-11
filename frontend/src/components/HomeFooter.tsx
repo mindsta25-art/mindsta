@@ -86,10 +86,11 @@ export const HomeFooter = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8">
           {/* Brand Section */}
           <div className="lg:col-span-2">
-            <div className="flex flex-col items-center mb-2">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg inline-block mb-2">
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg inline-block mb-2">
                 <BookOpen className="w-8 h-8 text-white" />
               </div>
+                     <span className="text-lg sm:text-xl font-bold">Mindsta</span>
             </div>
             <p className="text-sm text-gray-300 mb-4 sm:mb-6 leading-relaxed">
               Empowering minds through exceptional education. Access comprehensive lessons, 

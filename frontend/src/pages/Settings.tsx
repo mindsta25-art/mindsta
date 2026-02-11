@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { StudentHeader } from '@/components/StudentHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ import {
 
 const Settings = () => {
   const { user, loading: authLoading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [studentName, setStudentName] = useState('');
@@ -54,9 +56,6 @@ const Settings = () => {
   // Privacy settings
   const [showProgress, setShowProgress] = useState(true);
   const [allowAnalytics, setAllowAnalytics] = useState(true);
-
-  // Theme
-  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -140,36 +139,47 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <StudentHeader studentName={studentName} />
 
       <main className="pt-24 pb-16 container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 gap-2">
+          {/* Header with gradient */}
+          <div className="mb-8">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate(-1)} 
+              className="mb-4 gap-2 hover:bg-white/50 dark:hover:bg-gray-800/50"
+            >
               <ArrowLeft className="w-4 h-4" />
               Back
             </Button>
-            <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-            <p className="text-muted-foreground">Manage your account settings and preferences</p>
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-lg blur opacity-25"></div>
+              <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+                  Settings
+                </h1>
+                <p className="text-muted-foreground mt-1">Manage your account settings and preferences</p>
+              </div>
+            </div>
           </div>
 
           {/* Tabs */}
           <Tabs defaultValue="security" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="security">Security</TabsTrigger>
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
-              <TabsTrigger value="privacy">Privacy</TabsTrigger>
-              <TabsTrigger value="appearance">Appearance</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 bg-white dark:bg-gray-800 p-1 border-2 border-indigo-100 dark:border-indigo-900">
+              <TabsTrigger value="security" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">Security</TabsTrigger>
+              <TabsTrigger value="notifications" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white">Notifications</TabsTrigger>
+              <TabsTrigger value="privacy" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-blue-600 data-[state=active]:text-white">Privacy</TabsTrigger>
+              <TabsTrigger value="appearance" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white">Appearance</TabsTrigger>
             </TabsList>
 
             {/* Security Tab */}
             <TabsContent value="security" className="space-y-4">
-              <Card>
-                <CardHeader>
+              <Card className="border-2 border-indigo-100 dark:border-indigo-900 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30">
                   <CardTitle className="flex items-center gap-2">
-                    <Lock className="w-5 h-5" />
+                    <Lock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                     Change Password
                   </CardTitle>
                   <CardDescription>
@@ -214,7 +224,11 @@ const Settings = () => {
                       />
                     </div>
 
-                    <Button type="submit" disabled={loading} className="gap-2">
+                    <Button 
+                      type="submit" 
+                      disabled={loading} 
+                      className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
                       <Save className="w-4 h-4" />
                       {loading ? 'Updating...' : 'Update Password'}
                     </Button>
@@ -222,9 +236,9 @@ const Settings = () => {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-600">
+              <Card className="border-2 border-red-200 dark:border-red-900 shadow-lg">
+                <CardHeader className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30">
+                  <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
                     <AlertCircle className="w-5 h-5" />
                     Danger Zone
                   </CardTitle>
@@ -262,10 +276,10 @@ const Settings = () => {
 
             {/* Notifications Tab */}
             <TabsContent value="notifications">
-              <Card>
-                <CardHeader>
+              <Card className="border-2 border-purple-100 dark:border-purple-900 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30">
                   <CardTitle className="flex items-center gap-2">
-                    <Bell className="w-5 h-5" />
+                    <Bell className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     Notification Preferences
                   </CardTitle>
                   <CardDescription>
@@ -335,7 +349,10 @@ const Settings = () => {
                     />
                   </div>
 
-                  <Button onClick={handleSaveNotifications} className="gap-2">
+                  <Button 
+                    onClick={handleSaveNotifications} 
+                    className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
                     <Save className="w-4 h-4" />
                     Save Preferences
                   </Button>
@@ -345,10 +362,10 @@ const Settings = () => {
 
             {/* Privacy Tab */}
             <TabsContent value="privacy">
-              <Card>
-                <CardHeader>
+              <Card className="border-2 border-cyan-100 dark:border-cyan-900 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30">
                   <CardTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5" />
+                    <Shield className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
                     Privacy Settings
                   </CardTitle>
                   <CardDescription>
@@ -386,7 +403,10 @@ const Settings = () => {
                     />
                   </div>
 
-                  <Button onClick={handleSavePrivacy} className="gap-2">
+                  <Button 
+                    onClick={handleSavePrivacy} 
+                    className="gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
                     <Save className="w-4 h-4" />
                     Save Settings
                   </Button>
@@ -396,10 +416,10 @@ const Settings = () => {
 
             {/* Appearance Tab */}
             <TabsContent value="appearance">
-              <Card>
-                <CardHeader>
+              <Card className="border-2 border-indigo-100 dark:border-indigo-900 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="bg-gradient-to-br from-indigo-50 to-cyan-50 dark:from-indigo-950/30 dark:to-cyan-950/30">
                   <CardTitle className="flex items-center gap-2">
-                    <Moon className="w-5 h-5" />
+                    <Moon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                     Appearance
                   </CardTitle>
                   <CardDescription>
@@ -416,14 +436,14 @@ const Settings = () => {
                     </div>
                     <Switch
                       id="darkMode"
-                      checked={darkMode}
-                      onCheckedChange={setDarkMode}
+                      checked={theme === 'dark'}
+                      onCheckedChange={toggleTheme}
                     />
                   </div>
 
                   <div className="bg-muted p-4 rounded-lg">
                     <p className="text-sm text-muted-foreground">
-                      💡 Dark mode is currently in beta. Some parts of the app may not look perfect yet.
+                      ✨ Your theme preference is Saved
                     </p>
                   </div>
                 </CardContent>

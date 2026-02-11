@@ -88,6 +88,7 @@ const StudentFooterComponent = () => {
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
               <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
                 <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+             
               </div>
               <span className="text-lg sm:text-xl font-bold">Mindsta</span>
             </div>

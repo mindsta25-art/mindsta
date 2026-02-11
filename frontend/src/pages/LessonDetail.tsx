@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { StudentHeader } from "@/components/StudentHeader";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -13,7 +13,10 @@ import CurriculumDisplay from "@/components/CurriculumDisplay";
 import { ArrowLeft, BookOpen, Brain, CheckCircle, PlayCircle, FileText, List, Lock, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
-import { getLessonById, getQuizByLessonId, upsertProgress, getStudentByUserId, getUserProgress, type Lesson, type Section, type Lecture } from "@/api";
+import { getLessonById, type Lesson, type Section, type Lecture } from "@/api/lessons";
+import { getQuizByLessonId } from "@/api/quizzes";
+import { upsertProgress, getUserProgress } from "@/api/progress";
+import { getStudentByUserId } from "@/api/students";
 import { checkAccess } from "@/api/enrollments";
 
 interface LessonData {
@@ -48,6 +51,7 @@ const LessonDetail = () => {
   const { grade, subject, lessonId } = useParams();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [studentName, setStudentName] = useState<string>("");
   const [lesson, setLesson] = useState<LessonData | null>(null);
@@ -319,11 +323,18 @@ const LessonDetail = () => {
             <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate(`/grade/${grade}/${subject}`)}
+                onClick={() => {
+                  // Check if we came from my-learning page
+                  if (location.state?.from === 'my-learning') {
+                    navigate('/my-learning');
+                  } else {
+                    navigate(`/grade/${grade}/${subject}`);
+                  }
+                }}
                 className="gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Back to {subject?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                {location.state?.from === 'my-learning' ? 'Back to My Learning' : `Back to ${subject?.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
               </Button>
 
               {hasCurriculum && (

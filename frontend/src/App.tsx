@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/ui/loading";
@@ -18,6 +19,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const StudentHome = lazy(() => import("./pages/StudentHome"));
 const AllGrades = lazy(() => import("./pages/AllGrades"));
+const BrowseTopics = lazy(() => import("./pages/BrowseTopics"));
 const AllSubjects = lazy(() => import("./pages/AllSubjects"));
 const BrowseCourses = lazy(() => import("./pages/BrowseCourses"));
 const MyLearning = lazy(() => import("./pages/MyLearning"));
@@ -30,6 +32,7 @@ const Checkout = lazy(() => import("./pages/Checkout"));
 const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
 const GradeLearning = lazy(() => import("./pages/GradeLearning"));
 const TermSelection = lazy(() => import("./pages/TermSelection"));
+const TopicDetail = lazy(() => import("./pages/TopicDetail"));
 const SubjectLessons = lazy(() => import("./pages/SubjectLessons"));
 const LessonDetail = lazy(() => import("./pages/LessonDetail"));
 const Referral = lazy(() => import("./pages/ReferralDashboard"));
@@ -56,6 +59,8 @@ const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const NotificationManagement = lazy(() => import("./pages/admin/NotificationManagement"));
+const SuggestionManagement = lazy(() => import("./pages/admin/SuggestionManagement"));
+const QuestionManagement = lazy(() => import("./pages/admin/QuestionManagement"));
 
 // React Query removed
 
@@ -63,11 +68,17 @@ const App = () => (
   <ErrorBoundary>
     <TooltipProvider>
       <AuthProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+        <ThemeProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true,
+                }}
+              >
               <Suspense fallback={<LoadingScreen message="Loading page..." />}>
                 <Routes>
                 <Route 
@@ -115,6 +126,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <AllGrades />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/browse-topics/:grade" 
+                  element={
+                    <ProtectedRoute>
+                      <BrowseTopics />
                     </ProtectedRoute>
                   } 
                 />
@@ -223,6 +242,14 @@ const App = () => (
                   } 
                 />
                 <Route 
+                  path="/topic/:topicId" 
+                  element={
+                    <ProtectedRoute>
+                      <TopicDetail />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
                   path="/subject/:subject" 
                   element={
                     <ProtectedRoute>
@@ -232,6 +259,14 @@ const App = () => (
                 />
                 <Route 
                   path="/grade/:grade/:subject" 
+                  element={
+                    <ProtectedRoute>
+                      <SubjectLessons />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/subjects/:grade/:subject" 
                   element={
                     <ProtectedRoute>
                       <SubjectLessons />
@@ -387,6 +422,22 @@ const App = () => (
                     </ProtectedRoute>
                   } 
                 />
+                <Route 
+                  path="/admin/suggestions" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <SuggestionManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/questions" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <QuestionManagement />
+                    </ProtectedRoute>
+                  } 
+                />
                 
                 {/* Legal Pages */}
                 <Route path="/privacy" element={<Privacy />} />
@@ -401,7 +452,8 @@ const App = () => (
           </BrowserRouter>
         </WishlistProvider>
       </CartProvider>
-    </AuthProvider>
+    </ThemeProvider>
+  </AuthProvider>
   </TooltipProvider>
   </ErrorBoundary>
 );

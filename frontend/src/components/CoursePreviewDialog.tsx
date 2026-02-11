@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import {
   BookOpen,
   CheckCircle,
@@ -23,10 +24,14 @@ import {
   Lock,
   Award,
   Target,
-  Lightbulb
+  Lightbulb,
+  ThumbsUp,
+  MessageSquare
 } from "lucide-react";
 import { formatCurrency } from "@/config/siteConfig";
 import type { Lesson, Section } from "@/api/lessons";
+import { getReviews, getRatingStats, type Review, type RatingStats } from "@/api/reviews";
+import { format } from "date-fns";
 
 interface CoursePreviewDialogProps {
   open: boolean;
@@ -49,6 +54,44 @@ export const CoursePreviewDialog = ({
 }: CoursePreviewDialogProps) => {
   const navigate = useNavigate();
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0]));
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [ratingStats, setRatingStats] = useState<RatingStats | null>(null);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewsPage, setReviewsPage] = useState(1);
+
+  useEffect(() => {
+    if (open && course?.id) {
+      fetchReviews();
+      fetchRatingStats();
+    }
+  }, [open, course?.id]);
+
+  const fetchReviews = async () => {
+    if (!course?.id) return;
+    try {
+      setLoadingReviews(true);
+      const data = await getReviews(course.id, {
+        sortBy: 'helpful',
+        page: reviewsPage,
+        limit: 5
+      });
+      setReviews(data.reviews || []);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  const fetchRatingStats = async () => {
+    if (!course?.id) return;
+    try {
+      const stats = await getRatingStats(course.id);
+      setRatingStats(stats);
+    } catch (error) {
+      console.error('Error fetching rating stats:', error);
+    }
+  };
 
   if (!course) return null;
 
@@ -218,9 +261,17 @@ export const CoursePreviewDialog = ({
 
         {/* Tabs for Different Sections */}
         <Tabs defaultValue="curriculum" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="reviews">
+              Reviews
+              {ratingStats && ratingStats.totalReviews > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {ratingStats.totalReviews}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="requirements">Requirements</TabsTrigger>
           </TabsList>
 
@@ -340,6 +391,21 @@ export const CoursePreviewDialog = ({
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Course Overview - Added for student preview */}
+            {(course as any).overview && (
+              <Card className="border-2 border-purple-200 dark:border-purple-800">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-purple-600" />
+                    Course Overview
+                  </h3>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <p className="text-muted-foreground whitespace-pre-wrap">{(course as any).overview}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             {/* What you'll learn */}
             {course.whatYouWillLearn && course.whatYouWillLearn.length > 0 && (
               <Card>
@@ -396,6 +462,150 @@ export const CoursePreviewDialog = ({
                       </li>
                     ))}
                   </ul>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Reviews Tab */}
+          <TabsContent value="reviews" className="space-y-6 mt-6">
+            {/* Rating Statistics */}
+            {ratingStats && ratingStats.totalReviews > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-6">
+                    <div className="text-center">
+                      <div className="text-5xl font-bold text-purple-600">
+                        {ratingStats.averageRating.toFixed(1)}
+                      </div>
+                      <div className="flex items-center justify-center gap-1 my-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-5 h-5 ${
+                              star <= Math.round(ratingStats.averageRating)
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {ratingStats.totalReviews} {ratingStats.totalReviews === 1 ? 'review' : 'reviews'}
+                      </p>
+                    </div>
+                    
+                    <div className="flex-1 space-y-2">
+                      {[5, 4, 3, 2, 1].map((rating) => {
+                        const count = ratingStats.ratingDistribution[rating as 1 | 2 | 3 | 4 | 5] || 0;
+                        const percentage = ratingStats.totalReviews > 0 
+                          ? (count / ratingStats.totalReviews) * 100 
+                          : 0;
+                        
+                        return (
+                          <div key={rating} className="flex items-center gap-3">
+                            <div className="flex items-center gap-1 w-16">
+                              <span className="text-sm font-medium">{rating}</span>
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            </div>
+                            <Progress value={percentage} className="h-2 flex-1" />
+                            <span className="text-sm text-muted-foreground w-12 text-right">
+                              {count}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Reviews List */}
+            {loadingReviews ? (
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading reviews...</p>
+                </CardContent>
+              </Card>
+            ) : reviews.length > 0 ? (
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <Card key={review._id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold">{review.userName}</span>
+                            {review.isVerifiedPurchase && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Verified
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(review.createdAt), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                star <= review.rating
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {review.title && (
+                        <h4 className="font-semibold mb-2">{review.title}</h4>
+                      )}
+                      
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {review.comment}
+                      </p>
+                      
+                      {review.instructorResponse && (
+                        <Card className="bg-muted/50 mt-4">
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-2 mb-2">
+                              <Award className="w-4 h-4 text-purple-600 mt-1" />
+                              <div>
+                                <p className="text-sm font-semibold">Instructor Response</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(review.instructorResponse.respondedAt), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-sm pl-6">{review.instructorResponse.comment}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      <div className="flex items-center gap-4 mt-4 pt-3 border-t">
+                        <Button variant="ghost" size="sm" className="text-xs">
+                          <ThumbsUp className="w-3 h-3 mr-1" />
+                          Helpful {review.helpfulCount > 0 && `(${review.helpfulCount})`}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No reviews yet</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Be the first to share your experience!
+                  </p>
                 </CardContent>
               </Card>
             )}

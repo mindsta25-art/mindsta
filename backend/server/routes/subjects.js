@@ -8,7 +8,7 @@ const router = express.Router();
 // Get all subjects (public - for students)
 router.get('/', async (req, res) => {
   try {
-    const subjects = await Subject.find({ isActive: true }).sort({ order: 1, name: 1 });
+    const subjects = await Subject.find({ isActive: true }).sort({ name: 1 });
     res.json(subjects);
   } catch (error) {
     console.error('Error fetching subjects:', error);
@@ -20,7 +20,15 @@ router.get('/', async (req, res) => {
 router.get('/all', requireAdmin, async (req, res) => {
   try {
     console.log('[GET /api/subjects/all] Request received');
-    const subjects = await Subject.find().sort({ order: 1, name: 1 });
+    
+    // Set cache control headers to prevent 304 responses
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    const subjects = await Subject.find().sort({ name: 1 });
     console.log('[GET /api/subjects/all] Found subjects:', subjects.length);
     console.log('[GET /api/subjects/all] Subjects:', subjects.map(s => ({ name: s.name, _id: s._id, isActive: s.isActive })));
     res.json(subjects);
@@ -48,7 +56,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', requireAdmin, async (req, res) => {
   try {
     console.log('[SubjectCreate] Request body:', req.body);
-    const { name, category, description, icon, color, order } = req.body;
+    const { name } = req.body;
 
     if (!name || !name.trim()) {
       console.log('[SubjectCreate] Error: Missing subject name');
@@ -64,11 +72,6 @@ router.post('/', requireAdmin, async (req, res) => {
 
     const subject = new Subject({
       name: name.trim(),
-      category: category || 'Core',
-      description: description || '',
-      icon: icon || 'BookOpen',
-      color: color || 'blue',
-      order: order || 0,
       isActive: true
     });
 
@@ -84,7 +87,7 @@ router.post('/', requireAdmin, async (req, res) => {
 // Update subject (admin only)
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
-    const { name, category, description, icon, color, order, isActive } = req.body;
+    const { name, isActive } = req.body;
 
     const subject = await Subject.findById(req.params.id);
     if (!subject) {
@@ -103,11 +106,6 @@ router.put('/:id', requireAdmin, async (req, res) => {
     }
 
     if (name) subject.name = name;
-    if (category) subject.category = category;
-    if (description !== undefined) subject.description = description;
-    if (icon) subject.icon = icon;
-    if (color) subject.color = color;
-    if (order !== undefined) subject.order = order;
     if (isActive !== undefined) subject.isActive = isActive;
 
     await subject.save();

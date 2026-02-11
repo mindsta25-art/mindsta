@@ -23,6 +23,23 @@ const QuizSchema = new Schema(
       type: String,
       required: true,
     },
+    // Associate quiz with subject, grade, and term for better filtering
+    subject: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    grade: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    term: {
+      type: String,
+      enum: ['First Term', 'Second Term', 'Third Term'],
+      required: true,
+      index: true,
+    },
     questions: [QuestionSchema],
     passingScore: {
       type: Number,
@@ -37,6 +54,8 @@ const QuizSchema = new Schema(
   }
 );
 
+// Compound index for efficient querying by subject, grade, and term
+QuizSchema.index({ subject: 1, grade: 1, term: 1 });
 QuizSchema.index({ lessonId: 1 });
 
 export default mongoose.models.Quiz || mongoose.model('Quiz', QuizSchema);

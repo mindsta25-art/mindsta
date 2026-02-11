@@ -4,43 +4,64 @@ export interface Subject {
   _id: string;
   id: string;
   name: string;
-  category: string;
-  description: string;
-  icon: string;
-  color: string;
   isActive: boolean;
-  order: number;
   createdAt: string;
   updatedAt: string;
 }
 
 // Get all active subjects (public)
 export const getSubjects = async (): Promise<Subject[]> => {
-  const response = await api.get('/subjects');
-  return response.data.map((s: any) => ({ ...s, id: s._id }));
+  try {
+    const response = await api.get('/subjects');
+    if (!response) return [];
+    const data = Array.isArray(response) ? response : (response.data || []);
+    return data.map((s: any) => ({ ...s, id: s._id }));
+  } catch (error) {
+    console.error('[getSubjects] Error:', error);
+    return [];
+  }
 };
 
 // Get all subjects including inactive (admin only)
 export const getAllSubjects = async (): Promise<Subject[]> => {
   try {
     const response = await api.get('/subjects/all');
-    console.log('[getAllSubjects] Response:', response.data);
+    console.log('[getAllSubjects] Response:', response);
     
-    if (!response.data || !Array.isArray(response.data)) {
-      console.error('[getAllSubjects] Invalid response format:', response.data);
+    // Handle case where response is undefined or null
+    if (!response) {
+      console.warn('[getAllSubjects] Empty response, returning empty array');
       return [];
     }
     
-    return response.data.map((s: any) => {
-      if (!s || !s._id) {
-        console.warn('[getAllSubjects] Subject missing _id:', s);
-        return null;
-      }
-      return { ...s, id: s._id };
-    }).filter((s): s is Subject => s !== null);
+    // If response is directly an array (API client returns data directly)
+    if (Array.isArray(response)) {
+      return response.map((s: any) => {
+        if (!s || !s._id) {
+          console.warn('[getAllSubjects] Subject missing _id:', s);
+          return null;
+        }
+        return { ...s, id: s._id };
+      }).filter((s): s is Subject => s !== null);
+    }
+    
+    // If response has a data property (wrapped response)
+    if (response.data && Array.isArray(response.data)) {
+      return response.data.map((s: any) => {
+        if (!s || !s._id) {
+          console.warn('[getAllSubjects] Subject missing _id:', s);
+          return null;
+        }
+        return { ...s, id: s._id };
+      }).filter((s): s is Subject => s !== null);
+    }
+    
+    console.error('[getAllSubjects] Invalid response format:', response);
+    return [];
   } catch (error) {
     console.error('[getAllSubjects] Error:', error);
-    throw error;
+    // Return empty array instead of throwing to prevent app crash
+    return [];
   }
 };
 

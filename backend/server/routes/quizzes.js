@@ -4,16 +4,28 @@ import { requireAdmin, requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET /api/quizzes - Get all quizzes (admin)
+// GET /api/quizzes - Get all quizzes (admin or filtered by query params)
 router.get('/', async (req, res) => {
   try {
-    const quizzes = await Quiz.find().populate('lessonId', 'title subject grade').sort({ createdAt: -1 });
+    const { subject, grade, term } = req.query;
+    const filter = {};
+    
+    // Allow filtering by subject, grade, and term
+    if (subject) filter.subject = subject;
+    if (grade) filter.grade = grade;
+    if (term) filter.term = term;
+    
+    const quizzes = await Quiz.find(filter).populate('lessonId', 'title subject grade term').sort({ createdAt: -1 });
     res.json(quizzes.map(quiz => ({
       id: quiz._id.toString(),
       lessonId: quiz.lessonId?._id.toString(),
       lessonTitle: quiz.lessonId?.title,
-      lessonSubject: quiz.lessonId?.subject,
-      lessonGrade: quiz.lessonId?.grade,
+      lessonSubject: quiz.lessonId?.subject || quiz.subject,
+      lessonGrade: quiz.lessonId?.grade || quiz.grade,
+      lessonTerm: quiz.lessonId?.term || quiz.term,
+      subject: quiz.subject,
+      grade: quiz.grade,
+      term: quiz.term,
       title: quiz.title,
       description: quiz.description,
       passingScore: quiz.passingScore,
@@ -35,6 +47,9 @@ router.get('/lesson/:lessonId', requireAuth, async (req, res) => {
     res.json({
       id: quiz._id.toString(),
       lessonId: quiz.lessonId.toString(),
+      subject: quiz.subject,
+      grade: quiz.grade,
+      term: quiz.term,
       title: quiz.title,
       description: quiz.description,
       passingScore: quiz.passingScore,
@@ -61,6 +76,9 @@ router.get('/:id', requireAuth, async (req, res) => {
     res.json({
       id: quiz._id.toString(),
       lessonId: quiz.lessonId?._id.toString(),
+      subject: quiz.subject,
+      grade: quiz.grade,
+      term: quiz.term,
       title: quiz.title,
       description: quiz.description,
       passingScore: quiz.passingScore,
@@ -89,10 +107,24 @@ router.post('/', requireAdmin, async (req, res) => {
     }
     payload.timeLimit = 600;
 
+    // If lessonId is provided, populate subject, grade, and term from the lesson
+    if (payload.lessonId) {
+      const { Lesson } = await import('../models/index.js');
+      const lesson = await Lesson.findById(payload.lessonId);
+      if (lesson) {
+        payload.subject = payload.subject || lesson.subject;
+        payload.grade = payload.grade || lesson.grade;
+        payload.term = payload.term || lesson.term;
+      }
+    }
+
     const quiz = await Quiz.create(payload);
     res.status(201).json({
       id: quiz._id.toString(),
       lessonId: quiz.lessonId.toString(),
+      subject: quiz.subject,
+      grade: quiz.grade,
+      term: quiz.term,
       title: quiz.title,
       description: quiz.description,
       passingScore: quiz.passingScore,
@@ -128,6 +160,9 @@ router.put('/:id', requireAdmin, async (req, res) => {
     res.json({
       id: quiz._id.toString(),
       lessonId: quiz.lessonId.toString(),
+      subject: quiz.subject,
+      grade: quiz.grade,
+      term: quiz.term,
       title: quiz.title,
       description: quiz.description,
       passingScore: quiz.passingScore,

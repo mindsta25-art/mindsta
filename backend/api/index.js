@@ -33,6 +33,9 @@ import assessmentRoutes from '../server/routes/assessment.js';
 import bundleRoutes from '../server/routes/bundles.js';
 import reviewRoutes from '../server/routes/reviews.js';
 import enrollmentRoutes from '../server/routes/enrollments.js';
+import subjectRoutes from '../server/routes/subjects.js';
+import topicRoutes from '../server/routes/topics.js';
+import suggestionsRoutes from '../server/routes/suggestions.js';
 import { errorHandler, notFoundHandler } from '../server/middleware/errorHandler.js';
 
 const app = express();
@@ -108,6 +111,9 @@ app.use('/api/assessment', assessmentRoutes);
 app.use('/api/bundles', bundleRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
+app.use('/api/subjects', subjectRoutes);
+app.use('/api/topics', topicRoutes);
+app.use('/api/suggestions', suggestionsRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

@@ -106,3 +106,25 @@ export const deleteQuiz = async (id: string): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Get quizzes by subject, grade, and term
+ */
+export const getQuizzesByFilters = async (subject?: string, grade?: string, term?: string): Promise<Quiz[]> => {
+  try {
+    const params = new URLSearchParams();
+    if (subject) params.append('subject', subject);
+    if (grade) params.append('grade', grade);
+    if (term) params.append('term', term);
+    
+    console.log('[getQuizzesByFilters] Fetching with params:', { subject, grade, term });
+    console.log('[getQuizzesByFilters] Query string:', params.toString());
+    
+    const result = await api.get(`/quizzes?${params.toString()}`);
+    console.log('[getQuizzesByFilters] Result:', result);
+    return result;
+  } catch (error) {
+    console.error('[getQuizzesByFilters] Error:', error);
+    return [];
+  }
+};

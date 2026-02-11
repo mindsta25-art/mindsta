@@ -12,6 +12,7 @@ import {
   type SubjectInfo,
   type Lesson
 } from '@/api/lessons';
+import { getEnrollments, type Enrollment } from '@/api/enrollments';
 import { SUBJECTS_PER_PAGE } from '../utils/constants';
 
 export const useSubjects = (initialGrade?: string) => {
@@ -21,11 +22,35 @@ export const useSubjects = (initialGrade?: string) => {
   const [subjects, setSubjects] = useState<SubjectInfo[]>([]);
   const [displayedSubjects, setDisplayedSubjects] = useState<SubjectInfo[]>([]);
   const [allGradeLessons, setAllGradeLessons] = useState<Lesson[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [subjectsPage, setSubjectsPage] = useState(1);
   const [hasMoreSubjects, setHasMoreSubjects] = useState(false);
   const [loadingTerms, setLoadingTerms] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const { toast } = useToast();
+
+  // Fetch enrollments on mount
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      try {
+        const data = await getEnrollments();
+        setEnrollments(data || []);
+      } catch (error) {
+        console.error('Error fetching enrollments:', error);
+      }
+    };
+
+    fetchEnrollments();
+  }, []);
+
+  // Helper function to check if a subject is enrolled
+  const isEnrolled = useCallback((subjectName: string, grade: string, term: string) => {
+    return enrollments.some(e => 
+      e.subject === subjectName && 
+      e.grade === grade && 
+      e.term === term
+    );
+  }, [enrollments]);
 
   // Fetch terms and lessons when grade changes
   useEffect(() => {
@@ -115,6 +140,8 @@ export const useSubjects = (initialGrade?: string) => {
     subjects,
     displayedSubjects,
     allGradeLessons,
+    enrollments,
+    isEnrolled,
     hasMoreSubjects,
     loadMoreSubjects,
     loadingTerms,

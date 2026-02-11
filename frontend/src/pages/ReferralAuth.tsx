@@ -233,14 +233,26 @@ const ReferralAuth = () => {
               </div>
             </div>
             
-            {/* Desktop Back Button */}
-            <Button
-              onClick={() => navigate("/")}
-              className="hidden md:flex gap-2 border-2 border-yellow-300 hover:border-yellow-500 font-bold"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Home
-            </Button>
+            {/* Desktop Buttons */}
+            <div className="hidden md:flex items-center gap-2">
+              {!isLogin && (
+                <Button
+                  onClick={() => setIsLogin(true)}
+                  className="gap-2 border-2 border-green-300 hover:border-green-500 font-bold"
+                  variant="outline"
+                >
+                  <Lock className="w-4 h-4" />
+                  Login
+                </Button>
+              )}
+              <Button
+                onClick={() => navigate("/")}
+                className="gap-2 border-2 border-yellow-300 hover:border-yellow-500 font-bold"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Home
+              </Button>
+            </div>
 
             {/* Mobile Menu Button */}
             <button
@@ -258,7 +270,20 @@ const ReferralAuth = () => {
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="md:hidden mt-4 pb-4 animate-in slide-in-from-top-5 duration-200">
+            <div className="md:hidden mt-4 pb-4 space-y-2 animate-in slide-in-from-top-5 duration-200">
+              {!isLogin && (
+                <Button
+                  onClick={() => {
+                    setIsLogin(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full gap-2 border-2 border-green-300 hover:border-green-500 font-bold justify-center"
+                  variant="outline"
+                >
+                  <Lock className="w-4 h-4" />
+                  Login
+                </Button>
+              )}
               <Button
                 onClick={() => {
                   navigate("/");

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/contexts/ThemeContext";
 import { getSystemSettings, updateSettingsSection, type GeneralSettings, type NotificationSettings, type SecuritySettings, type AppearanceSettings, type AdvancedSettings } from "@/api";
 import { 
   Settings as SettingsIcon, 
@@ -24,12 +25,15 @@ import {
   Mail,
   Database,
   Palette,
-  Save
+  Save,
+  Moon,
+  Sun
 } from "lucide-react";
 import { siteConfig } from "@/config/siteConfig";
 
 const Settings = () => {
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -74,10 +78,25 @@ const Settings = () => {
     logoUrl: '',
   });
 
+  // Apply theme changes in real-time
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    
+    if (appearanceSettings.theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      root.classList.add(systemTheme);
+    } else {
+      root.classList.add(appearanceSettings.theme);
+    }
+  }, [appearanceSettings.theme]);
+
   // Advanced Settings State
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
     backupFrequency: 'daily',
     coursesPerPage: 12,
+    paystackPublicKey: '',
+    paystackSecretKey: '',
   });
 
   // Load settings on mount
@@ -456,18 +475,40 @@ const Settings = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="theme">Theme</Label>
-                  <Select value={appearanceSettings.theme} onValueChange={(v) => setAppearanceSettings({ ...appearanceSettings, theme: v as AppearanceSettings['theme'] })}>
-                    <SelectTrigger id="theme">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">Light</SelectItem>
-                      <SelectItem value="dark">Dark</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-4">
+                  <Label htmlFor="theme">Admin Theme Preference</Label>
+                  <div className="flex items-center gap-3 p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <Switch
+                        id="theme"
+                        checked={theme === 'dark'}
+                        onCheckedChange={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      />
+                      <span className="ml-2">{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={theme === 'light' ? 'default' : 'outline'}
+                        size="icon"
+                        onClick={() => setTheme('light')}
+                      >
+                        <Sun className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={theme === 'dark' ? 'default' : 'outline'}
+                        size="icon"
+                        onClick={() => setTheme('dark')}
+                      >
+                        <Moon className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    ✨ Your admin theme preference is saved separately from student and referral portals.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Current theme: <span className="font-semibold capitalize">{appearanceSettings.theme}</span>
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -552,6 +593,44 @@ const Settings = () => {
                   <p className="text-xs text-muted-foreground">
                     Number of courses to display per page on the browse page
                   </p>
+                </div>
+
+                <div className="space-y-4 pt-6 border-t">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    Paystack Payment Configuration
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure your Paystack payment gateway credentials for processing payments
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="paystackPublicKey">Paystack Public Key</Label>
+                    <Input 
+                      id="paystackPublicKey" 
+                      type="text" 
+                      value={advancedSettings.paystackPublicKey || ''}
+                      onChange={(e) => setAdvancedSettings({ ...advancedSettings, paystackPublicKey: e.target.value })}
+                      placeholder="pk_test_..." 
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your Paystack public key (starts with pk_test_ or pk_live_)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="paystackSecretKey">Paystack Secret Key</Label>
+                    <Input 
+                      id="paystackSecretKey" 
+                      type="password" 
+                      value={advancedSettings.paystackSecretKey || ''}
+                      onChange={(e) => setAdvancedSettings({ ...advancedSettings, paystackSecretKey: e.target.value })}
+                      placeholder="sk_test_..." 
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your Paystack secret key (starts with sk_test_ or sk_live_) - kept secure
+                    </p>
+                  </div>
                 </div>
 
                 <Button onClick={() => handleSaveSettings('advanced')} disabled={saving || loading} className="gap-2">

@@ -21,7 +21,9 @@ import {
   Plus,
   Award,
   Layers,
-  BookMarked
+  BookMarked,
+  Lightbulb,
+  MessageSquare
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingScreen } from "@/components/ui/loading";
@@ -46,6 +48,21 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   useEffect(() => {
     checkAdminAccess();
   }, []);
+
+  // Auto-expand Content Management dropdown when on related pages
+  useEffect(() => {
+    const contentPages = [
+      '/admin/content',
+      '/admin/subjects'
+    ];
+    const isOnContentPage = contentPages.some(page => location.pathname.startsWith(page)) ||
+                           location.search.includes('create=lesson') ||
+                           location.search.includes('create=quiz');
+    
+    if (isOnContentPage) {
+      setContentMenuExpanded(true);
+    }
+  }, [location.pathname, location.search]);
 
   const checkAdminAccess = async () => {
     try {
@@ -96,7 +113,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     try {
       signOut();
       refreshUser();
-      navigate("/admin-auth");
+      navigate("/");
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of the admin panel.",
@@ -140,6 +157,16 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       icon: GraduationCap,
       label: "Lessons & Quizzes",
       path: "/admin/lessons",
+    },
+    {
+      icon: Lightbulb,
+      label: "Suggestions",
+      path: "/admin/suggestions",
+    },
+    {
+      icon: MessageSquare,
+      label: "Q&A Management",
+      path: "/admin/questions",
     },
     {
       icon: Bell,
@@ -197,7 +224,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           <div className="flex items-center justify-between">
             <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
               <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
-                {/* <BookOpen className="w-6 h-6 text-white" /> */}
+                <BookOpen className="w-6 h-6 text-white" />
               </div>
               {!sidebarCollapsed && (
                 <div>
@@ -278,7 +305,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                           <Link
                             to="/admin/content?create=lesson"
                             onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                              location.search.includes('create=lesson')
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
                           >
                             <Plus className="w-4 h-4 flex-shrink-0" />
                             <span>Create Lesson</span>
@@ -286,23 +317,31 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                           <Link
                             to="/admin/content?create=quiz"
                             onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                              location.search.includes('create=quiz')
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
                           >
                             <Award className="w-4 h-4 flex-shrink-0" />
                             <span>Create Quiz</span>
                           </Link>
-                          <Link
+                          {/* <Link
                             to="/admin/topics"
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
                           >
                             <Layers className="w-4 h-4 flex-shrink-0" />
                             <span>Topic Management</span>
-                          </Link>
+                          </Link> */}
                           <Link
                             to="/admin/subjects"
                             onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                              location.pathname === '/admin/subjects'
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
                           >
                             <BookMarked className="w-4 h-4 flex-shrink-0" />
                             <span>Subject Management</span>

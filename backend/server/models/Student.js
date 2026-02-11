@@ -30,6 +30,19 @@ const StudentSchema = new Schema(
       default: false,
       index: true,
     },
+    // Learning streak tracking
+    currentStreak: {
+      type: Number,
+      default: 0,
+    },
+    longestStreak: {
+      type: Number,
+      default: 0,
+    },
+    lastActivityDate: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

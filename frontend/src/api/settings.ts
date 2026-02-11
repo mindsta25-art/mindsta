@@ -38,6 +38,8 @@ export interface AppearanceSettings {
 export interface AdvancedSettings {
   backupFrequency: BackupFrequency;
   coursesPerPage: number;
+  paystackPublicKey?: string;
+  paystackSecretKey?: string;
 }
 
 export interface SystemSettingsDoc {

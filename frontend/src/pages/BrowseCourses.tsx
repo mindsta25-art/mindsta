@@ -7,6 +7,7 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { StudentHeader } from "@/components/StudentHeader";
 import { StudentFooter } from "@/components/StudentFooter";
 import { CoursePreviewDialog } from "@/components/CoursePreviewDialog";
+import { ShareCourseDialog } from "@/components/ShareCourseDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +39,21 @@ import {
   Award,
   Zap,
   X,
-  Eye
+  Eye,
+  Grid,
+  List,
+  LayoutGrid,
+  SlidersHorizontal,
+  Tag,
+  Flame,
+  ChevronDown,
+  ChevronUp,
+  Share2,
+  MoreVertical,
+  Package,
+  BarChart3,
+  Target,
+  PlayCircle
 } from "lucide-react";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +63,7 @@ import { getStudentByUserId } from "@/api";
 import { getEnrollments, type Enrollment } from "@/api/enrollments";
 import { getSystemSettings } from "@/api/settings";
 import { formatCurrency } from "@/config/siteConfig";
+import { recordSearch, getSearchKeywords } from "@/api/search-history";
 
 interface Course {
   id: string;
@@ -82,7 +98,7 @@ const BrowseCourses = () => {
   const [selectedGrade, setSelectedGrade] = useState(searchParams.get('grade') || 'all');
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || 'all');
   const [selectedTerm, setSelectedTerm] = useState(searchParams.get('term') || 'all');
-  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'alphabetical'>('popular');
+  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'alphabetical' | 'price-low' | 'price-high' | 'rating'>('popular');
   const [studentGrade, setStudentGrade] = useState<string>('');
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
@@ -90,6 +106,23 @@ const BrowseCourses = () => {
   const [showOnlyPurchased, setShowOnlyPurchased] = useState(false);
   const [loadedGrades, setLoadedGrades] = useState<Set<string>>(new Set());
   const [isLoadingBackground, setIsLoadingBackground] = useState(false);
+  const [totalStudents, setTotalStudents] = useState<number>(0);
+  
+  // New state for improvements
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
+  const [minRating, setMinRating] = useState(0);
+  const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<Course[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  
+  // Smart recommendation state
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [previewedCourses, setPreviewedCourses] = useState<string[]>([]);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
   
   // Preview dialog state
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -122,6 +155,242 @@ const BrowseCourses = () => {
     }
   };
 
+  // Helper functions
+  const isNewCourse = (lessonCount: number) => {
+    // Consider courses added in last 7 days as "new" (simplified check)
+    return lessonCount < 5; // Placeholder logic
+  };
+
+  const isPopular = (course: Course) => {
+    const totalContent = course.lessonCount + course.quizCount;
+    return totalContent > 10 || course.studentCount > 50;
+  };
+
+  const getTrendingCourses = () => {
+    return courses
+      .filter(c => c.studentCount > 20)
+      .sort((a, b) => b.studentCount - a.studentCount)
+      .slice(0, 6);
+  };
+
+  const getRecommendedCourses = () => {
+    if (courses.length === 0) return [];
+    
+    // Smart recommendation algorithm based on multiple factors
+    const recommendedSet = new Map<string, { course: Course; score: number }>();
+    
+    courses.forEach(course => {
+      if (course.enrolled) return; // Skip already purchased
+      
+      let score = 0;
+      
+      // Factor 1: Similar to purchased courses (30 points)
+      const purchasedSubjects = courses.filter(c => c.enrolled).map(c => c.subject.toLowerCase());
+      if (purchasedSubjects.some(s => course.subject.toLowerCase().includes(s) || s.includes(course.subject.toLowerCase()))) {
+        score += 30;
+      }
+      
+      // Factor 2: Related to previewed courses (25 points)
+      const previewedSubjects = previewedCourses
+        .map(id => courses.find(c => c.id === id)?.subject.toLowerCase())
+        .filter(Boolean) as string[];
+      if (previewedSubjects.some(s => course.subject.toLowerCase().includes(s) || s.includes(course.subject.toLowerCase()))) {
+        score += 25;
+      }
+      
+      // Factor 3: Matches search history - ENHANCED to search across ALL grades (40 points)
+      const searchTerms = searchHistory.map(s => s.toLowerCase());
+      const courseSubject = course.subject.toLowerCase();
+      const courseDesc = course.description.toLowerCase();
+      
+      // Check if any search term matches subject or description (irrespective of grade)
+      const matchesSearch = searchTerms.some(term => {
+        // Split multi-word searches for better matching
+        const words = term.split(/\s+/).filter(w => w.length > 2);
+        return words.some(word => 
+          courseSubject.includes(word) || 
+          courseDesc.includes(word) ||
+          // Also check if subject name contains the word
+          word.includes(courseSubject) ||
+          courseSubject.includes(word)
+        );
+      });
+      
+      if (matchesSearch) {
+        score += 40; // Increased weight for search-based recommendations
+      }
+      
+      // Factor 4: Popular courses (15 points)
+      if (course.studentCount > 50) {
+        score += 15;
+      }
+      
+      // Factor 5: High ratings (10 points)
+      if (course.rating >= 4.5) {
+        score += 10;
+      }
+      
+      // Factor 6: Same grade preference (5 points) - but don't exclude other grades
+      if (course.grade === studentGrade) {
+        score += 5;
+      }
+      
+      // Factor 7: Cross-grade recommendations for advanced learners
+      // If user has completed courses, recommend next grade level
+      const completedInGrade = courses.filter(c => c.enrolled && c.grade === studentGrade && c.completionRate > 80).length;
+      if (completedInGrade > 2) {
+        const nextGrade = studentGrade === 'Common Entrance' ? '6' : 
+          studentGrade === '6' ? 'Common Entrance' : 
+          String(Number(studentGrade) + 1);
+        if (course.grade === nextGrade) {
+          score += 8;
+        }
+      }
+      
+      if (score > 0) {
+        recommendedSet.set(course.id, { course, score });
+      }
+    });
+    
+    // Sort by score and return top recommendations
+    return Array.from(recommendedSet.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map(item => item.course);
+  };
+
+  // Debounced search with better suggestions - shows actual courses
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.length > 1) {
+        const query = searchQuery.toLowerCase();
+        const suggestions = courses
+          .filter(c => 
+            c.subject.toLowerCase().includes(query) ||
+            c.description.toLowerCase().includes(query) ||
+            c.grade.toLowerCase().includes(query) ||
+            c.term.toLowerCase().includes(query)
+          )
+          .slice(0, 6); // Show max 6 course results
+        setSearchSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+        
+        // Track meaningful search queries (3+ characters) and save to database
+        if (searchQuery.length >= 3) {
+          setSearchHistory(prev => {
+            const updated = [searchQuery, ...prev.filter(s => s !== searchQuery)].slice(0, 20);
+            localStorage.setItem('searchHistory', JSON.stringify(updated));
+            return updated;
+          });
+
+          // Save to database
+          if (user?.id) {
+            const saveSearch = async () => {
+              try {
+                await recordSearch(searchQuery, {
+                  grade: selectedGrade !== 'all' ? selectedGrade : undefined,
+                  subject: selectedSubject !== 'all' ? selectedSubject : undefined,
+                  term: selectedTerm !== 'all' ? selectedTerm : undefined,
+                });
+              } catch (error) {
+                console.error('Error saving search:', error);
+              }
+            };
+            saveSearch();
+          }
+        }
+      } else {
+        setSearchSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, courses, user, selectedGrade, selectedSubject, selectedTerm]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Load search keywords from database on mount
+  useEffect(() => {
+    const loadSearchKeywords = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const response = await getSearchKeywords();
+        
+        if (response && response.recentSearches) {
+          // Merge database searches with local storage
+          const localSearches = localStorage.getItem('searchHistory');
+          const local = localSearches ? JSON.parse(localSearches) : [];
+          const merged = [...new Set([...response.recentSearches, ...local])].slice(0, 50);
+          
+          setSearchHistory(merged);
+          localStorage.setItem('searchHistory', JSON.stringify(merged));
+        }
+      } catch (error) {
+        console.error('Error loading search keywords:', error);
+        // Fallback to local storage
+        const localSearches = localStorage.getItem('searchHistory');
+        if (localSearches) {
+          setSearchHistory(JSON.parse(localSearches));
+        }
+      }
+    };
+
+    loadSearchKeywords();
+  }, [user]);
+
+  // Save to recently viewed
+  const addToRecentlyViewed = (courseId: string) => {
+    setRecentlyViewed(prev => {
+      const updated = [courseId, ...prev.filter(id => id !== courseId)].slice(0, 10);
+      localStorage.setItem('recentlyViewed', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Load user behavior data on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('recentlyViewed');
+    if (saved) {
+      setRecentlyViewed(JSON.parse(saved));
+    }
+    
+    // Load saved filters
+    const savedView = localStorage.getItem('viewMode');
+    if (savedView === 'list' || savedView === 'grid') {
+      setViewMode(savedView);
+    }
+    
+    // Load search history
+    const savedSearchHistory = localStorage.getItem('searchHistory');
+    if (savedSearchHistory) {
+      setSearchHistory(JSON.parse(savedSearchHistory));
+    }
+    
+    // Load previewed courses
+    const savedPreviewed = localStorage.getItem('previewedCourses');
+    if (savedPreviewed) {
+      setPreviewedCourses(JSON.parse(savedPreviewed));
+    }
+    
+    // Extract user interests from enrollments
+    if (enrollments.length > 0) {
+      const interests = Array.from(new Set(enrollments.map(e => e.subject)));
+      setUserInterests(interests);
+    }
+  }, [enrollments]);
+
   // Define callback functions first before useEffects
   const filterAndSortCourses = useCallback(() => {
     let filtered = [...courses];
@@ -151,9 +420,30 @@ const BrowseCourses = () => {
       filtered = filtered.filter(course => course.term === selectedTerm);
     }
 
+    // Advanced filters
+    if (selectedDifficulties.length > 0) {
+      filtered = filtered.filter(course => 
+        selectedDifficulties.some(diff => course.difficulty.toLowerCase().includes(diff.toLowerCase()))
+      );
+    }
+
+    if (minRating > 0) {
+      filtered = filtered.filter(course => course.rating >= minRating);
+    }
+
+    filtered = filtered.filter(course => 
+      course.price >= priceRange[0] && course.price <= priceRange[1]
+    );
+
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
+        case 'price-low':
+          return a.price - b.price;
+        case 'price-high':
+          return b.price - a.price;
+        case 'rating':
+          return b.rating - a.rating;
         case 'alphabetical':
           return a.subject.localeCompare(b.subject);
         case 'newest':
@@ -165,7 +455,7 @@ const BrowseCourses = () => {
     });
 
     setFilteredCourses(filtered);
-  }, [courses, showOnlyPurchased, searchQuery, selectedGrade, selectedSubject, selectedTerm, sortBy]);
+  }, [courses, showOnlyPurchased, searchQuery, selectedGrade, selectedSubject, selectedTerm, sortBy, selectedDifficulties, minRating, priceRange]);
 
   const updateAvailableSubjects = useCallback(() => {
     // Filter courses by selected grade first, then extract unique subjects
@@ -205,13 +495,25 @@ const BrowseCourses = () => {
         getEnrollments()
       ]);
       
+      console.log('[BrowseCourses] Enrollments fetched:', enrollmentsData);
+      
       setStudentGrade(studentData.grade);
-      if (selectedGrade === 'all') {
-        setSelectedGrade(studentData.grade);
-      }
+      // Keep selectedGrade as 'all' by default - let student choose
+      // Don't auto-set to student's grade
 
       setUserProgress(progress);
       setEnrollments(enrollmentsData);
+      
+      // Fetch total registered students count
+      try {
+        const { api } = await import('@/lib/apiClient');
+        const statsResponse = await api.get('/analytics/dashboard');
+        if (statsResponse && statsResponse.totalStudents) {
+          setTotalStudents(statsResponse.totalStudents);
+        }
+      } catch (err) {
+        console.error('Error fetching total students:', err);
+      }
     } catch (error) {
       console.error('Error fetching student info:', error);
     }
@@ -219,15 +521,8 @@ const BrowseCourses = () => {
 
   // useEffects after function definitions
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settings = await getSystemSettings();
-        setItemsPerPage(settings.advanced.coursesPerPage || 12);
-      } catch (error) {
-        console.error('Failed to load settings:', error);
-      }
-    };
-    loadSettings();
+    // Use default items per page (settings endpoint requires admin access)
+    setItemsPerPage(12);
     fetchStudentInfo();
   }, [fetchStudentInfo]);
 
@@ -243,16 +538,45 @@ const BrowseCourses = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user, fetchStudentInfo]);
 
+  // Update course enrolled status when enrollments change
   useEffect(() => {
-    // Only fetch on initial load or when enrollments are fetched
+    if (courses.length > 0) {
+      console.log('[BrowseCourses] Updating course enrollment status. Enrollments:', enrollments.length);
+      
+      setCourses(prevCourses => {
+        const updatedCourses = prevCourses.map(course => {
+          const enrolled = enrollments.some(e => 
+            e.subject === course.subject && 
+            e.grade === course.grade && 
+            e.term === course.term
+          );
+          
+          // Log if status changes
+          if (course.enrolled !== enrolled) {
+            console.log(`[BrowseCourses] Course "${course.subject}" (${course.grade}-${course.term}) enrolled status: ${course.enrolled} -> ${enrolled}`);
+            return { ...course, enrolled };
+          }
+          return course;
+        });
+        
+        const enrolledCount = updatedCourses.filter(c => c.enrolled).length;
+        console.log(`[BrowseCourses] Total enrolled courses: ${enrolledCount}/${updatedCourses.length}`);
+        
+        return updatedCourses;
+      });
+    }
+  }, [enrollments, courses.length]);
+
+  useEffect(() => {
+    // Load ALL grades on initial load for "all" filter to work
     if (enrollments.length >= 0 && loadedGrades.size === 0) {
-      // Load student's grade first
-      if (studentGrade && !loadedGrades.has(studentGrade)) {
-        fetchCoursesForGrade(studentGrade);
-      } else {
-        // Initial load - load first available grade
-        fetchCoursesForGrade(grades[0]);
-      }
+      // Load all grades in sequence
+      const loadAllGrades = async () => {
+        for (const grade of grades) {
+          await fetchCoursesForGrade(grade);
+        }
+      };
+      loadAllGrades();
     }
   }, [enrollments]);
 
@@ -347,6 +671,10 @@ const BrowseCourses = () => {
             e.term === term
           );
           
+          if (enrolled) {
+            console.log(`[BrowseCourses] Found enrolled course: ${subject.name} (${gradeValue}-${term})`);
+          }
+          
           const courseProgress = userProgress.filter(p => 
             lessons.some(l => l.id === p.lessonId)
           );
@@ -358,6 +686,12 @@ const BrowseCourses = () => {
             ? subject.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'easy' | 'medium' | 'hard' | 'Beginner' | 'Intermediate' | 'Advanced'
             : 'beginner' as const;
           
+          // Calculate total duration from all lessons in minutes
+          let totalDuration = 0;
+          for (const lesson of lessons) {
+            totalDuration += (lesson.duration || 30);
+          }
+          
           newCourses.push({
             id: `${grade}-${term}-${subject.name}`,
             subject: subject.name,
@@ -367,7 +701,7 @@ const BrowseCourses = () => {
             quizCount,
             description: `Master ${subject.name} concepts for ${grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`} - ${term}. Build strong foundations and ace your tests.`,
             difficulty: validDifficulty,
-            estimatedHours: subject.duration ? Math.ceil(subject.duration / 60) : Math.ceil(lessons.length * 0.5),
+            estimatedHours: Math.ceil(totalDuration / 60), // Convert minutes to hours
             completionRate,
             enrolled,
             price: subject.price || 0,
@@ -382,7 +716,30 @@ const BrowseCourses = () => {
         const merged = new Set([...prev, ...Array.from(subjectsSet)]);
         return Array.from(merged).sort();
       });
-      setCourses(prev => [...prev, ...newCourses]);
+      
+      // Merge courses while preserving existing enrolled status
+      setCourses(prev => {
+        const existingCourseMap = new Map(prev.map(c => [c.id, c]));
+        const updatedCourses = [...prev];
+        
+        newCourses.forEach(newCourse => {
+          const existing = existingCourseMap.get(newCourse.id);
+          if (existing) {
+            // Update existing course but preserve enrolled status if it's true
+            const index = updatedCourses.findIndex(c => c.id === newCourse.id);
+            updatedCourses[index] = {
+              ...newCourse,
+              enrolled: existing.enrolled || newCourse.enrolled, // Keep enrolled if it was previously set
+            };
+          } else {
+            // Add new course
+            updatedCourses.push(newCourse);
+          }
+        });
+        
+        return updatedCourses;
+      });
+      
       setLoadedGrades(prev => new Set([...prev, grade]));
       
       // Load other grades in background after initial load
@@ -480,6 +837,14 @@ const BrowseCourses = () => {
 
   const handlePreviewCourse = async (course: Course) => {
     setLoadingPreview(true);
+    
+    // Track this preview for recommendations
+    setPreviewedCourses(prev => {
+      const updated = [course.id, ...prev.filter(id => id !== course.id)].slice(0, 30);
+      localStorage.setItem('previewedCourses', JSON.stringify(updated));
+      return updated;
+    });
+    
     try {
       // Fetch the first lesson of the course to get full details
       const lessons = await getLessonsBySubjectAndGrade(course.subject, course.grade, course.term);
@@ -571,7 +936,7 @@ const BrowseCourses = () => {
           </h1>
           
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            {loading ? 'Loading amazing courses...' : `Choose from ${courses.length}+ expertly crafted courses across all grades and subjects`}
+            {loading ? 'Loading amazing courses...' : `Choose from ${new Set(courses.map(c => c.subject)).size} subjects with ${courses.length}+ expertly crafted courses across all grades`}
           </p>
 
           {/* Quick Stats */}
@@ -581,8 +946,17 @@ const BrowseCourses = () => {
                 <BookOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="text-left">
-                <p className="text-2xl font-bold">{courses.length}</p>
-                <p className="text-sm text-muted-foreground">Total Courses</p>
+                <p className="text-2xl font-bold">{new Set(courses.map(c => c.subject)).size}</p>
+                <p className="text-sm text-muted-foreground">Total Subjects</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                <Trophy className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="text-left">
+                <p className="text-2xl font-bold">{filteredCourses.length}</p>
+                <p className="text-sm text-muted-foreground">Courses Available</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -590,8 +964,8 @@ const BrowseCourses = () => {
                 <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div className="text-left">
-                <p className="text-2xl font-bold text-green-600">{enrollments.length}</p>
-                <p className="text-sm text-muted-foreground">My Enrolled Courses</p>
+                <p className="text-2xl font-bold text-green-600">{new Set(courses.filter(c => c.enrolled).map(c => `${c.subject}-${c.grade}`)).size}</p>
+                <p className="text-sm text-muted-foreground">Enrolled Subjects</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -599,8 +973,8 @@ const BrowseCourses = () => {
                 <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="text-left">
-                <p className="text-2xl font-bold">{courses.reduce((sum, c) => sum + c.studentCount, 0).toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">Total Students</p>
+                <p className="text-2xl font-bold">{totalStudents.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Registered Students</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -639,23 +1013,126 @@ const BrowseCourses = () => {
               </Tabs>
             </div>
             
-            {/* Search Bar - Enhanced */}
-            <div className="relative mb-6">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-500 w-5 h-5" />
+            {/* Search Bar - Enhanced with Course Results */}
+            <div className="relative mb-6" ref={searchRef}>
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-500 w-5 h-5 z-10" />
               <Input
-                placeholder="Search for courses, subjects, or topics..."
+                placeholder="Search for courses, subjects, grades, or terms..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => searchQuery && searchSuggestions.length > 0 && setShowSuggestions(true)}
                 className="pl-12 pr-4 h-14 text-base border-2 border-purple-100 dark:border-purple-900/50 focus:border-purple-500 dark:focus:border-purple-500 rounded-xl shadow-sm"
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setShowSuggestions(false);
+                  }}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
+              
+              {/* Search Results Dropdown */}
+              <AnimatePresence>
+                {showSuggestions && searchSuggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden z-50 max-h-[500px] overflow-y-auto"
+                  >
+                    <div className="p-3">
+                      <div className="text-xs font-semibold text-muted-foreground px-3 py-2 flex items-center gap-2">
+                        <Search className="w-3 h-3" />
+                        {searchSuggestions.length} {searchSuggestions.length === 1 ? 'Result' : 'Results'} Found
+                      </div>
+                      <div className="space-y-2">
+                        {searchSuggestions.map((course, index) => (
+                          <motion.button
+                            key={course.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            onClick={() => {
+                              setShowSuggestions(false);
+                              handleViewCourse(course);
+                            }}
+                            className="w-full text-left p-3 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-200 border border-transparent hover:border-purple-200 dark:hover:border-purple-800 group"
+                          >
+                            <div className="flex items-start gap-3">
+                              {/* Course Icon */}
+                              <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                course.enrolled 
+                                  ? 'bg-green-100 dark:bg-green-900/30' 
+                                  : 'bg-purple-100 dark:bg-purple-900/30'
+                              }`}>
+                                <BookOpen className={`w-6 h-6 ${
+                                  course.enrolled 
+                                    ? 'text-green-600 dark:text-green-400' 
+                                    : 'text-purple-600 dark:text-purple-400'
+                                }`} />
+                              </div>
+                              
+                              {/* Course Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-semibold text-sm group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">
+                                    {course.subject}
+                                  </h4>
+                                  {course.enrolled && (
+                                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs flex-shrink-0">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Owned
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-1">
+                                    <GraduationCap className="w-3 h-3" />
+                                    <span>{course.grade === "Common Entrance" ? "Common Entrance" : `Grade ${course.grade}`}</span>
+                                  </div>
+                                  <span>•</span>
+                                  <span>{course.term}</span>
+                                  <span>•</span>
+                                  <div className="flex items-center gap-1">
+                                    <Users className="w-3 h-3" />
+                                    <span>{course.studentCount}+</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <div className="flex items-center gap-1">
+                                      <BookOpen className="w-3 h-3 text-purple-600" />
+                                      <span>{course.lessonCount} lessons</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                      <span>{course.rating.toFixed(1)}</span>
+                                    </div>
+                                  </div>
+                                  <span className="font-bold text-purple-600 text-sm">
+                                    {formatCurrency(course.price)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.button>
+                        ))}
+                      </div>
+                      {searchSuggestions.length >= 6 && (
+                        <div className="text-center py-2 border-t border-purple-100 dark:border-purple-900 mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            Showing top {searchSuggestions.length} results. Use filters for more options.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Filters */}
@@ -751,15 +1228,153 @@ const BrowseCourses = () => {
                   <SelectContent>
                     <SelectItem value="popular">Most Popular</SelectItem>
                     <SelectItem value="newest">Most Lessons</SelectItem>
-                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                    <SelectItem value="alphabetical">Alphabetical (A-Z)</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    <SelectItem value="rating">Highest Rated</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
+            {/* View Mode Toggle & Advanced Filters */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode('grid');
+                    localStorage.setItem('viewMode', 'grid');
+                  }}
+                >
+                  <LayoutGrid className="w-4 h-4 mr-1" />
+                  Grid
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode('list');
+                    localStorage.setItem('viewMode', 'list');
+                  }}
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  List
+                </Button>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              >
+                <SlidersHorizontal className="w-4 h-4 mr-2" />
+                Advanced Filters
+                {showAdvancedFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+              </Button>
+            </div>
+
+            {/* Advanced Filters Panel */}
+            <AnimatePresence>
+              {showAdvancedFilters && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-6 p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-xl border-2 border-purple-100 dark:border-purple-900/30"
+                >
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <SlidersHorizontal className="w-5 h-5 text-purple-600" />
+                    Advanced Filters
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Difficulty Filter */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold">Difficulty Level</label>
+                      <div className="space-y-2">
+                        {['Beginner', 'Intermediate', 'Advanced'].map(diff => (
+                          <label key={diff} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedDifficulties.includes(diff)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedDifficulties([...selectedDifficulties, diff]);
+                                } else {
+                                  setSelectedDifficulties(selectedDifficulties.filter(d => d !== diff));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300"
+                            />
+                            <span className="text-sm">{diff}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Rating Filter */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold">Minimum Rating</label>
+                      <Select value={minRating.toString()} onValueChange={(v) => setMinRating(Number(v))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">All Ratings</SelectItem>
+                          <SelectItem value="3">3+ Stars</SelectItem>
+                          <SelectItem value="4">4+ Stars</SelectItem>
+                          <SelectItem value="4.5">4.5+ Stars</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Price Range Filter */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold">
+                        Price Range: {formatCurrency(priceRange[0])} - {formatCurrency(priceRange[1])}
+                      </label>
+                      <div className="space-y-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="10000"
+                          step="500"
+                          value={priceRange[1]}
+                          onChange={(e) => setPriceRange([0, Number(e.target.value)])}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>₦0</span>
+                          <span>₦10,000</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clear Advanced Filters */}
+                  <div className="mt-4 pt-4 border-t border-purple-200 dark:border-purple-800">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDifficulties([]);
+                        setMinRating(0);
+                        setPriceRange([0, 10000]);
+                      }}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Clear Advanced Filters
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Active Filters and Clear - Redesigned */}
             <AnimatePresence>
-              {(searchQuery || selectedGrade !== 'all' || selectedSubject !== 'all' || selectedTerm !== 'all') && (
+              {(searchQuery || selectedGrade !== 'all' || selectedSubject !== 'all' || selectedTerm !== 'all' || selectedDifficulties.length > 0) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -908,18 +1523,43 @@ const BrowseCourses = () => {
                 <div className="w-24 h-24 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
                   <BookOpen className="w-12 h-12 text-purple-600 dark:text-purple-400" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">No Courses Found</h3>
+                <h3 className="text-2xl font-bold mb-3">
+                  {searchQuery 
+                    ? `No results for "${searchQuery}"` 
+                    : showOnlyPurchased 
+                      ? "You haven't purchased any courses yet" 
+                      : "No Courses Found"}
+                </h3>
                 <p className="text-muted-foreground mb-8 text-lg">
-                  We couldn't find any courses matching your criteria. Try adjusting your filters or search query.
+                  {searchQuery 
+                    ? `We couldn't find any courses matching "${searchQuery}". Try searching with different keywords or check your spelling.`
+                    : showOnlyPurchased
+                      ? "Browse our available courses and start learning today!"
+                      : selectedGrade !== 'all' || selectedSubject !== 'all' || selectedTerm !== 'all'
+                        ? `No courses found for ${selectedGrade !== 'all' ? `Grade ${selectedGrade}` : ''}${selectedSubject !== 'all' ? ` - ${selectedSubject}` : ''}${selectedTerm !== 'all' ? ` - ${selectedTerm}` : ''}. Try different filters.`
+                        : "We couldn't find any courses matching your criteria. Try adjusting your filters."}
                 </p>
-                <Button 
-                  onClick={clearFilters}
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Clear All Filters
-                </Button>
+                <div className="flex gap-3 justify-center">
+                  {searchQuery && (
+                    <Button 
+                      onClick={() => setSearchQuery('')}
+                      size="lg"
+                      variant="outline"
+                      className="border-purple-300 hover:bg-purple-50"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Clear Search
+                    </Button>
+                  )}
+                  <Button 
+                    onClick={clearFilters}
+                    size="lg"
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  >
+                    <Filter className="w-4 h-4 mr-2" />
+                    {showOnlyPurchased ? 'View All Courses' : 'Clear All Filters'}
+                  </Button>
+                </div>
               </div>
             </Card>
           </motion.div>
@@ -949,6 +1589,22 @@ const BrowseCourses = () => {
                       : 'bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500'
                   }`}>
                     <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors" />
+                    
+                    {/* Top Left Badges */}
+                    <div className="absolute top-2 left-2 flex flex-col gap-1">
+                      {isNewCourse(course.lessonCount) && !course.enrolled && (
+                        <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 shadow-lg">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          NEW
+                        </Badge>
+                      )}
+                      {isPopular(course) && (
+                        <Badge className="bg-gradient-to-r from-pink-500 to-rose-500 text-white border-0 shadow-lg">
+                          <Flame className="w-3 h-3 mr-1" />
+                          Popular
+                        </Badge>
+                      )}
+                    </div>
                     
                     {/* Purchased Ribbon - Top Right Corner */}
                     {course.enrolled && (
@@ -993,9 +1649,9 @@ const BrowseCourses = () => {
                         {course.difficulty.charAt(0).toUpperCase() + course.difficulty.slice(1).toLowerCase()}
                       </Badge>
                       {course.enrolled && (
-                        <Badge className="bg-green-600 text-white shadow-lg hover:bg-green-700 font-bold text-sm px-3 py-1">
+                        <Badge className="bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg font-bold text-sm px-4 py-1.5 animate-pulse">
                           <CheckCircle className="w-4 h-4 mr-1.5" />
-                          Purchased
+                          PURCHASED
                         </Badge>
                       )}
                     </div>
@@ -1065,7 +1721,9 @@ const BrowseCourses = () => {
                           <Clock className="w-4 h-4 text-green-600" />
                         </div>
                         <div>
-                          <p className="font-bold text-foreground">{course.estimatedHours}h</p>
+                          <p className="font-bold text-foreground">
+                            {course.estimatedHours > 0 ? `${course.estimatedHours}h` : '30m'}
+                          </p>
                           <p className="text-xs text-muted-foreground">Duration</p>
                         </div>
                       </div>
@@ -1113,19 +1771,36 @@ const BrowseCourses = () => {
                     {/* Action Buttons */}
                     <div className="flex flex-col gap-2">
                       {course.enrolled ? (
-                        <Button 
-                          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group"
-                          onClick={() => handleViewCourse(course)}
-                        >
-                          <BookOpen className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                          Go to Course
-                        </Button>
+                        <>
+                          <Button 
+                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group"
+                            onClick={() => handleViewCourse(course)}
+                          >
+                            <PlayCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                            Start Learning
+                          </Button>
+                          <ShareCourseDialog
+                            course={{
+                              subject: course.subject,
+                              grade: course.grade,
+                              term: course.term,
+                              price: course.price,
+                              description: course.description
+                            }}
+                            trigger={
+                              <Button variant="outline" size="sm">
+                                <Share2 className="w-3 h-3 mr-2" />
+                                Share
+                              </Button>
+                            }
+                          />
+                        </>
                       ) : (
                         <>
                           <div className="flex gap-2">
                             <Button 
                               variant="outline"
-                              className="flex-1 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                              className="flex-1 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:text-purple-900 dark:hover:text-purple-100"
                               onClick={() => handlePreviewCourse(course)}
                               disabled={loadingPreview}
                             >
@@ -1136,24 +1811,49 @@ const BrowseCourses = () => {
                               )}
                               Preview
                             </Button>
-                            <Button 
-                              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group"
-                              onClick={() => handleAddToCart(course)}
-                              disabled={isInCart(course.subject, course.grade, course.term)}
-                            >
-                              {isInCart(course.subject, course.grade, course.term) ? (
-                                <>
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  In Cart
-                                </>
-                              ) : (
-                                <>
-                                  <ShoppingCart className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                  Add to Cart
-                                </>
-                              )}
-                            </Button>
+                            {course.enrolled ? (
+                              <Button 
+                                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group font-bold"
+                                onClick={() => navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`)}
+                              >
+                                <PlayCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                Start Course
+                              </Button>
+                            ) : (
+                              <Button 
+                                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group"
+                                onClick={() => handleAddToCart(course)}
+                                disabled={isInCart(course.subject, course.grade, course.term)}
+                              >
+                                {isInCart(course.subject, course.grade, course.term) ? (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    In Cart
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShoppingCart className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                    Add to Cart
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
+                          <ShareCourseDialog
+                            course={{
+                              subject: course.subject,
+                              grade: course.grade,
+                              term: course.term,
+                              price: course.price,
+                              description: course.description
+                            }}
+                            trigger={
+                              <Button variant="ghost" size="sm" className="text-xs">
+                                <Share2 className="w-3 h-3 mr-2" />
+                                Share Course
+                              </Button>
+                            }
+                          />
                         </>
                       )}
                     </div>
@@ -1252,9 +1952,271 @@ const BrowseCourses = () => {
             </p>
           </div>
         )}
+
+        {/* Trending Now Section - Now below main courses */}
+        {!loading && !showOnlyPurchased && getTrendingCourses().length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-10"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg">
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Trending Now</h2>
+                <p className="text-sm text-muted-foreground">Most popular courses this week</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {getTrendingCourses().map((course, index) => (
+                <motion.div
+                  key={course.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="hover:shadow-lg transition-shadow border-2 border-orange-100 dark:border-orange-900/30 relative overflow-hidden">
+                    <div className="absolute top-2 right-2 z-10">
+                      <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white border-0 shadow-lg">
+                        <Flame className="w-3 h-3 mr-1" />
+                        #{index + 1} Trending
+                      </Badge>
+                    </div>
+                    <div className="h-32 bg-gradient-to-br from-orange-100 via-red-100 to-pink-100 dark:from-orange-950 dark:via-red-950 dark:to-pink-950 relative">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <BarChart3 className="w-16 h-16 text-orange-400 opacity-50" />
+                      </div>
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-bold text-lg mb-2 line-clamp-1">{course.subject}</h3>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                        <Users className="w-4 h-4" />
+                        <span>{course.studentCount}+ students enrolled</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-bold text-purple-600">{formatCurrency(course.price)}</span>
+                        <Button 
+                          size="sm" 
+                          className={course.enrolled ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold" : ""}
+                          onClick={() => {
+                            if (course.enrolled) {
+                              navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+                            } else if (!isInCart(course.subject, course.grade, course.term)) {
+                              handleAddToCart(course);
+                            } else {
+                              navigate('/cart');
+                            }
+                          }}
+                        >
+                          {course.enrolled ? (
+                            <>
+                              <PlayCircle className="w-4 h-4 mr-1" />
+                              Start Course
+                            </>
+                          ) : isInCart(course.subject, course.grade, course.term) ? (
+                            'In Cart'
+                          ) : (
+                            'Add to Cart'
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Recommended for You Section - Professional UI/UX */}
+        {!loading && getRecommendedCourses().length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-12"
+          >
+            {/* Section Header */}
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-100 via-blue-100 to-pink-100 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-pink-950/20 rounded-2xl blur-xl opacity-50"></div>
+              <Card className="relative border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 via-blue-50 to-pink-50 dark:from-purple-950/30 dark:via-blue-950/30 dark:to-pink-950/30 overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl blur opacity-50"></div>
+                        <div className="relative p-3 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl">
+                          <Sparkles className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 bg-clip-text text-transparent">
+                          Recommended for You
+                        </h2>
+                        <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                          <Target className="w-4 h-4" />
+                          Based on your interests, searches, and learning goals
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 px-4 py-2 text-sm">
+                      {getRecommendedCourses().length} Courses
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Course Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {getRecommendedCourses().map((course, index) => (
+                <motion.div
+                  key={course.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.4 }}
+                  whileHover={{ y: -8, scale: 1.02 }}
+                >
+                  <Card className="h-full hover:shadow-2xl transition-all duration-300 border-2 border-purple-100 dark:border-purple-900/30 group overflow-hidden bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-900 dark:to-purple-950/20">
+                    {/* Course Header */}
+                    <div className="relative h-32 bg-gradient-to-br from-purple-400 via-blue-400 to-pink-400 overflow-hidden">
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors"></div>
+                      
+                      {/* Decorative Elements */}
+                      <div className="absolute top-2 right-2">
+                        <div className="w-16 h-16 bg-white/20 rounded-full blur-xl"></div>
+                      </div>
+                      <div className="absolute bottom-2 left-2">
+                        <div className="w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
+                      </div>
+                      
+                      {/* Icon */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 group-hover:rotate-6">
+                          <Target className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                      
+                      {/* Badge */}
+                      <div className="absolute top-3 left-3">
+                        <Badge className="bg-white/90 text-purple-700 border-0 shadow-lg text-xs font-semibold">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          For You
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Course Content */}
+                    <CardContent className="p-4 flex flex-col gap-3">
+                      <div>
+                        <h3 className="font-bold text-lg mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                          {course.subject}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{course.grade === "Common Entrance" ? "Common Entrance" : `Grade ${course.grade}`}</span>
+                          <span>•</span>
+                          <span>{course.term}</span>
+                        </div>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center gap-1.5 text-xs bg-purple-50 dark:bg-purple-950/30 p-2 rounded-lg">
+                          <BookOpen className="w-3.5 h-3.5 text-purple-600" />
+                          <span className="font-semibold">{course.lessonCount}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs bg-blue-50 dark:bg-blue-950/30 p-2 rounded-lg">
+                          <Users className="w-3.5 h-3.5 text-blue-600" />
+                          <span className="font-semibold">{course.studentCount}+</span>
+                        </div>
+                      </div>
+
+                      {/* Rating and Price */}
+                      <div className="flex items-center justify-between pt-2 border-t border-purple-100 dark:border-purple-900/30">
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < Math.floor(course.rating)
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                          <span className="text-xs font-semibold ml-1">{course.rating.toFixed(1)}</span>
+                        </div>
+                        <span className="text-lg font-bold text-purple-600">{formatCurrency(course.price)}</span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 mt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:border-purple-300 hover:text-purple-700 dark:hover:text-purple-300" 
+                          onClick={() => handlePreviewCourse(course)}
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          Preview
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md"
+                          onClick={() => handleAddToCart(course)}
+                          disabled={isInCart(course.subject, course.grade, course.term)}
+                        >
+                          {isInCart(course.subject, course.grade, course.term) ? (
+                            <>
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              In Cart
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              Add
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </main>
 
       <StudentFooter />
+
+      {/* Floating Wishlist Button */}
+      <AnimatePresence>
+        {courses.filter(c => isInWishlist(c.subject, c.grade, c.term)).length > 0 && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            className="fixed bottom-24 right-6 z-50"
+          >
+            <Button
+              size="lg"
+              className="rounded-full w-14 h-14 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 shadow-2xl"
+              onClick={() => navigate('/wishlist')}
+            >
+              <div className="relative">
+                <Heart className="w-6 h-6 fill-white text-white" />
+                <Badge className="absolute -top-2 -right-2 bg-white text-pink-600 border-0 text-xs px-1.5 min-w-[20px] h-5">
+                  {courses.filter(c => isInWishlist(c.subject, c.grade, c.term)).length}
+                </Badge>
+              </div>
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Course Preview Dialog */}
       <CoursePreviewDialog

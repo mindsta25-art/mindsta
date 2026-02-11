@@ -60,6 +60,19 @@ function generateReference(userId) {
   return `PSK_${Date.now()}_${userId}_${Math.random().toString(36).slice(2,8)}`;
 }
 
+// Helper to get Paystack secret key from settings or environment
+async function getPaystackSecretKey() {
+  try {
+    const settings = await SystemSettings.getSingleton();
+    // First try settings, then fallback to environment variable
+    const secretKey = settings?.advanced?.paystackSecretKey || process.env.PAYSTACK_SECRET_KEY;
+    return secretKey;
+  } catch (error) {
+    console.error('[Get Paystack Key Error]', error.message);
+    return process.env.PAYSTACK_SECRET_KEY; // Fallback to env
+  }
+}
+
 // Notify admin about new purchase
 async function notifyAdminOfPurchase({ userId, amount, items, paymentId }) {
   try {
@@ -197,7 +210,7 @@ router.post('/initialize', requireAuth, async (req, res) => {
     if (!student) return res.status(404).json({ error: 'Student record not found' });
 
     const reference = generateReference(req.user.id);
-    const secretKey = process.env.PAYSTACK_SECRET_KEY;
+    const secretKey = await getPaystackSecretKey();
     if (!secretKey) {
       return res.status(500).json({ error: 'PAYSTACK_SECRET_KEY not configured' });
     }
@@ -245,7 +258,7 @@ router.post('/initialize', requireAuth, async (req, res) => {
 router.get('/verify/:reference', requireAuth, async (req, res) => {
   try {
     const { reference } = req.params;
-    const secretKey = process.env.PAYSTACK_SECRET_KEY;
+    const secretKey = await getPaystackSecretKey();
     if (!secretKey) return res.status(500).json({ error: 'PAYSTACK_SECRET_KEY not configured' });
 
     const payment = await Payment.findOne({ reference, userId: req.user.id });
@@ -363,7 +376,7 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
 // POST /api/payments/webhook - Paystack webhook listener
 router.post('/webhook', express.json(), async (req, res) => {
   try {
-    const secret = process.env.PAYSTACK_SECRET_KEY;
+    const secret = await getPaystackSecretKey();
     if (!secret) return res.status(500).json({ error: 'PAYSTACK_SECRET_KEY not configured' });
     const signature = req.headers['x-paystack-signature'];
     const computed = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex');

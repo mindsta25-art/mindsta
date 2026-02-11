@@ -46,10 +46,6 @@ import {
   type Subject 
 } from '@/api/subjects';
 
-const CATEGORIES = ['Core', 'Science', 'Social', 'Languages', 'Arts', 'Technology', 'Practical', 'Religious', 'Business'];
-const COLORS = ['blue', 'purple', 'green', 'teal', 'orange', 'red', 'pink', 'indigo', 'yellow'];
-const ICONS = ['BookOpen', 'Calculator', 'Computer', 'Flask', 'Globe', 'Palette', 'Music', 'Heart', 'Briefcase'];
-
 // Helper to safely get subject ID
 const getSubjectId = (subject: Subject): string => {
   return subject._id || subject.id || '';
@@ -64,12 +60,7 @@ const SubjectManagement = () => {
   const [submitting, setSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
-    name: '',
-    category: 'Core',
-    description: '',
-    icon: 'BookOpen',
-    color: 'blue',
-    order: 0
+    name: ''
   });
 
   useEffect(() => {
@@ -100,22 +91,12 @@ const SubjectManagement = () => {
     if (subject) {
       setEditingSubject(subject);
       setFormData({
-        name: subject.name,
-        category: subject.category,
-        description: subject.description,
-        icon: subject.icon,
-        color: subject.color,
-        order: subject.order
+        name: subject.name
       });
     } else {
       setEditingSubject(null);
       setFormData({
-        name: '',
-        category: 'Core',
-        description: '',
-        icon: 'BookOpen',
-        color: 'blue',
-        order: subjects.length
+        name: ''
       });
     }
     setDialogOpen(true);
@@ -125,12 +106,7 @@ const SubjectManagement = () => {
     setDialogOpen(false);
     setEditingSubject(null);
     setFormData({
-      name: '',
-      category: 'Core',
-      description: '',
-      icon: 'BookOpen',
-      color: 'blue',
-      order: 0
+      name: ''
     });
   };
 
@@ -271,10 +247,7 @@ const SubjectManagement = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Order</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -288,18 +261,8 @@ const SubjectManagement = () => {
                     
                     return (
                       <TableRow key={subject._id}>
-                        <TableCell className="font-medium">{subject.order || 0}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full bg-${subject.color || 'blue'}-500`} />
-                            {subject.name || 'Unnamed'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{subject.category || 'Core'}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-md truncate">
-                          {subject.description || ''}
+                        <TableCell className="font-medium">
+                          {subject.name || 'Unnamed'}
                         </TableCell>
                         <TableCell>
                           <Badge variant={subject.isActive ? 'default' : 'secondary'}>
@@ -367,92 +330,9 @@ const SubjectManagement = () => {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Mathematics"
                   required
+                  autoFocus
                 />
               </div>
-
-              {editingSubject && (
-                <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category *</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) => setFormData({ ...formData, category: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map((cat) => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Input
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Brief description of the subject"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="icon">Icon</Label>
-                      <Select
-                        value={formData.icon}
-                        onValueChange={(value) => setFormData({ ...formData, icon: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ICONS.map((icon) => (
-                            <SelectItem key={icon} value={icon}>{icon}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="color">Color</Label>
-                      <Select
-                        value={formData.color}
-                        onValueChange={(value) => setFormData({ ...formData, color: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COLORS.map((color) => (
-                            <SelectItem key={color} value={color}>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-4 h-4 rounded bg-${color}-500`} />
-                                {color}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="order">Display Order</Label>
-                    <Input
-                      id="order"
-                      type="number"
-                      value={formData.order}
-                      onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
-                      placeholder="0"
-                      min="0"
-                    />
-                  </div>
-                </>
-              )}
             </div>
 
             <DialogFooter>

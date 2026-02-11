@@ -191,7 +191,7 @@ const Index = () => {
               </div>
               <div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
-                <span className="text-xs block text-muted-foreground">Learn • Play • Grow! </span>
+                <span className="text-xs block text-muted-foreground">... Every Child Can Do Well </span>
               </div>
             </div>
             

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, Clock, ExternalLink, ListTree, ReceiptText, QrCode, Settings, LogOut, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, Clock, ExternalLink, ListTree, ReceiptText, QrCode, Settings, LogOut, FileText, ChevronDown, ChevronUp, Moon, Sun } from 'lucide-react';
 import { getMyReferralDashboard, type ReferralDashboard, getReferralsByUserId, type Referral as ReferralItem, getMyReferralTransactions, type ReferralTransactionItem } from '@/api/referrals';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import QRCode from 'react-qr-code';
 import { signOut } from '@/api/auth';
 
@@ -59,6 +60,7 @@ export default function ReferralDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     loadDashboard();
@@ -172,6 +174,14 @@ export default function ReferralDashboard() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
           >
+            <Button 
+              variant="outline"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Button onClick={() => navigate('/referral/settings')}>
               <Settings className="h-4 w-4 mr-2" /> Settings
             </Button>
@@ -179,8 +189,12 @@ export default function ReferralDashboard() {
               variant="destructive"
               onClick={() => {
                 signOut();
-                refreshUser(); // Update auth context
+                refreshUser();
                 navigate('/');
+                toast({
+                  title: "Logged out successfully",
+                  description: "See you next time!",
+                });
               }}
             >
               <LogOut className="h-4 w-4 mr-2" /> Logout

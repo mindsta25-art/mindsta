@@ -1,8 +1,8 @@
-// Make Lesson & Quizzes page use the same rich UI as Content Management
-import ContentManagement from "./ContentManagement";
+// Redesigned Lesson Management with modern UI/UX principles
+import LessonManagementRedesigned from "./LessonManagementRedesigned";
 
 const LessonManagement = () => {
-  return <ContentManagement />;
+  return <LessonManagementRedesigned />;
 };
 
 export default LessonManagement;

@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { StudentHeader } from "@/components/StudentHeader";
+import { StudentFooter } from "@/components/StudentFooter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -20,9 +23,21 @@ import {
   TrendingUp, 
   PlayCircle,
   CheckCircle,
-  BarChart3
+  BarChart3,
+  Search,
+  Filter,
+  Award,
+  Target,
+  Zap,
+  Star,
+  Calendar,
+  Sparkles,
+  GraduationCap,
+  Trophy
 } from "lucide-react";
-import { getStudentByUserId, getLessons, getUserProgress, type Lesson, type UserProgress } from "@/api";
+import { getStudentByUserId } from "@/api/students";
+import { getLessons, type Lesson } from "@/api/lessons";
+import { getUserProgress, type UserProgress } from "@/api/progress";
 import { getEnrollments, type Enrollment } from "@/api/enrollments";
 
 interface EnrolledCourse {
@@ -90,32 +105,33 @@ const MyLearning = () => {
         // Group lessons by subject/grade/term to create "courses"
         const courseMap = new Map<string, EnrolledCourse>();
         
-        for (const lesson of enrolledLessons) {
-          const key = `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
+        // First, create entries for all enrollments (even if no lessons exist yet)
+        for (const enrollment of enrollmentsData) {
+          const key = `${enrollment.subject}-${enrollment.grade}-${enrollment.term || 'general'}`;
           
           if (!courseMap.has(key)) {
-            // Find the enrollment for this course to get purchase date
-            const enrollment = enrollmentsData.find(e => 
-              e.subject === lesson.subject && 
-              e.grade === lesson.grade && 
-              e.term === lesson.term
-            );
-            
             courseMap.set(key, {
-              subject: lesson.subject,
-              grade: lesson.grade,
-              term: lesson.term,
+              subject: enrollment.subject,
+              grade: enrollment.grade,
+              term: enrollment.term,
               lessonsTotal: 0,
               lessonsCompleted: 0,
               progress: 0,
               nextLesson: undefined,
               averageScore: undefined,
-              enrollmentDate: enrollment ? new Date(enrollment.purchasedAt || enrollment.createdAt) : undefined,
+              enrollmentDate: new Date(enrollment.purchasedAt || enrollment.createdAt),
             });
           }
-
-          const course = courseMap.get(key)!;
-          course.lessonsTotal += 1;
+        }
+        
+        // Then add lesson data to existing enrollments
+        for (const lesson of enrolledLessons) {
+          const key = `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
+          
+          // Only process if this enrollment exists (it should, from the loop above)
+          if (courseMap.has(key)) {
+            const course = courseMap.get(key)!;
+            course.lessonsTotal += 1;
 
           const lessonProgress = progress.find(p => p.lessonId === lesson.id);
           if (lessonProgress) {
@@ -150,6 +166,7 @@ const MyLearning = () => {
             course.averageScore = Math.round(scoresForCourse.reduce((a, b) => a + b, 0) / scoresForCourse.length);
           }
         }
+      }
 
         // Calculate progress percentages
         courseMap.forEach((course) => {
@@ -243,18 +260,32 @@ const MyLearning = () => {
       <main className="pt-24 pb-16 container mx-auto px-4">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Learning</h1>
-          <p className="text-muted-foreground">Continue where you left off and track your progress</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Purchased Courses</h1>
+          <p className="text-muted-foreground">View all your purchased subjects and topics, and track your learning progress</p>
         </div>
 
         {/* Quick Stats Section */}
         {enrolled.length > 0 && (
-          <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-5 md:p-6">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="p-2.5 md:p-3 bg-purple-100 dark:bg-purple-900 rounded-lg flex-shrink-0">
+                    <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-300" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-2xl md:text-3xl font-bold">{enrolled.length}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground truncate">Purchased Subjects</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="hover:shadow-md transition-shadow">
               <CardContent className="p-5 md:p-6">
                 <div className="flex items-center gap-3 md:gap-4">
                   <div className="p-2.5 md:p-3 bg-blue-100 dark:bg-blue-900 rounded-lg flex-shrink-0">
-                    <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-300" />
+                    <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-300" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-2xl md:text-3xl font-bold">
@@ -273,18 +304,20 @@ const MyLearning = () => {
                     <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-green-600 dark:text-green-300" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-2xl md:text-3xl font-bold">{enrolled.length}</p>
-                    <p className="text-xs md:text-sm text-muted-foreground truncate">Active Courses</p>
+                    <p className="text-2xl md:text-3xl font-bold">
+                      {enrolled.filter(c => c.progress > 0).length}
+                    </p>
+                    <p className="text-xs md:text-sm text-muted-foreground truncate">In Progress</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
+            <Card className="hover:shadow-md transition-shadow">
               <CardContent className="p-5 md:p-6">
                 <div className="flex items-center gap-3 md:gap-4">
-                  <div className="p-2.5 md:p-3 bg-purple-100 dark:bg-purple-900 rounded-lg flex-shrink-0">
-                    <BarChart3 className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 dark:text-purple-300" />
+                  <div className="p-2.5 md:p-3 bg-orange-100 dark:bg-orange-900 rounded-lg flex-shrink-0">
+                    <BarChart3 className="w-5 h-5 md:w-6 md:h-6 text-orange-600 dark:text-orange-300" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-2xl md:text-3xl font-bold">
@@ -443,8 +476,8 @@ const MyLearning = () => {
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        const subjectSlug = course.subject.toLowerCase().replace(/\s+/g, '-');
-                        navigate(`/grade/${course.grade}/${subjectSlug}/lesson/${course.nextLesson!.id}`);
+                        // Navigate to SubjectLessonsUdemy page (same as Browse page)
+                        navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
                       }}
                       className="w-full gap-2"
                       size="sm"

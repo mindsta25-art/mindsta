@@ -12,6 +12,9 @@ export interface StudentData {
   grade: string;
   age: number;
   schoolName: string;
+  currentStreak?: number;
+  longestStreak?: number;
+  lastActivityDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -83,5 +86,18 @@ export const updateStudentProfile = async (
   } catch (error) {
     console.error('Error updating student profile:', error);
     throw error;
+  }
+};
+
+/**
+ * Update student learning streak
+ */
+export const updateStreak = async (userId: string): Promise<{ currentStreak: number; longestStreak: number } | null> => {
+  try {
+    const result = await api.post(`/students/${userId}/update-streak`, {});
+    return result;
+  } catch (error) {
+    console.error('Error updating streak:', error);
+    return null;
   }
 };

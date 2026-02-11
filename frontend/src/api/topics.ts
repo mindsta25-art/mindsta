@@ -52,7 +52,7 @@ export const getTopics = async (filters?: {
   if (filters?.isPublished !== undefined) params.append('isPublished', String(filters.isPublished));
   
   const response = await api.get(`/topics?${params.toString()}`);
-  return response.data;
+  return response;
 };
 
 /**
@@ -60,7 +60,7 @@ export const getTopics = async (filters?: {
  */
 export const getTopicFilters = async (): Promise<TopicFilters> => {
   const response = await api.get('/topics/filters');
-  return response.data;
+  return response;
 };
 
 /**
@@ -68,7 +68,7 @@ export const getTopicFilters = async (): Promise<TopicFilters> => {
  */
 export const getTopicById = async (id: string): Promise<Topic> => {
   const response = await api.get(`/topics/${id}`);
-  return response.data;
+  return response;
 };
 
 /**
@@ -76,7 +76,7 @@ export const getTopicById = async (id: string): Promise<Topic> => {
  */
 export const getTopicBySlug = async (slug: string): Promise<Topic> => {
   const response = await api.get(`/topics/slug/${slug}`);
-  return response.data;
+  return response;
 };
 
 /**
@@ -84,7 +84,7 @@ export const getTopicBySlug = async (slug: string): Promise<Topic> => {
  */
 export const createTopic = async (topicData: Partial<Topic>): Promise<Topic> => {
   const response = await api.post('/topics', topicData);
-  return response.data;
+  return response;
 };
 
 /**
@@ -92,7 +92,7 @@ export const createTopic = async (topicData: Partial<Topic>): Promise<Topic> => 
  */
 export const updateTopic = async (id: string, topicData: Partial<Topic>): Promise<Topic> => {
   const response = await api.put(`/topics/${id}`, topicData);
-  return response.data;
+  return response;
 };
 
 /**
@@ -107,7 +107,7 @@ export const deleteTopic = async (id: string): Promise<void> => {
  */
 export const addLessonsToTopic = async (topicId: string, lessonIds: string[]): Promise<Topic> => {
   const response = await api.post(`/topics/${topicId}/lessons`, { lessonIds });
-  return response.data;
+  return response;
 };
 
 /**
@@ -115,7 +115,7 @@ export const addLessonsToTopic = async (topicId: string, lessonIds: string[]): P
  */
 export const removeLessonFromTopic = async (topicId: string, lessonId: string): Promise<Topic> => {
   const response = await api.delete(`/topics/${topicId}/lessons/${lessonId}`);
-  return response.data;
+  return response;
 };
 
 /**
@@ -123,7 +123,7 @@ export const removeLessonFromTopic = async (topicId: string, lessonId: string): 
  */
 export const addTopicToCart = async (topicId: string) => {
   const response = await api.post('/cart/add-topic', { topicId });
-  return response.data;
+  return response;
 };
 
 /**
@@ -131,5 +131,5 @@ export const addTopicToCart = async (topicId: string) => {
  */
 export const addLessonToCart = async (lessonId: string) => {
   const response = await api.post('/cart/add-lesson', { lessonId });
-  return response.data;
+  return response;
 };

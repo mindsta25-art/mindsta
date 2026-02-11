@@ -455,17 +455,30 @@ const AdminDashboard = () => {
                         <stop offset="95%" stopColor="#667eea" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
                       dataKey="date" 
                       tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      stroke="#6b7280"
+                      fontSize={12}
                     />
-                    <YAxis />
+                    <YAxis stroke="#6b7280" fontSize={12} />
                     <Tooltip 
-                      labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                      labelFormatter={(date) => new Date(date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                       formatter={(value: number) => [`${value} users`, 'New Users']}
+                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
                     />
-                    <Area type="monotone" dataKey="count" stroke="#667eea" fillOpacity={1} fill="url(#colorCount)" />
+                    <Area 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#667eea" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorCount)"
+                      animationDuration={1500}
+                      dot={{ r: 4, fill: '#667eea', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6 }}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -483,19 +496,44 @@ const AdminDashboard = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={revenueData}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis 
                         dataKey="date" 
                         tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        stroke="#6b7280"
+                        fontSize={12}
                       />
-                      <YAxis />
+                      <YAxis stroke="#6b7280" fontSize={12} />
                       <Tooltip 
-                        labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                        labelFormatter={(date) => new Date(date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                         formatter={(value: number) => [`₦${value.toLocaleString()}`, '']}
+                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
                       />
-                      <Legend />
-                      <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Daily Revenue" />
-                      <Line type="monotone" dataKey="cumulativeRevenue" stroke="#667eea" strokeWidth={2} name="Total Revenue" />
+                      <Legend 
+                        wrapperStyle={{ paddingTop: '10px' }}
+                        iconType="line"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="#10b981" 
+                        strokeWidth={3} 
+                        name="Daily Revenue"
+                        dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 6 }}
+                        animationDuration={1500}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="cumulativeRevenue" 
+                        stroke="#667eea" 
+                        strokeWidth={3} 
+                        name="Total Revenue"
+                        strokeDasharray="5 5"
+                        dot={{ r: 4, fill: '#667eea', strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 6 }}
+                        animationDuration={1500}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -511,17 +549,26 @@ const AdminDashboard = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={referralData?.signups || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis 
                         dataKey="date" 
                         tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        stroke="#6b7280"
+                        fontSize={12}
                       />
-                      <YAxis />
+                      <YAxis stroke="#6b7280" fontSize={12} />
                       <Tooltip 
-                        labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                        labelFormatter={(date) => new Date(date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                         formatter={(value: number) => [`${value} signups`, 'Referrals']}
+                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                        cursor={{ fill: 'rgba(118, 75, 162, 0.1)' }}
                       />
-                      <Bar dataKey="count" fill="#764ba2" />
+                      <Bar 
+                        dataKey="count" 
+                        fill="#764ba2" 
+                        radius={[8, 8, 0, 0]}
+                        animationDuration={1500}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -545,17 +592,22 @@ const AdminDashboard = () => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ type, count }) => `${type}: ${count}`}
+                        label={({ type, count, percent }) => `${type}: ${count} (${(percent * 100).toFixed(0)}%)`}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="count"
                         nameKey="type"
+                        animationBegin={0}
+                        animationDuration={1500}
                       >
                         {userTypesData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip 
+                        formatter={(value: number) => [`${value} users`, '']}
+                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -602,13 +654,32 @@ const AdminDashboard = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={gradeDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="grade" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="paid" stackId="a" fill="#10b981" name="Paid" />
-                      <Bar dataKey="unpaid" stackId="a" fill="#ef4444" name="Unpaid" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="grade" stroke="#6b7280" fontSize={12} />
+                      <YAxis stroke="#6b7280" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                        cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                      />
+                      <Legend 
+                        wrapperStyle={{ paddingTop: '10px' }}
+                        iconType="circle"
+                      />
+                      <Bar 
+                        dataKey="paid" 
+                        stackId="a" 
+                        fill="#10b981" 
+                        name="Paid" 
+                        radius={[8, 8, 0, 0]}
+                        animationDuration={1500}
+                      />
+                      <Bar 
+                        dataKey="unpaid" 
+                        stackId="a" 
+                        fill="#ef4444" 
+                        name="Unpaid"
+                        animationDuration={1500}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>

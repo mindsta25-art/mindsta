@@ -48,6 +48,12 @@ export * from './wishlist';
 // Assessment API
 export * from './assessment';
 
+// Reviews API
+export * from './reviews';
+
+// Search History API
+export * from './search-history';
+
 
 
 

@@ -5,21 +5,23 @@ import { getMyReferralSettings, updateMyReferralSettings, getMyReferralTransacti
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { bankDetailsSchema, type BankDetailsFormData } from '@/lib/validations';
 
 const ReferralSettings = () => {
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const [settings, setSettings] = useState<RS | null>(null);
   const [transactions, setTransactions] = useState<ReferralTransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [tab, setTab] = useState<'bank'|'earnings'|'transactions'>('bank');
+  const [tab, setTab] = useState<'bank'|'earnings'|'transactions'|'theme'>('bank');
   const navigate = useNavigate();
 
   const bankForm = useForm<BankDetailsFormData>({
@@ -121,10 +123,11 @@ const ReferralSettings = () => {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
           <TabsTrigger value="bank" className="flex items-center gap-2"><Banknote className="h-4 w-4"/> Bank & Commission</TabsTrigger>
           <TabsTrigger value="earnings" className="flex items-center gap-2"><Wallet className="h-4 w-4"/> Earnings & Payout</TabsTrigger>
           <TabsTrigger value="transactions" className="flex items-center gap-2"><ReceiptText className="h-4 w-4"/> Transactions</TabsTrigger>
+          <TabsTrigger value="theme" className="flex items-center gap-2">{theme === 'dark' ? <Moon className="h-4 w-4"/> : <Sun className="h-4 w-4"/>} Theme</TabsTrigger>
         </TabsList>
 
         {/* Bank & Commission Tab */}
@@ -264,6 +267,55 @@ const ReferralSettings = () => {
                   )}
                 </tbody>
               </table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Theme Tab */}
+        <TabsContent value="theme">
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Referral Portal Theme</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Customize the appearance of your referral portal
+                  </p>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium">Current Theme</div>
+                    <div className="text-sm text-muted-foreground">
+                      {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={theme === 'light' ? 'default' : 'outline'}
+                      size="icon"
+                      onClick={() => toggleTheme()}
+                      disabled={theme === 'light'}
+                    >
+                      <Sun className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={theme === 'dark' ? 'default' : 'outline'}
+                      size="icon"
+                      onClick={() => toggleTheme()}
+                      disabled={theme === 'dark'}
+                    >
+                      <Moon className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="bg-muted p-4 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    ✨ Your theme preference is saved separately for referral, student, and admin portals.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

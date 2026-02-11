@@ -16,6 +16,9 @@ import Review from './Review.js';
 import Enrollment from './Enrollment.js';
 import Subject from './Subject.js';
 import Topic from './Topic.js';
+import SearchHistory from './SearchHistory.js';
+import { CourseReview } from './CourseReview.js';
+import { CourseQuestion } from './CourseQuestion.js';
 
 export {
   User,
@@ -36,4 +39,7 @@ export {
   Enrollment,
   Subject,
   Topic,
+  SearchHistory,
+  CourseReview,
+  CourseQuestion,
 };

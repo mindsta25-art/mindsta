@@ -30,21 +30,18 @@
 
     <!-- Theme & PWA -->
     <meta name="theme-color" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Mindsta" />
 
-    <!-- Security Headers -->
+    <!-- Security Headers (Note: X-Frame-Options should be set via HTTP headers, not meta tags) -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
     
     <!-- DNS Prefetch & Preconnect for faster API calls -->
     <link rel="dns-prefetch" href="//localhost:3000" />
     <link rel="preconnect" href="//localhost:3000" crossorigin />
-    
-    <!-- Preload critical assets -->
-    <link rel="preload" href="/assets/icons/mindsta2.png" as="image" />
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/assets/icons/mindsta.png" />

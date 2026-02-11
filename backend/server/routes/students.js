@@ -24,6 +24,9 @@ router.get('/:userId', requireAuth, async (req, res) => {
       age: student.age,
       schoolName: student.schoolName,
       isPaid: student.isPaid || false,
+      currentStreak: student.currentStreak || 0,
+      longestStreak: student.longestStreak || 0,
+      lastActivityDate: student.lastActivityDate,
       createdAt: student.createdAt.toISOString(),
     });
   } catch (error) {
@@ -126,6 +129,69 @@ router.put('/:userId/profile', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error updating student profile:', error);
     res.status(500).json({ error: 'Failed to update profile', message: error.message });
+  }
+});
+
+// POST /api/students/:userId/update-streak
+router.post('/:userId/update-streak', requireAuth, async (req, res) => {
+  try {
+    const student = await Student.findOne({ userId: req.params.userId });
+    
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let currentStreak = student.currentStreak || 0;
+    let longestStreak = student.longestStreak || 0;
+    const lastActivity = student.lastActivityDate ? new Date(student.lastActivityDate) : null;
+    
+    if (lastActivity) {
+      lastActivity.setHours(0, 0, 0, 0);
+      
+      const daysDiff = Math.floor((today - lastActivity) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff === 0) {
+        // Same day, no change
+        return res.json({
+          currentStreak,
+          longestStreak,
+          message: 'Streak already updated today'
+        });
+      } else if (daysDiff === 1) {
+        // Consecutive day
+        currentStreak += 1;
+      } else {
+        // Streak broken
+        currentStreak = 1;
+      }
+    } else {
+      // First activity
+      currentStreak = 1;
+    }
+    
+    // Update longest streak if current is higher
+    if (currentStreak > longestStreak) {
+      longestStreak = currentStreak;
+    }
+    
+    // Update student record
+    student.currentStreak = currentStreak;
+    student.longestStreak = longestStreak;
+    student.lastActivityDate = today;
+    await student.save();
+    
+    res.json({
+      currentStreak,
+      longestStreak,
+      lastActivityDate: today,
+      message: 'Streak updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating streak:', error);
+    res.status(500).json({ error: 'Failed to update streak', message: error.message });
   }
 });
 

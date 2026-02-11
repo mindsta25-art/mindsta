@@ -70,6 +70,17 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     
     console.log(`📡 API Response: ${response.status} ${response.statusText}`);
     
+    // Handle 304 Not Modified - return empty array or cached data
+    if (response.status === 304) {
+      console.log('⚡ 304 Not Modified - returning empty array');
+      return [];
+    }
+    
+    // Handle 204 No Content
+    if (response.status === 204) {
+      return null;
+    }
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
       console.error('❌ API Error:', errorData);

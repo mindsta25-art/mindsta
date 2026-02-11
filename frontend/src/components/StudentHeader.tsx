@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import NotificationBell from "@/components/NotificationBell";
-import { BookOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,7 +45,9 @@ import {
   Trash2,
   ArrowRight,
   TrendingUp,
-  Home
+  Home,
+  Moon,
+  Sun
 } from "lucide-react";
 import { signOut } from "@/api";
 import { getStudentByUserId, updateStudentGrade } from "@/api";
@@ -62,6 +64,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   const { cart, cartCount, removeFromCart } = useCart();
   const { wishlistCount } = useWishlistSafe();
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<Lesson[]>([]);
@@ -79,7 +82,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   // Debug: Warn if passed name doesn't match auth user
   useEffect(() => {
     if (studentName && user?.fullName && studentName !== user.fullName) {
-      console.warn('⚠️ StudentHeader: Name mismatch detected!', {
+      console.warn(' StudentHeader: Name mismatch detected!', {
         passedName: studentName,
         authUserName: user.fullName,
         using: displayName
@@ -281,13 +284,14 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-6">
-              {/* <Button
+              <Button
                 variant="ghost"
-                onClick={() => navigate("/home")}
+                onClick={() => navigate("/dashboard")}
                 className="font-medium"
               >
-                Home
-              </Button> */}
+                <Home className="w-4 h-4 mr-2" />
+                Dashboard
+              </Button>
               <Button
                 variant="ghost"
                 onClick={() => navigate("/browse")}
@@ -301,13 +305,6 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 className="font-medium"
               >
                 My Learning
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/grade-assessment")}
-                className="font-medium text-indigo-600 dark:text-indigo-400"
-              >
-                Find My Grade
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -398,6 +395,21 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="hidden md:flex"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className="w-5 h-5" />
+              )}
+            </Button>
+
             {/* Notification Bell */}
             <NotificationBell />
             
@@ -559,6 +571,10 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                   </div>
                   
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    <Home className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/my-learning")}>
                     <BookOpen className="w-4 h-4 mr-2" />
                     My Learning
@@ -633,17 +649,29 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               </Select>
             </div>
             
-            {/* <Button
+            <Button
+              variant="ghost"
+              onClick={toggleTheme}
+              className="w-full justify-start"
+            >
+              {theme === 'dark' ? (
+                <><Sun className="w-4 h-4 mr-2" /> Light Mode</>
+              ) : (
+                <><Moon className="w-4 h-4 mr-2" /> Dark Mode</>
+              )}
+            </Button>
+
+            <Button
               variant="ghost"
               onClick={() => {
-                navigate("/home");
+                navigate("/dashboard");
                 setMobileMenuOpen(false);
               }}
               className="w-full justify-start"
             >
               <Home className="w-4 h-4 mr-2" />
-              Home
-            </Button> */}
+              Dashboard
+            </Button>
             <Button
               variant="ghost"
               onClick={() => {
@@ -697,17 +725,6 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             >
               <BookOpen className="w-4 h-4 mr-2" />
               My Learning
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/grade-assessment");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start text-indigo-600 dark:text-indigo-400"
-            >
-              <GraduationCap className="w-4 h-4 mr-2" />
-              Find My Grade
             </Button>
             <Button
               variant="ghost"
