@@ -3,26 +3,33 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 // Removed TanStack React Query
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { ScrollToTop } from "@/components/ScrollToTop";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ContactSettingsProvider } from "@/contexts/ContactSettingsContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/ui/loading";
+import { useIdleTimer } from "@/hooks/useIdleTimer";
+import { IdleWarningModal } from "@/components/IdleWarningModal";
+import { signOut } from "@/api";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
+const GoogleCallback = lazy(() => import("./pages/GoogleCallback"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const StudentHome = lazy(() => import("./pages/StudentHome"));
 const AllGrades = lazy(() => import("./pages/AllGrades"));
 const BrowseTopics = lazy(() => import("./pages/BrowseTopics"));
-const AllSubjects = lazy(() => import("./pages/AllSubjects"));
 const BrowseCourses = lazy(() => import("./pages/BrowseCourses"));
 const MyLearning = lazy(() => import("./pages/MyLearning"));
+const LeaderboardPage = lazy(() => import("./pages/Leaderboard"));
 const Profile = lazy(() => import("./pages/Profile"));
 const StudentSettings = lazy(() => import("./pages/Settings"));
 const SearchResults = lazy(() => import("./pages/SearchResults"));
@@ -44,7 +51,16 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Cookies = lazy(() => import("./pages/Cookies"));
 const About = lazy(() => import("./pages/About"));
+const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Student Support Pages
+const Progress = lazy(() => import('./pages/Progress'));
+const Achievements = lazy(() => import('./pages/Achievements'));
+const QuickQuiz = lazy(() => import('./pages/QuickQuiz'));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const ReportIssue = lazy(() => import("./pages/ReportIssue"));
+const Support = lazy(() => import("./pages/Support"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -57,28 +73,66 @@ const ReferralManagement = lazy(() => import("./pages/admin/ReferralManagement")
 const ReferralPayouts = lazy(() => import("./pages/admin/ReferralPayouts"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
+const FinancialReport = lazy(() => import("./pages/admin/FinancialReport"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const NotificationManagement = lazy(() => import("./pages/admin/NotificationManagement"));
 const SuggestionManagement = lazy(() => import("./pages/admin/SuggestionManagement"));
 const QuestionManagement = lazy(() => import("./pages/admin/QuestionManagement"));
+const NewsletterSubscribers = lazy(() => import("./pages/admin/NewsletterSubscribers"));
+const TicketManagement = lazy(() => import("./pages/admin/TicketManagement"));
+const LeaderboardManagement = lazy(() => import("./pages/admin/LeaderboardManagement"));
 
 // React Query removed
+
+// Idle timer wrapper - must be inside AuthProvider and BrowserRouter
+function IdleTimerWrapper({ children }: { children: React.ReactNode }) {
+  const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    signOut();
+    refreshUser();
+    navigate("/auth");
+  };
+
+  const { showWarning, countdown, continueSession } = useIdleTimer({
+    idleMinutes: 10,
+    warningMinutes: 2,
+    onLogout: handleLogout,
+    enabled: !!user,
+  });
+
+  return (
+    <>
+      {children}
+      <IdleWarningModal
+        open={showWarning}
+        countdown={countdown}
+        onContinue={continueSession}
+        onLogout={handleLogout}
+      />
+    </>
+  );
+}
 
 const App = () => (
   <ErrorBoundary>
     <TooltipProvider>
       <AuthProvider>
-        <ThemeProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <Toaster />
-              <Sonner />
+        <ContactSettingsProvider>
+          <ThemeProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <Toaster />
+                <Sonner />
               <BrowserRouter
                 future={{
                   v7_startTransition: true,
                   v7_relativeSplatPath: true,
                 }}
               >
+              <ScrollToTop />
+              <IdleTimerWrapper>
               <Suspense fallback={<LoadingScreen message="Loading page..." />}>
                 <Routes>
                 <Route 
@@ -94,6 +148,22 @@ const App = () => (
                   element={
                     <ProtectedRoute requireAuth={false}>
                       <Auth />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/auth/google/callback" 
+                  element={
+                    <ProtectedRoute requireAuth={false}>
+                      <GoogleCallback />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/verify-email" 
+                  element={
+                    <ProtectedRoute requireAuth={false}>
+                      <VerifyEmail />
                     </ProtectedRoute>
                   } 
                 />
@@ -138,18 +208,18 @@ const App = () => (
                   } 
                 />
                 <Route 
-                  path="/all-subjects" 
-                  element={
-                    <ProtectedRoute>
-                      <AllSubjects />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
                   path="/my-learning" 
                   element={
                     <ProtectedRoute>
                       <MyLearning />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/leaderboard" 
+                  element={
+                    <ProtectedRoute>
+                      <LeaderboardPage />
                     </ProtectedRoute>
                   } 
                 />
@@ -206,6 +276,38 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Wishlist />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/progress" 
+                  element={
+                    <ProtectedRoute>
+                      <Progress />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/achievements" 
+                  element={
+                    <ProtectedRoute>
+                      <Achievements />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/quick-quiz" 
+                  element={
+                    <ProtectedRoute>
+                      <QuickQuiz />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/report" 
+                  element={
+                    <ProtectedRoute>
+                      <ReportIssue />
                     </ProtectedRoute>
                   } 
                 />
@@ -343,6 +445,14 @@ const App = () => (
                   } 
                 />
                 <Route 
+                  path="/admin/newsletter" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <NewsletterSubscribers />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
                   path="/admin/content" 
                   element={
                     <ProtectedRoute requireAdmin>
@@ -407,6 +517,14 @@ const App = () => (
                   } 
                 />
                 <Route 
+                  path="/admin/financial-report" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <FinancialReport />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
                   path="/admin/settings" 
                   element={
                     <ProtectedRoute requireAdmin>
@@ -438,23 +556,44 @@ const App = () => (
                     </ProtectedRoute>
                   } 
                 />
+                <Route 
+                  path="/admin/tickets" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <TicketManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/leaderboard" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <LeaderboardManagement />
+                    </ProtectedRoute>
+                  } 
+                />
                 
-                {/* Legal Pages */}
+                {/* Public Info Pages */}
+                <Route path="/help" element={<HelpCenter />} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/cookies" element={<Cookies />} />
-                <Route path="/about" element={<About />} />
                 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </IdleTimerWrapper>
           </BrowserRouter>
-        </WishlistProvider>
-      </CartProvider>
-    </ThemeProvider>
-  </AuthProvider>
-  </TooltipProvider>
+              </WishlistProvider>
+            </CartProvider>
+          </ThemeProvider>
+        </ContactSettingsProvider>
+      </AuthProvider>
+    </TooltipProvider>
   </ErrorBoundary>
 );
 

@@ -5,12 +5,14 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   refreshUser: () => void;
+  setUser: (user: AuthUser | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   refreshUser: () => {},
+  setUser: () => {},
 });
 
 export const useAuth = () => {
@@ -54,7 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [refreshUser]);
 
   const value = useMemo(
-    () => ({ user, loading, refreshUser }),
+    () => ({ user, loading, refreshUser, setUser }),
     [user, loading, refreshUser]
   );
 
