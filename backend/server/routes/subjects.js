@@ -1,9 +1,37 @@
 import express from 'express';
 import Subject from '../models/Subject.js';
 import Lesson from '../models/Lesson.js';
+import Enrollment from '../models/Enrollment.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Get enrollment counts per subject-grade-term (public — used by Browse page)
+router.get('/enrollment-counts', async (req, res) => {
+  try {
+    const counts = await Enrollment.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: { subject: '$subject', grade: '$grade', term: '$term' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Convert to a map keyed by "subject|grade|term"
+    const result = {};
+    for (const entry of counts) {
+      const key = `${entry._id.subject}|${entry._id.grade}|${entry._id.term}`;
+      result[key] = entry.count;
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching enrollment counts:', error);
+    res.status(500).json({ error: 'Failed to fetch enrollment counts' });
+  }
+});
 
 // Get all subjects (public - for students)
 router.get('/', async (req, res) => {

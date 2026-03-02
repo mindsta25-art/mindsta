@@ -4,8 +4,8 @@
  */
 
 import express from 'express';
-import { Student } from '../models/index.js';
-import { requireAuth } from '../middleware/auth.js';
+import { Student, User } from '../models/index.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -35,8 +35,8 @@ router.get('/:userId', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/students
-router.get('/', requireAuth, async (req, res) => {
+// GET /api/students — admin-only; returns all student records
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const students = await Student.find();
     res.json(students.map(s => ({
@@ -62,6 +62,12 @@ router.put('/:userId/grade', requireAuth, async (req, res) => {
     
     if (!grade) {
       return res.status(400).json({ error: 'Grade is required' });
+    }
+
+    // Only the student themselves (or an admin) may change their grade
+    const isAdmin = req.user.userType === 'admin';
+    if (!isAdmin && req.user.userId !== req.params.userId) {
+      return res.status(403).json({ error: 'Forbidden: you can only update your own grade' });
     }
     
     const student = await Student.findOneAndUpdate(
@@ -114,6 +120,11 @@ router.put('/:userId/profile', requireAuth, async (req, res) => {
     
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Keep User.fullName in sync so the header / auth context always reflects the latest name
+    if (fullName) {
+      await User.findByIdAndUpdate(req.params.userId, { fullName });
     }
     
     res.json({

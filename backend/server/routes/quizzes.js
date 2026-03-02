@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
 router.get('/lesson/:lessonId', requireAuth, async (req, res) => {
   try {
     const quiz = await Quiz.findOne({ lessonId: req.params.lessonId });
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    if (!quiz) return res.status(200).json(null);
     
     res.json({
       id: quiz._id.toString(),

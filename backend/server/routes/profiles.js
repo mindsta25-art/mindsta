@@ -14,6 +14,8 @@ router.get('/', requireAdmin, async (req, res) => {
       fullName: u.fullName,
       userType: u.userType,
       status: u.status || 'active',
+      isOnline: u.isOnline || false,
+      lastActiveAt: u.lastActiveAt,
       createdAt: u.createdAt?.toISOString() || new Date().toISOString(),
     })));
   } catch (error) {

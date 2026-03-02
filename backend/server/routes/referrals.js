@@ -8,6 +8,40 @@ console.log('[ReferralsRoutes] Loaded referrals routes module');
 
 const router = express.Router();
 
+// Get student referral stats by their userId (MINDSTA code format)
+// GET /api/referrals/student-stats/:userId
+router.get('/student-stats/:userId', requireAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // Only allow users to access their own stats
+    if (req.user.userId !== userId && req.user.userType !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const referrals = await Referral.find({ referrerId: userId })
+      .populate('referredUserId', 'email fullName isVerified')
+      .sort({ createdAt: -1 });
+
+    const totalReferrals = referrals.length;
+    const activeReferrals = referrals.filter(r => r.status === 'completed' || r.referredUserId?.isVerified).length;
+
+    res.json({
+      totalReferrals,
+      activeReferrals,
+      referrals: referrals.map(r => ({
+        id: r._id.toString(),
+        name: r.referredUserId?.fullName || 'Anonymous',
+        email: r.referredEmail,
+        status: r.status,
+        joinedAt: r.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('[ReferralsRoutes] student-stats error', error);
+    res.status(500).json({ error: 'Failed to fetch student referral stats' });
+  }
+});
+
 // Get referral statistics (Admin only) - MUST come before /user/:userId
 // GET /api/referrals/stats
 router.get('/stats', requireAdmin, async (req, res) => {
@@ -124,11 +158,11 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
         completedReferrals,
         conversionRate: totalReferrals > 0 ? (completedReferrals / totalReferrals * 100).toFixed(1) : 0,
         
-        // Earnings (convert from kobo to Naira)
+        // Earnings (already in Naira)
         commissionRate: profile?.commissionRate || 0.1,
-        totalEarnings: (profile?.totalEarnings || 0) / 100,
-        pendingEarnings: (profile?.pendingEarnings || 0) / 100,
-        paidOutEarnings: (profile?.paidOutEarnings || 0) / 100,
+        totalEarnings: profile?.totalEarnings || 0,
+        pendingEarnings: profile?.pendingEarnings || 0,
+        paidOutEarnings: profile?.paidOutEarnings || 0,
         pendingTransactions,
       });
     }
@@ -206,7 +240,7 @@ router.post('/admin/payout/:userId', requireAdmin, async (req, res) => {
         await sendPayoutProcessedEmail(
           referrer.email,
           referrer.firstName || referrer.fullName || 'Referrer',
-          totalCommission / 100,
+          totalCommission,
           profile.accountNumber,
           profile.bankName,
           batchId
@@ -462,10 +496,10 @@ router.get('/me/dashboard', requireAuth, async (req, res) => {
       completedReferrals,
       conversionRate: parseFloat(conversionRate),
       
-      // Earnings (convert from kobo to Naira)
-      totalEarnings: (profile.totalEarnings || 0) / 100,
-      pendingEarnings: (profile.pendingEarnings || 0) / 100,
-      paidOutEarnings: (profile.paidOutEarnings || 0) / 100,
+      // Earnings (already in Naira)
+      totalEarnings: profile.totalEarnings || 0,
+      pendingEarnings: profile.pendingEarnings || 0,
+      paidOutEarnings: profile.paidOutEarnings || 0,
       commissionRate: profile.commissionRate || 0.1,
       
       // Bank details status
@@ -478,18 +512,18 @@ router.get('/me/dashboard', requireAuth, async (req, res) => {
         referredUserName: ref.referredUserId?.fullName || 'Pending',
         referredUserId: ref.referredUserId?._id?.toString(),
         status: ref.status,
-        rewardAmount: (ref.rewardAmount || 0) / 100,
+        rewardAmount: ref.rewardAmount || 0,
         createdAt: ref.createdAt,
         registeredAt: ref.referredUserId?.createdAt,
       })),
       
-      // Recent transactions (convert from kobo to Naira)
+      // Recent transactions (already in Naira)
       recentTransactions: recentTransactions.map(tx => ({
         id: tx._id.toString(),
         studentName: tx.studentId?.fullName || 'Unknown',
         studentEmail: tx.studentId?.email,
-        amountPaid: (tx.amountPaid || 0) / 100,
-        commissionAmount: (tx.commissionAmount || 0) / 100,
+        amountPaid: tx.amountPaid || 0,
+        commissionAmount: tx.commissionAmount || 0,
         status: tx.status,
         paymentReference: tx.paymentId?.reference,
         createdAt: tx.createdAt,
@@ -568,8 +602,8 @@ router.get('/me/transactions', requireAuth, async (req, res) => {
       userId: t.userId.toString(),
       studentId: t.studentId?.toString(),
       paymentId: t.paymentId?.toString(),
-      amountPaid: (t.amountPaid || 0) / 100, // Convert from kobo to Naira
-      commissionAmount: (t.commissionAmount || 0) / 100, // Convert from kobo to Naira
+      amountPaid: t.amountPaid || 0, // Already in Naira
+      commissionAmount: t.commissionAmount || 0, // Already in Naira
       status: t.status,
       paidAt: t.paidAt,
       createdAt: t.createdAt,
@@ -608,7 +642,7 @@ router.post('/me/payout', requireAuth, async (req, res) => {
       if (user) {
         await sendPayoutRequestEmail(
           user.firstName || user.fullName || user.email,
-          totalCommission / 100,
+          totalCommission,
           profile.accountNumber,
           profile.bankName,
           batchId
@@ -621,6 +655,35 @@ router.post('/me/payout', requireAuth, async (req, res) => {
     res.json({ batchId, paidCount: pending.length, amount: totalCommission });
   } catch (error) {
     res.status(500).json({ error: 'Failed to process payout', message: error.message });
+  }
+});
+
+// GET /api/referrals/admin/transactions - list all referral transactions (admin only)
+router.get('/admin/transactions', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const transactions = await ReferralTransaction.find({})
+      .populate('referrerId', 'firstName lastName fullName email')
+      .populate('studentId', 'firstName lastName fullName email')
+      .sort({ createdAt: -1 })
+      .limit(500);
+    
+    res.json(transactions.map(t => ({
+      _id: t._id.toString(),
+      referrerId: t.referrerId?._id.toString(),
+      referrerName: t.referrerId?.fullName || `${t.referrerId?.firstName || ''} ${t.referrerId?.lastName || ''}`.trim() || 'Unknown',
+      referrerEmail: t.referrerId?.email,
+      studentId: t.studentId?._id.toString(),
+      studentName: t.studentId?.fullName || `${t.studentId?.firstName || ''} ${t.studentId?.lastName || ''}`.trim() || 'Unknown',
+      studentEmail: t.studentId?.email,
+      paymentId: t.paymentId?.toString(),
+      purchaseAmount: t.amountPaid || 0, // in kobo
+      commissionAmount: t.commissionAmount || 0, // in kobo
+      status: t.status,
+      paidAt: t.paidAt,
+      createdAt: t.createdAt,
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch transactions', message: error.message });
   }
 });
 

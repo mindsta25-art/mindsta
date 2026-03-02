@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { Student, Payment, Referral, ReferralProfile, ReferralTransaction, User, Enrollment, Cart, Notification, SystemSettings } from '../models/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { sendPaymentSuccessEmail, sendCommissionEarnedEmail } from '../services/emailService.js';
+import { createAdminAlert } from './admin-alerts.js';
 
 const router = express.Router();
 
@@ -101,6 +102,14 @@ async function notifyAdminOfPurchase({ userId, amount, items, paymentId }) {
     }
     
     console.log(`[Admin Notification] Purchase notification sent for payment ${paymentId}`);
+
+    // Also create an admin alert
+    await createAdminAlert({
+      type: 'new_purchase',
+      title: 'New Course Purchase',
+      message: `${user?.fullName || 'A student'} (${user?.email}) purchased ${items.length} item(s). Amount: ₦${(amount / 100).toLocaleString()}`,
+      metadata: { paymentId: paymentId.toString(), amount, userId: userId.toString() },
+    });
   } catch (error) {
     console.error('[Admin Notification Error]', error.message);
   }
@@ -159,7 +168,7 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
         // Create in-app notification for referrer
         await Notification.create({
           title: '🎉 Commission Earned!',
-          message: `You earned ₦${(commission / 100).toLocaleString()} commission from a referral purchase! Amount paid: ₦${(amount / 100).toLocaleString()}.`,
+          message: `You earned ₦${commission.toLocaleString()} commission from a referral purchase! Amount paid: ₦${amount.toLocaleString()}.`,
           type: 'success',
           priority: 'high',
           targetAudience: 'individual',
@@ -167,12 +176,22 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
           createdBy: userId,
           metadata: {
             transactionId: transaction._id.toString(),
-            commission: commission / 100,
-            amountPaid: amount / 100,
+            commission: commission,
+            amountPaid: amount,
           }
         });
         
         console.log(`[Referral Notification] Commission notification sent to ${referrer.email}`);
+
+        // Admin alert for referral purchase
+        try {
+          await createAdminAlert({
+            type: 'referral_purchase',
+            title: 'Referral Commission Created',
+            message: `${referrer.fullName || referrer.email} earned ₦${commission.toLocaleString()} commission from a purchase.`,
+            metadata: { referrerId: referrer._id.toString(), commission, paymentId: paymentId.toString() },
+          });
+        } catch (_) {}
       }
     } catch (emailError) {
       console.error('[Email Error]', emailError.message);
@@ -333,8 +352,12 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
             await sendPaymentSuccessEmail(
               user.email,
               user.firstName || 'Student',
-              payment.amount / 100,
-              payment.reference
+              {
+                amount: payment.amount / 100,
+                reference: payment.reference,
+                items: payment.items || [],
+                date: payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : new Date().toLocaleDateString()
+              }
             );
           }
         } catch (emailError) {
@@ -444,8 +467,12 @@ router.post('/webhook', express.json(), async (req, res) => {
               await sendPaymentSuccessEmail(
                 user.email,
                 user.firstName || 'Student',
-                payment.amount / 100,
-                payment.reference
+                {
+                  amount: payment.amount / 100,
+                  reference: payment.reference,
+                  items: payment.items || [],
+                  date: payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : new Date().toLocaleDateString()
+                }
               );
             }
           } catch (emailError) {
@@ -581,19 +608,31 @@ router.get('/admin/analytics', requireAdmin, async (req, res) => {
 // GET /api/payments/admin - list payments (admin)
 router.get('/admin', requireAdmin, async (req, res) => {
   try {
-    const payments = await Payment.find().sort({ createdAt: -1 }).limit(200);
+    const payments = await Payment.find()
+      .populate('userId', 'fullName email')
+      .sort({ createdAt: -1 });
+    
     res.json(payments.map(p => ({
-      id: p._id.toString(),
-      userId: p.userId.toString(),
-      studentId: p.studentId?.toString(),
-      amount: p.amount,
-      currency: p.currency,
+      _id: p._id.toString(),
       reference: p.reference,
+      amount: p.amount,
       status: p.status,
+      userId: {
+        _id: p.userId?._id?.toString(),
+        email: p.userId?.email || 'N/A',
+        fullName: p.userId?.fullName || 'Unknown User'
+      },
+      items: p.items?.map(item => ({
+        subject: item.subject || 'N/A',
+        grade: item.grade || 'N/A',
+        term: item.term || 'N/A',
+        price: item.price || 0
+      })) || [],
       paidAt: p.paidAt,
       createdAt: p.createdAt,
     })));
   } catch (error) {
+    console.error('[Payments Admin] Error:', error);
     res.status(500).json({ error: 'Failed to list payments', message: error.message });
   }
 });

@@ -111,26 +111,61 @@ router.get('/detailed', requireAdmin, async (req, res) => {
       };
     });
 
-    // Engagement metrics
-    const totalProgress = await UserProgress.countDocuments();
-    const completedProgress = await UserProgress.countDocuments({ completed: true });
-    const completionRate = totalProgress > 0 ? Math.round((completedProgress / totalProgress) * 100) : 0;
+    // Date range for filtering (default: last 30 days)
+    const rangeStart = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const rangeEnd = endDate ? new Date(endDate) : new Date();
 
-    const quizScores = await UserProgress.find({ quizScore: { $ne: null } }).select('quizScore');
-    const avgQuizScore = quizScores.length > 0 
+    // Real date cutoffs for daily / weekly / monthly active users
+    const oneDayAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    // Compute real active users for the selected date range and for fixed windows in parallel
+    const [
+      rangeActiveIds,
+      dailyActiveIds,
+      weeklyActiveIds,
+      monthlyActiveIds,
+      totalProgress,
+      completedProgress,
+      quizScores,
+      completedLessonIds
+    ] = await Promise.all([
+      UserProgress.distinct('userId', { updatedAt: { $gte: rangeStart, $lte: rangeEnd } }),
+      UserProgress.distinct('userId', { updatedAt: { $gte: oneDayAgo } }),
+      UserProgress.distinct('userId', { updatedAt: { $gte: sevenDaysAgo } }),
+      UserProgress.distinct('userId', { updatedAt: { $gte: thirtyDaysAgo } }),
+      UserProgress.countDocuments({ updatedAt: { $gte: rangeStart, $lte: rangeEnd } }),
+      UserProgress.countDocuments({ completed: true, updatedAt: { $gte: rangeStart, $lte: rangeEnd } }),
+      UserProgress.find({ quizScore: { $ne: null }, updatedAt: { $gte: rangeStart, $lte: rangeEnd } }).select('quizScore'),
+      UserProgress.distinct('lessonId', { completed: true, updatedAt: { $gte: rangeStart, $lte: rangeEnd } })
+    ]);
+
+    const completionRate = totalProgress > 0 ? Math.round((completedProgress / totalProgress) * 100) : 0;
+    const avgQuizScore = quizScores.length > 0
       ? Math.round(quizScores.reduce((sum, p) => sum + p.quizScore, 0) / quizScores.length)
       : 0;
 
-    // Active users (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const activeUserIds = await UserProgress.distinct('userId', {
-      updatedAt: { $gte: sevenDaysAgo }
-    });
+    // Compute average time per lesson from actual lesson durations
+    const completedLessons = await Lesson.find({ _id: { $in: completedLessonIds } }).select('duration');
+    const avgTimePerLesson = completedLessons.length > 0
+      ? Math.round(completedLessons.reduce((sum, l) => sum + (l.duration || 30), 0) / completedLessons.length)
+      : 0;
 
-    // Activity patterns
+    // Retention rate: users active in the week before the range start who also appear in the range
+    const prevWeekStart = new Date(rangeStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const prevWeekActiveIds = await UserProgress.distinct('userId', {
+      updatedAt: { $gte: prevWeekStart, $lt: rangeStart }
+    });
+    const rangeActiveSet = new Set(rangeActiveIds.map(id => id.toString()));
+    const retainedCount = prevWeekActiveIds.filter(id => rangeActiveSet.has(id.toString())).length;
+    const retentionRate = prevWeekActiveIds.length > 0
+      ? Math.round((retainedCount / prevWeekActiveIds.length) * 100)
+      : 0;
+
+    // Activity patterns by hour (within selected range)
     const activityByHour = await UserProgress.aggregate([
-      { $match: { updatedAt: { $gte: sevenDaysAgo } } },
+      { $match: { updatedAt: { $gte: rangeStart, $lte: rangeEnd } } },
       {
         $group: {
           _id: { $hour: '$updatedAt' },
@@ -140,28 +175,35 @@ router.get('/detailed', requireAdmin, async (req, res) => {
       { $sort: { '_id': 1 } }
     ]);
 
-    const peakHour = activityByHour.reduce((max, curr) => 
+    const peakHour = activityByHour.reduce((max, curr) =>
       curr.count > max.count ? curr : max, { _id: 0, count: 0 }
     );
+
+    // Average session duration: approximate from avg lesson duration of accessed lessons in range
+    const accessedLessonIds = await UserProgress.distinct('lessonId', { updatedAt: { $gte: rangeStart, $lte: rangeEnd } });
+    const accessedLessons = await Lesson.find({ _id: { $in: accessedLessonIds } }).select('duration');
+    const avgSessionDuration = accessedLessons.length > 0
+      ? Math.round(accessedLessons.reduce((sum, l) => sum + (l.duration || 30), 0) / accessedLessons.length)
+      : 0;
 
     res.json({
       gradeDistribution,
       userGrowth,
       lessonCompletions: lessonData,
       engagementMetrics: {
-        avgTimePerLesson: 18.5, // Placeholder - calculate from actual session data
+        avgTimePerLesson,
         completionRate,
         quizAccuracy: avgQuizScore,
-        activeUsers: activeUserIds.length,
+        activeUsers: rangeActiveIds.length,
         peakActivityHour: peakHour._id,
         totalSessions: totalProgress
       },
       activityPatterns: {
-        dailyActive: Math.round(activeUserIds.length * 0.68),
-        weeklyActive: Math.round(activeUserIds.length * 0.85),
-        monthlyActive: Math.round(activeUserIds.length * 0.92),
-        avgSessionDuration: 25, // Placeholder
-        retentionRate: 89 // Placeholder
+        dailyActive: dailyActiveIds.length,
+        weeklyActive: weeklyActiveIds.length,
+        monthlyActive: monthlyActiveIds.length,
+        avgSessionDuration,
+        retentionRate
       }
     });
   } catch (error) {
@@ -291,7 +333,7 @@ router.get('/overview', requireAdmin, async (req, res) => {
     
     // Use persistent sales stats as primary source, fallback to Payment aggregation if needed
     const persistentTotalRevenue = (salesStats.totalRevenue || 0) / 100;
-    const aggregatedTotalRevenue = (totalRevenue[0]?.total || 0) / 100;
+    const aggregatedTotalRevenue = (totalRevenue[0]?.total || 0); // Payment.amount stored in Naira
     
     // Prefer persistent stats, use aggregated only as fallback
     const finalTotalRevenue = salesStats.totalRevenue ? persistentTotalRevenue : aggregatedTotalRevenue;
@@ -302,7 +344,7 @@ router.get('/overview', requireAdmin, async (req, res) => {
       paidStudents,
       totalReferrals,
       totalRevenue: finalTotalRevenue, // Use persistent stats
-      totalCommissions: (totalCommissions[0]?.total || 0) / 100,
+      totalCommissions: (totalCommissions[0]?.total || 0), // commissionAmount stored in Naira
       conversionRate: parseFloat(conversionRate),
       activeUsers,
       totalEnrollments,
@@ -409,8 +451,8 @@ router.get('/revenue-over-time', requireAdmin, async (req, res) => {
 
       filledData.push({
         date: dateString,
-        revenue: dailyRevenue / 100,
-        cumulativeRevenue: cumulativeRevenue / 100,
+        revenue: dailyRevenue, // Payment.amount stored in Naira
+        cumulativeRevenue: cumulativeRevenue, // Payment.amount stored in Naira
         count: existing ? existing.count : 0
       });
     }
@@ -441,7 +483,7 @@ router.get('/payment-status', requireAdmin, async (req, res) => {
     const formatted = statusData.map(item => ({
       status: item._id || 'unknown',
       count: item.count,
-      amount: item.amount / 100
+      amount: item.amount // Payment.amount stored in Naira
     }));
 
     res.json(formatted);
@@ -544,7 +586,7 @@ router.get('/referral-performance', requireAdmin, async (req, res) => {
       const existingCommission = commissionData.find(d => d._id === dateString);
       filledCommissions.push({
         date: dateString,
-        commission: existingCommission ? existingCommission.commission / 100 : 0,
+        commission: existingCommission ? existingCommission.commission : 0, // commissionAmount in Naira
         count: existingCommission ? existingCommission.count : 0
       });
     }

@@ -8,11 +8,19 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User, Student, Referral } from '../models/index.js';
-import { sendReferralSignupEmail, sendPasswordResetEmail } from '../services/emailService.js';
+import { sendReferralSignupEmail, sendPasswordResetEmail, sendVerificationOTP, sendEmailVerifiedEmail } from '../services/emailService.js';
+import passport from '../config/passport.js';
+import { createAdminAlert } from './admin-alerts.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.VITE_JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
+
+// Generate 6-digit OTP
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 /**
  * POST /api/auth/signup
@@ -22,6 +30,22 @@ router.post('/signup', async (req, res) => {
   try {
     const { email, password, fullName, userType, grade, age, schoolName, referralCode } = req.body;
 
+    // Input validation
+    if (!email || !password || !fullName) {
+      return res.status(400).json({ error: 'Email, password, and full name are required' });
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Password strength validation (min 8 chars, 1 uppercase, 1 lowercase, 1 number)
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -29,7 +53,17 @@ router.post('/signup', async (req, res) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Generate OTP for email verification (students and referrals only)
+    const requiresVerification = userType === 'student' || userType === 'referral';
+    let otp = null;
+    let otpExpires = null;
+
+    if (requiresVerification) {
+      otp = generateOTP();
+      otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    }
 
     // Create user
     const user = await User.create({
@@ -37,7 +71,34 @@ router.post('/signup', async (req, res) => {
       password: hashedPassword,
       fullName,
       userType,
+      isVerified: !requiresVerification, // Admins are auto-verified
+      verificationOTP: otp,
+      otpExpires: otpExpires,
     });
+
+    // Send verification OTP email
+    if (requiresVerification && otp) {
+      console.log(`\n========================================`);
+      console.log(`[OTP - SIGNUP] Email: ${email}`);
+      console.log(`[OTP - SIGNUP] Code:  ${otp}`);
+      console.log(`========================================\n`);
+      try {
+        await sendVerificationOTP(email, fullName, otp);
+      } catch (emailError) {
+        console.error('[Signup] Error sending verification email:', emailError);
+        // Continue signup even if email fails
+      }
+    }
+
+    // Create admin alert for new user registration
+    try {
+      await createAdminAlert({
+        type: 'new_user',
+        title: 'New User Registered',
+        message: `${fullName} (${email}) signed up as ${userType}.`,
+        metadata: { userId: user._id.toString(), userType, email },
+      });
+    } catch (_) {}
 
     // Create student record if user type is student
     if (userType === 'student' && grade && age && schoolName) {
@@ -53,10 +114,21 @@ router.post('/signup', async (req, res) => {
     // Track referral if referral code provided
     if (referralCode) {
       try {
-        // Find referrer by referral code
-        const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
+        // Find referrer by referral code (referral partners use User.referralCode)
+        let referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
         
-        if (referrer && referrer.userType === 'referral') {
+        if (!referrer) {
+          // Check student referral code format: MINDSTA + first 8 chars of userId
+          // The student referral page generates: `MINDSTA${user.id.substring(0,8).toUpperCase()}`
+          if (referralCode.toUpperCase().startsWith('MINDSTA')) {
+            const partialId = referralCode.toUpperCase().replace('MINDSTA', '').toLowerCase();
+            // Find a user whose id starts with this partial id
+            const potentialReferrers = await User.find({ userType: 'student' });
+            referrer = potentialReferrers.find(u => u._id.toString().startsWith(partialId)) || null;
+          }
+        }
+
+        if (referrer && referrer._id.toString() !== user._id.toString()) {
           // Create referral record
           await Referral.create({
             referrerId: referrer._id,
@@ -65,19 +137,31 @@ router.post('/signup', async (req, res) => {
             status: 'pending', // Will be completed when user makes first payment
           });
           console.log(`[Auth] Referral tracked: ${referrer.email} referred ${email}`);
-          
-          // Send referral signup email to referrer
+
+          // Create admin alert for referral signup
           try {
-            if (referrer.email) {
-              await sendReferralSignupEmail(
-                referrer.email,
-                referrer.firstName || referrer.fullName || 'Referrer',
-                user.fullName || email,
-                referralCode.toUpperCase()
-              );
+            await createAdminAlert({
+              type: 'referral_signup',
+              title: 'Referral Registration',
+              message: `${user.fullName || email} registered using ${referrer.userType === 'referral' ? 'partner' : 'student'} referral code from ${referrer.fullName || referrer.email}.`,
+              metadata: { referrerId: referrer._id.toString(), newUserId: user._id.toString() },
+            });
+          } catch (_) {}
+          
+          // Send referral signup email to referrer (for referral partners)
+          if (referrer.userType === 'referral') {
+            try {
+              if (referrer.email) {
+                await sendReferralSignupEmail(
+                  referrer.email,
+                  referrer.firstName || referrer.fullName || 'Referrer',
+                  user.fullName || email,
+                  referralCode.toUpperCase()
+                );
+              }
+            } catch (emailError) {
+              console.error('[Referral Signup Email Error]', emailError.message);
             }
-          } catch (emailError) {
-            console.error('[Referral Signup Email Error]', emailError.message);
           }
         } else {
           console.log(`[Auth] Invalid referral code: ${referralCode}`);
@@ -88,7 +172,17 @@ router.post('/signup', async (req, res) => {
       }
     }
 
-    // Generate JWT token
+    // For students and referrals, don't generate token yet - require verification first
+    if (requiresVerification) {
+      return res.status(201).json({
+        message: 'Signup successful. Please check your email for verification code.',
+        email: user.email,
+        requiresVerification: true,
+        userId: user._id.toString(),
+      });
+    }
+
+    // For other user types (admins), generate JWT token immediately
     const token = jwt.sign(
       { id: user._id, email: user.email, userType: user.userType },
       JWT_SECRET,
@@ -102,6 +196,7 @@ router.post('/signup', async (req, res) => {
       fullName: user.fullName,
       userType: user.userType,
       token,
+      isVerified: user.isVerified,
     };
 
     res.status(201).json(authUser);
@@ -112,31 +207,49 @@ router.post('/signup', async (req, res) => {
 });
 
 /**
- * POST /api/auth/signin
- * Sign in a user (STUDENTS, PARENTS, EDUCATORS, REFERRALS ONLY - NOT ADMINS)
+ * POST /api/auth/verify-otp
+ * Verify email with OTP
  */
-router.post('/signin', async (req, res) => {
+router.post('/verify-otp', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, otp } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+
+    // Find user with OTP fields
+    const user = await User.findOne({ email }).select('+verificationOTP +otpExpires');
+    
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // BLOCK ADMIN ACCOUNTS FROM STUDENT LOGIN
-    if (user.userType === 'admin') {
-      return res.status(403).json({ 
-        error: 'Admin accounts cannot use student login. Please use the admin portal at /admin-auth' 
-      });
+    if (user.isVerified) {
+      return res.status(400).json({ error: 'Email already verified' });
     }
 
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    // Check if OTP expired
+    if (!user.otpExpires || user.otpExpires < Date.now()) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
+
+    // Verify OTP
+    if (user.verificationOTP !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    // Mark user as verified
+    user.isVerified = true;
+    user.verifiedAt = new Date();
+    user.verificationOTP = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    // Send congratulatory email (don't wait for it)
+    sendEmailVerifiedEmail(user.email, user.fullName).catch(err => {
+      console.error('[Auth] Failed to send verification success email:', err.message);
+    });
 
     // Generate JWT token
     const token = jwt.sign(
@@ -151,6 +264,141 @@ router.post('/signin', async (req, res) => {
       fullName: user.fullName,
       userType: user.userType,
       token,
+      isVerified: true,
+    };
+
+    res.json({
+      message: 'Email verified successfully',
+      user: authUser
+    });
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ error: 'Failed to verify OTP', message: error.message });
+  }
+});
+
+/**
+ * POST /api/auth/resend-otp
+ * Resend OTP for email verification
+ */
+router.post('/resend-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.verificationOTP = otp;
+    user.otpExpires = otpExpires;
+    await user.save();
+
+    // Send OTP email
+    console.log(`\n========================================`);
+    console.log(`[OTP - RESEND] Email: ${email}`);
+    console.log(`[OTP - RESEND] Code:  ${otp}`);
+    console.log(`========================================\n`);
+    try {
+      await sendVerificationOTP(email, user.fullName, otp);
+    } catch (emailError) {
+      console.error('[Resend OTP] Error sending email:', emailError);
+      return res.status(500).json({ error: 'Failed to send verification email' });
+    }
+
+    res.json({ message: 'Verification code sent to your email' });
+  } catch (error) {
+    console.error('Error resending OTP:', error);
+    res.status(500).json({ error: 'Failed to resend OTP', message: error.message });
+  }
+});
+
+/**
+ * POST /api/auth/signin
+ * Sign in a user (STUDENTS, PARENTS, EDUCATORS, REFERRALS ONLY - NOT ADMINS)
+ */
+router.post('/signin', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find user with security fields
+    const user = await User.findOne({ email }).select('+loginAttempts +lockUntil');
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // BLOCK ADMIN ACCOUNTS FROM STUDENT LOGIN
+    if (user.userType === 'admin') {
+      return res.status(403).json({ 
+        error: 'Admin accounts cannot use student login. Please use the admin portal at /admin-auth' 
+      });
+    }
+
+    // Check if account is locked
+    if (user.isLocked) {
+      const lockTimeRemaining = Math.ceil((user.lockUntil - Date.now()) / 60000);
+      return res.status(423).json({ 
+        error: `Account locked due to multiple failed login attempts. Try again in ${lockTimeRemaining} minutes.`
+      });
+    }
+
+    // Check if email is verified (for students and referrals)
+    if ((user.userType === 'student' || user.userType === 'referral') && !user.isVerified) {
+      return res.status(403).json({ 
+        error: 'Please verify your email before logging in',
+        requiresVerification: true,
+        email: user.email
+      });
+    }
+
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      // Increment login attempts
+      await user.incLoginAttempts();
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Reset login attempts on successful login
+    if (user.loginAttempts > 0) {
+      await user.resetLoginAttempts();
+    }
+
+    // Update last login info and set online status
+    await User.findByIdAndUpdate(user._id, {
+      lastLoginAt: new Date(),
+      lastLoginIP: req.ip || req.connection.remoteAddress,
+      isOnline: true,
+      lastActiveAt: new Date()
+    });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, userType: user.userType },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    const authUser = {
+      id: user._id.toString(),
+      email: user.email,
+      fullName: user.fullName,
+      userType: user.userType,
+      token,
+      isVerified: user.isVerified,
     };
 
     res.json(authUser);
@@ -185,6 +433,12 @@ router.post('/admin-signin', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Update online status and last login
+    await User.findByIdAndUpdate(user._id, {
+      isOnline: true,
+      lastActiveAt: new Date()
+    });
+
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id, email: user.email, userType: user.userType },
@@ -211,7 +465,7 @@ router.post('/admin-signin', async (req, res) => {
  * POST /api/auth/change-password
  * Change user password (requires authentication)
  */
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', requireAuth, async (req, res) => {
   try {
     const { userId, currentPassword, newPassword } = req.body;
 
@@ -344,5 +598,270 @@ router.post('/reset-password', async (req, res) => {
     res.status(500).json({ error: 'Failed to reset password', message: error.message });
   }
 });
+
+/**
+ * PUT /api/auth/notification-preferences
+ * Update user notification preferences
+ */
+router.put('/notification-preferences', requireAuth, async (req, res) => {
+  try {
+    const { userId, emailNotifications, quizReminders, progressUpdates, weeklyReport } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update notification preferences
+    user.notificationPreferences = {
+      emailNotifications: emailNotifications ?? user.notificationPreferences?.emailNotifications ?? true,
+      quizReminders: quizReminders ?? user.notificationPreferences?.quizReminders ?? true,
+      progressUpdates: progressUpdates ?? user.notificationPreferences?.progressUpdates ?? true,
+      weeklyReport: weeklyReport ?? user.notificationPreferences?.weeklyReport ?? false,
+    };
+
+    await user.save();
+
+    console.log(`[Auth] Notification preferences updated for user: ${user.email}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Notification preferences updated successfully',
+      preferences: user.notificationPreferences
+    });
+  } catch (error) {
+    console.error('Error updating notification preferences:', error);
+    res.status(500).json({ error: 'Failed to update notification preferences', message: error.message });
+  }
+});
+
+/**
+ * PUT /api/auth/privacy-settings
+ * Update user privacy settings
+ */
+router.put('/privacy-settings', requireAuth, async (req, res) => {
+  try {
+    const { userId, showProgress, allowAnalytics } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update privacy settings
+    user.privacySettings = {
+      showProgress: showProgress ?? user.privacySettings?.showProgress ?? true,
+      allowAnalytics: allowAnalytics ?? user.privacySettings?.allowAnalytics ?? true,
+    };
+
+    await user.save();
+
+    console.log(`[Auth] Privacy settings updated for user: ${user.email}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Privacy settings updated successfully',
+      settings: user.privacySettings
+    });
+  } catch (error) {
+    console.error('Error updating privacy settings:', error);
+    res.status(500).json({ error: 'Failed to update privacy settings', message: error.message });
+  }
+});
+
+/**
+ * GET /api/auth/preferences/:userId
+ * Get user preferences and settings
+ */
+router.get('/preferences/:userId', requireAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select('notificationPreferences privacySettings');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ 
+      notificationPreferences: user.notificationPreferences || {
+        emailNotifications: true,
+        quizReminders: true,
+        progressUpdates: true,
+        weeklyReport: false,
+      },
+      privacySettings: user.privacySettings || {
+        showProgress: true,
+        allowAnalytics: true,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user preferences:', error);
+    res.status(500).json({ error: 'Failed to fetch preferences', message: error.message });
+  }
+});
+
+/**
+ * DELETE /api/auth/account/:userId
+ * Delete user account and all associated data
+ */
+router.delete('/account/:userId', requireAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { password, confirmText } = req.body;
+
+    // Verify the user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // Verify confirmation text
+    if (confirmText !== 'DELETE') {
+      return res.status(400).json({ error: 'Please type DELETE to confirm account deletion' });
+    }
+
+    // Import models that might be needed (using dynamic import to avoid circular dependencies)
+    const { default: Student } = await import('../models/Student.js');
+    const { default: UserProgress } = await import('../models/UserProgress.js');
+    const { default: Enrollment } = await import('../models/Enrollment.js');
+    const { default: Cart } = await import('../models/Cart.js');
+    const { default: Wishlist } = await import('../models/Wishlist.js');
+    const { default: Notification } = await import('../models/Notification.js');
+    const { default: Payment } = await import('../models/Payment.js');
+
+    // Delete all associated data
+    await Promise.all([
+      Student.deleteMany({ userId }),
+      UserProgress.deleteMany({ userId }),
+      Enrollment.deleteMany({ userId }),
+      Cart.deleteMany({ userId }),
+      Wishlist.deleteMany({ userId }),
+      Notification.deleteMany({ userId }),
+      Payment.updateMany({ userId }, { $set: { userId: null } }), // Keep payment records but anonymize
+    ]);
+
+    // Finally, delete the user account
+    await User.findByIdAndDelete(userId);
+
+    res.json({ 
+      message: 'Account successfully deleted',
+      success: true 
+    });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ error: 'Failed to delete account', message: error.message });
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Logout user and update online status
+ */
+router.post('/logout', async (req, res) => {
+  try {
+    // Get userId from token (if provided)
+    const token = req.headers.authorization?.split(' ')[1] || req.body.token;
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.id || decoded.userId;
+        
+        // Update user's online status
+        await User.findByIdAndUpdate(userId, {
+          isOnline: false,
+          lastActiveAt: new Date()
+        });
+        
+        console.log(`[Auth] User ${userId} logged out - set isOnline: false`);
+      } catch (tokenError) {
+        // Token might be expired or invalid, that's okay for logout
+        console.log('[Auth] Logout without valid token');
+      }
+    }
+    
+    res.json({ 
+      message: 'Logged out successfully',
+      success: true 
+    });
+  } catch (error) {
+    console.error('Error logging out:', error);
+    // Still return success since logout should always work client-side
+    res.json({ 
+      message: 'Logged out successfully',
+      success: true 
+    });
+  }
+});
+
+/**
+ * GET /api/auth/google
+ * Initiate Google OAuth flow
+ */
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email'],
+  session: false
+}));
+
+/**
+ * GET /api/auth/google/callback
+ * Google OAuth callback handler
+ */
+router.get('/google/callback', 
+  (req, res, next) => {
+    passport.authenticate('google', { 
+      session: false,
+      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth?error=google_auth_failed`
+    })(req, res, next);
+  },
+  async (req, res) => {
+    try {
+      console.log('[Google OAuth Callback] Processing user:', req.user?.email);
+      
+      // User is attached to req.user by passport
+      const user = req.user;
+      
+      if (!user) {
+        console.error('[Google OAuth Callback] No user found in request');
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendURL}/auth?error=authentication_failed`);
+      }
+
+      // Generate a short-lived JWT (5 min) for the handoff URL.
+      // Hash fragments are never sent to the server in HTTP requests,
+      // so the token won't appear in server access logs or referrer headers.
+      const token = jwt.sign(
+        { id: user._id, email: user.email, userType: user.userType },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+
+      console.log('[Google OAuth Callback] Token generated, redirecting to frontend');
+      
+      // Use a hash fragment (#) instead of a query string (?) so the token is
+      // never sent in HTTP requests and is not included in server access logs.
+      const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendURL}/auth/google/callback#token=${token}&email=${encodeURIComponent(user.email)}&fullName=${encodeURIComponent(user.fullName)}&userType=${user.userType}&id=${user._id}`);
+    } catch (error) {
+      console.error('[Google OAuth Callback] Error:', error);
+      const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendURL}/auth?error=authentication_error`);
+    }
+  }
+);
 
 export default router;

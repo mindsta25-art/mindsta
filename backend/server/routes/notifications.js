@@ -125,6 +125,25 @@ router.post('/read-all', requireAuth, async (req, res) => {
   }
 });
 
+// Dismiss a notification (student removes it from their own panel)
+router.delete('/:id/dismiss', requireAuth, async (req, res) => {
+  try {
+    const notificationId = req.params.id;
+    const userId = req.user.id;
+
+    const notification = await Notification.dismissForUser(notificationId, userId);
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.json({ message: 'Notification dismissed successfully' });
+  } catch (error) {
+    console.error('Error dismissing notification:', error);
+    res.status(500).json({ message: 'Failed to dismiss notification' });
+  }
+});
+
 // ===== ADMIN ROUTES =====
 
 // Get all notifications (admin only)
@@ -189,8 +208,13 @@ router.post('/admin', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ message: 'Title and message are required' });
     }
 
-    if (!targetGrades || targetGrades.length === 0) {
+    // Grade is only required for grade-specific broadcasts, not for individual messages
+    const audience = targetAudience || 'grade-specific';
+    if (audience === 'grade-specific' && (!targetGrades || targetGrades.length === 0)) {
       return res.status(400).json({ message: 'Please select at least one grade' });
+    }
+    if (audience === 'individual' && (!targetUsers || targetUsers.length === 0)) {
+      return res.status(400).json({ message: 'Please select at least one recipient' });
     }
     
     const notification = new Notification({
@@ -198,7 +222,7 @@ router.post('/admin', requireAuth, requireAdmin, async (req, res) => {
       message,
       type: type || 'info',
       priority: priority || 'medium',
-      targetAudience: 'grade-specific',
+      targetAudience: audience,
       targetGrades: targetGrades || [],
       targetUsers: targetUsers || [],
       createdBy: req.user.id,

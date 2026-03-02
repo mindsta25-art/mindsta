@@ -1,5 +1,5 @@
 import express from 'express';
-import { Lesson } from '../models/index.js';
+import { Lesson, UserProgress } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -282,10 +282,34 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/lessons/:id
+// Cascading delete: removes lesson and all related student progress
 router.delete('/:id', async (req, res) => {
   try {
-    await Lesson.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Lesson deleted successfully' });
+    const lessonId = req.params.id;
+    
+    // Delete all user progress records for this lesson
+    const progressDeleteResult = await UserProgress.deleteMany({ lessonId });
+    
+    // Delete the lesson itself
+    const lesson = await Lesson.findByIdAndDelete(lessonId);
+    
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+    
+    // Clear cache for this lesson's subject/grade
+    const cachePattern = `subjects-${lesson.grade}-`;
+    for (const [key] of cache) {
+      if (key.startsWith(cachePattern)) {
+        cache.delete(key);
+      }
+    }
+    
+    res.json({ 
+      message: 'Lesson deleted successfully', 
+      deletedProgressRecords: progressDeleteResult.deletedCount,
+      lesson: { id: lesson._id, title: lesson.title, subject: lesson.subject }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -9,7 +9,7 @@ const router = express.Router();
 // POST /api/admin/admins
 router.post('/admins', requireAdmin, async (req, res) => {
   try {
-    const { email, password, fullName } = req.body || {};
+    const { email, password, fullName, userType } = req.body || {};
 
     if (!email || !password || !fullName) {
       return res.status(400).json({ error: 'email, password and fullName are required' });
@@ -25,7 +25,7 @@ router.post('/admins', requireAdmin, async (req, res) => {
       email,
       password: hashed,
       fullName,
-      userType: 'admin',
+      userType: userType || 'admin', // Allow custom userType or default to admin
     });
 
     return res.status(201).json({
@@ -153,6 +153,53 @@ router.get('/sales-stats', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Get sales stats error:', err);
     return res.status(500).json({ error: 'Failed to fetch sales statistics', message: err.message });
+  }
+});
+
+
+// Get online users statistics
+// GET /api/admin/online-users
+router.get('/online-users', requireAdmin, async (req, res) => {
+  try {
+    // Get all online users
+    const onlineUsers = await User.find({ isOnline: true })
+      .select('email fullName userType lastActiveAt')
+      .sort({ lastActiveAt: -1 });
+    
+    // Get statistics
+    const totalUsers = await User.countDocuments();
+    const onlineCount = onlineUsers.length;
+    const offlineCount = totalUsers - onlineCount;
+    
+    // Get online users by type
+    const studentCount = onlineUsers.filter(u => u.userType === 'student').length;
+    const referralCount = onlineUsers.filter(u => u.userType === 'referral').length;
+    const adminCount = onlineUsers.filter(u => u.userType === 'admin').length;
+    
+    return res.json({
+      statistics: {
+        totalUsers,
+        onlineCount,
+        offlineCount,
+        onlinePercentage: totalUsers > 0 ? ((onlineCount / totalUsers) * 100).toFixed(1) : 0,
+        byUserType: {
+          students: studentCount,
+          referrals: referralCount,
+          admins: adminCount,
+        }
+      },
+      onlineUsers: onlineUsers.map(user => ({
+        id: user._id.toString(),
+        email: user.email,
+        fullName: user.fullName,
+        userType: user.userType,
+        lastActiveAt: user.lastActiveAt,
+        activeMinutesAgo: Math.floor((Date.now() - new Date(user.lastActiveAt).getTime()) / 1000 / 60),
+      })),
+    });
+  } catch (err) {
+    console.error('Get online users error:', err);
+    return res.status(500).json({ error: 'Failed to fetch online users', message: err.message });
   }
 });
 
