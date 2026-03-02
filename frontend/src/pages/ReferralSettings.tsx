@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle, Moon, Sun } from 'lucide-react';
+import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle, Moon, Sun, Lock, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { bankDetailsSchema, type BankDetailsFormData } from '@/lib/validations';
@@ -15,14 +16,24 @@ import { bankDetailsSchema, type BankDetailsFormData } from '@/lib/validations';
 const ReferralSettings = () => {
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const [settings, setSettings] = useState<RS | null>(null);
   const [transactions, setTransactions] = useState<ReferralTransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [tab, setTab] = useState<'bank'|'earnings'|'transactions'|'theme'>('bank');
+  const [tab, setTab] = useState<'bank'|'earnings'|'transactions'|'theme'|'security'>('bank');
   const navigate = useNavigate();
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const bankForm = useForm<BankDetailsFormData>({
     resolver: zodResolver(bankDetailsSchema),
@@ -111,6 +122,71 @@ const ReferralSettings = () => {
     }
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user?.id) {
+      toast({
+        title: 'Error',
+        description: 'User not authenticated',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Error',
+        description: 'New passwords do not match',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: 'Error',
+        description: 'Password must be at least 8 characters long',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!currentPassword) {
+      toast({
+        title: 'Error',
+        description: 'Current password is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setChangingPassword(true);
+    
+    try {
+      const { changePassword } = await import('@/api/auth');
+      const result = await changePassword(user.id, currentPassword, newPassword);
+      
+      toast({
+        title: '✅ Success',
+        description: result.message || 'Password changed successfully',
+      });
+      
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      toast({
+        title: '❌ Error',
+        description: error.message || 'Failed to change password. Please check your current password.',
+        variant: 'destructive',
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Loading referral settings...</div>;
 
   return (
@@ -123,10 +199,11 @@ const ReferralSettings = () => {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
           <TabsTrigger value="bank" className="flex items-center gap-2"><Banknote className="h-4 w-4"/> Bank & Commission</TabsTrigger>
           <TabsTrigger value="earnings" className="flex items-center gap-2"><Wallet className="h-4 w-4"/> Earnings & Payout</TabsTrigger>
           <TabsTrigger value="transactions" className="flex items-center gap-2"><ReceiptText className="h-4 w-4"/> Transactions</TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2"><Lock className="h-4 w-4"/> Security</TabsTrigger>
           <TabsTrigger value="theme" className="flex items-center gap-2">{theme === 'dark' ? <Moon className="h-4 w-4"/> : <Sun className="h-4 w-4"/>} Theme</TabsTrigger>
         </TabsList>
 
@@ -267,6 +344,83 @@ const ReferralSettings = () => {
                   )}
                 </tbody>
               </table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security">
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                    <Lock className="w-5 h-5" />
+                    Change Password
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Update your account password to keep your referral portal secure
+                  </p>
+                </div>
+
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full border rounded px-3 py-2 pr-10"
+                        placeholder="Enter current password"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowCurrentPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full border rounded px-3 py-2 pr-10"
+                        placeholder="Enter new password (min. 8 characters)"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowNewPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Confirm New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full border rounded px-3 py-2 pr-10"
+                        placeholder="Confirm new password"
+                        required
+                      />
+                      <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={changingPassword} className="gap-2">
+                    <Lock className="w-4 h-4" />
+                    {changingPassword ? 'Changing Password...' : 'Change Password'}
+                  </Button>
+                </form>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

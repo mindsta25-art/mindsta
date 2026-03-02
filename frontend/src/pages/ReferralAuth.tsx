@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Menu, X } from "lucide-react";
+import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Menu, X, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { signIn, signUp, requestPasswordReset } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,9 @@ const ReferralAuth = () => {
   
   const [isLogin, setIsLogin] = useState(mode === "login");
   const [loading, setLoading] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showForgotPasswordDialog, setShowForgotPasswordDialog] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -90,9 +93,12 @@ const ReferralAuth = () => {
         title: "Welcome Back! 🎉",
         description: "Successfully logged in!",
       });
-      // Ensure auth context is synced before navigating
+      
+      // Force refresh user context
       refreshUser();
-      navigate("/referral");
+      
+      // Navigate with replace to prevent back button issues
+      navigate("/referral/dashboard", { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -235,7 +241,16 @@ const ReferralAuth = () => {
             
             {/* Desktop Buttons */}
             <div className="hidden md:flex items-center gap-2">
-              {!isLogin && (
+              {isLogin ? (
+                <Button
+                  onClick={() => setIsLogin(false)}
+                  className="gap-2 border-2 border-green-300 hover:border-green-500 font-bold"
+                  variant="outline"
+                >
+                  <Gift className="w-4 h-4" />
+                  Register
+                </Button>
+              ) : (
                 <Button
                   onClick={() => setIsLogin(true)}
                   className="gap-2 border-2 border-green-300 hover:border-green-500 font-bold"
@@ -271,7 +286,19 @@ const ReferralAuth = () => {
           {/* Mobile Menu */}
           {mobileMenuOpen && (
             <div className="md:hidden mt-4 pb-4 space-y-2 animate-in slide-in-from-top-5 duration-200">
-              {!isLogin && (
+              {isLogin ? (
+                <Button
+                  onClick={() => {
+                    setIsLogin(false);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full gap-2 border-2 border-green-300 hover:border-green-500 font-bold justify-center"
+                  variant="outline"
+                >
+                  <Gift className="w-4 h-4" />
+                  Register
+                </Button>
+              ) : (
                 <Button
                   onClick={() => {
                     setIsLogin(true);
@@ -345,13 +372,16 @@ const ReferralAuth = () => {
                     <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                     <Input
                       id="login-password"
-                      type="password"
+                      type={showLoginPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="pl-10 pr-10 border-2 border-yellow-200 focus:border-yellow-400"
                       required
                     />
+                    <button type="button" onClick={() => setShowLoginPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                      {showLoginPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -458,13 +488,16 @@ const ReferralAuth = () => {
                     <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                     <Input
                       id="password"
-                      type="password"
+                      type={showRegisterPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="pl-10 pr-10 border-2 border-yellow-200 focus:border-yellow-400"
                       required
                     />
+                    <button type="button" onClick={() => setShowRegisterPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                      {showRegisterPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -474,13 +507,16 @@ const ReferralAuth = () => {
                     <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                     <Input
                       id="confirm-password"
-                      type="password"
+                      type={showRegisterConfirmPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="pl-10 pr-10 border-2 border-yellow-200 focus:border-yellow-400"
                       required
                     />
+                    <button type="button" onClick={() => setShowRegisterConfirmPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                      {showRegisterConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 

@@ -15,6 +15,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   BookOpen, 
   LogOut, 
@@ -31,10 +41,15 @@ import {
   Menu,
   X,
   Lock,
-  KeyRound
+  KeyRound,
+  Bell,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getStudentByUserId, signOut, changePassword } from "@/api";
+import { getStudentReferralStats } from "@/api/referrals";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/api/notifications";
 
 interface StudentInfo {
   fullName: string;
@@ -55,6 +70,9 @@ const Referral = () => {
   const { toast } = useToast();
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
   const [referralCode, setReferralCode] = useState<string>("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [referralStats, setReferralStats] = useState<ReferralStats>({
     totalReferrals: 0,
     activeReferrals: 0,
@@ -63,9 +81,13 @@ const Referral = () => {
   });
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   // Password change state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -92,13 +114,29 @@ const Referral = () => {
         const code = `MINDSTA${user.id.substring(0, 8).toUpperCase()}`;
         setReferralCode(code);
 
-        // Mock referral stats (in production, fetch from database)
-        setReferralStats({
-          totalReferrals: 5,
-          activeReferrals: 3,
-          pointsEarned: 150,
-          rewards: ["🎖️ Bronze Referrer", "⭐ 5 Friends Club"]
-        });
+        // Fetch real referral stats from backend
+        try {
+          const stats = await getStudentReferralStats(user.id);
+          setReferralStats({
+            totalReferrals: stats.totalReferrals,
+            activeReferrals: stats.activeReferrals,
+            pointsEarned: stats.totalReferrals * 30, // 30 points per referral
+            rewards: stats.totalReferrals >= 5 ? ["🎖️ Bronze Referrer", "⭐ 5 Friends Club"] :
+                     stats.totalReferrals >= 1 ? ["🎖️ First Referral!"] : []
+          });
+        } catch (_) {
+          // Fallback to zero stats if fetch fails
+          setReferralStats({ totalReferrals: 0, activeReferrals: 0, pointsEarned: 0, rewards: [] });
+        }
+
+        // Fetch notifications
+        try {
+          const notifData = await getNotifications();
+          const notifList = Array.isArray(notifData) ? notifData : notifData?.notifications || [];
+          setNotifications(notifList.slice(0, 10));
+          setUnreadNotifications(notifList.filter((n: any) => !n.read && !n.isRead).length);
+        } catch (_) {}
+
       } catch (error) {
         console.error("Unexpected error:", error);
       }
@@ -111,7 +149,6 @@ const Referral = () => {
     try {
       signOut();
       refreshUser();
-      navigate("/");
       toast({
         title: "See you later! ",
         description: "Come back soon for more fun learning!",
@@ -294,39 +331,57 @@ const Referral = () => {
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="current-password">Current Password</Label>
-                      <Input
-                        id="current-password"
-                        type="password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="Enter current password"
-                        disabled={changingPassword}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="current-password"
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="Enter current password"
+                          disabled={changingPassword}
+                          className="pr-10"
+                        />
+                        <button type="button" onClick={() => setShowCurrentPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password</Label>
-                      <Input
-                        id="new-password"
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="At least 8 characters"
-                        disabled={changingPassword}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="new-password"
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="At least 8 characters"
+                          disabled={changingPassword}
+                          className="pr-10"
+                        />
+                        <button type="button" onClick={() => setShowNewPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         Must contain uppercase, lowercase, and number
                       </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm-password">Confirm New Password</Label>
-                      <Input
-                        id="confirm-password"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter new password"
-                        disabled={changingPassword}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="confirm-password"
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Re-enter new password"
+                          disabled={changingPassword}
+                          className="pr-10"
+                        />
+                        <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <DialogFooter>
@@ -353,8 +408,72 @@ const Referral = () => {
                 </DialogContent>
               </Dialog>
 
+              {/* Notification Bell */}
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative border-2 border-orange-300 hover:border-orange-500"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </span>
+                  )}
+                </Button>
+                {showNotifications && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowNotifications(false)}
+                    />
+                    <div className="absolute right-0 top-12 w-80 bg-card border-2 border-purple-200 dark:border-purple-800 rounded-xl shadow-2xl z-50 overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
+                        <h3 className="font-bold text-sm">Notifications 🔔</h3>
+                        {unreadNotifications > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-6"
+                            onClick={async () => {
+                              await markAllNotificationsAsRead();
+                              setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })));
+                              setUnreadNotifications(0);
+                            }}
+                          >
+                            Mark all read
+                          </Button>
+                        )}
+                      </div>
+                      <div className="max-h-72 overflow-y-auto divide-y">
+                        {notifications.length === 0 ? (
+                          <div className="py-8 text-center text-muted-foreground text-sm">No notifications yet 🌟</div>
+                        ) : notifications.map((n: any) => (
+                          <div
+                            key={n._id}
+                            className={`px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors ${!n.isRead && !n.read ? 'bg-blue-50/50 dark:bg-blue-950/10' : ''}`}
+                            onClick={async () => {
+                              if (!n.isRead && !n.read) {
+                                await markNotificationAsRead(n._id);
+                                setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, isRead: true, read: true } : x));
+                                setUnreadNotifications(c => Math.max(0, c - 1));
+                              }
+                            }}
+                          >
+                            <p className={`text-sm leading-snug ${!n.isRead && !n.read ? 'font-semibold' : ''}`}>{n.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <Button
-                onClick={handleLogout}
+                onClick={() => setShowLogoutDialog(true)}
                 className="gap-2 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 font-bold"
               >
                 <LogOut className="w-4 h-4" />
@@ -399,10 +518,27 @@ const Referral = () => {
                 <KeyRound className="w-4 h-4" />
                 Change Password 
               </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowNotifications(!showNotifications);
+                }}
+                className="w-full gap-2 border-2 border-orange-300 hover:border-orange-500 font-bold justify-center relative"
+              >
+                <Bell className="w-4 h-4" />
+                Notifications
+                {unreadNotifications > 0 && (
+                  <span className="ml-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                  </span>
+                )}
+              </Button>
               
               <Button
                 onClick={() => {
-                  handleLogout();
+                  setShowLogoutDialog(true);
                   setMobileMenuOpen(false);
                 }}
                 className="w-full gap-2 border-2 border-purple-300 hover:border-purple-500 font-bold justify-center"
@@ -433,7 +569,7 @@ const Referral = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12 max-w-6xl mx-auto">
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-blue-200 hover:border-blue-400 bg-gradient-to-br from-white to-blue-50">
+          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-blue-200 hover:border-blue-400 bg-gradient-to-br from-white to-blue-50 dark:from-card dark:to-blue-950/20">
             <CardContent className="p-6">
               <Users className="w-12 h-12 mx-auto mb-2 text-blue-600" />
               <div className="text-4xl font-black text-blue-600 mb-2">{referralStats.totalReferrals}</div>
@@ -441,7 +577,7 @@ const Referral = () => {
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-green-200 hover:border-green-400 bg-gradient-to-br from-white to-green-50">
+          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-green-200 hover:border-green-400 bg-gradient-to-br from-white to-green-50 dark:from-card dark:to-green-950/20">
             <CardContent className="p-6">
               <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-green-600" />
               <div className="text-4xl font-black text-green-600 mb-2">{referralStats.activeReferrals}</div>
@@ -449,7 +585,7 @@ const Referral = () => {
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-yellow-200 hover:border-yellow-400 bg-gradient-to-br from-white to-yellow-50">
+          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-yellow-200 hover:border-yellow-400 bg-gradient-to-br from-white to-yellow-50 dark:from-card dark:to-yellow-950/20">
             <CardContent className="p-6">
               <Star className="w-12 h-12 mx-auto mb-2 text-yellow-600" />
               <div className="text-4xl font-black text-yellow-600 mb-2">{referralStats.pointsEarned}</div>
@@ -457,7 +593,7 @@ const Referral = () => {
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-purple-200 hover:border-purple-400 bg-gradient-to-br from-white to-purple-50">
+          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-purple-200 hover:border-purple-400 bg-gradient-to-br from-white to-purple-50 dark:from-card dark:to-purple-950/20">
             <CardContent className="p-6">
               <Trophy className="w-12 h-12 mx-auto mb-2 text-purple-600" />
               <div className="text-4xl font-black text-purple-600 mb-2">{referralStats.rewards.length}</div>
@@ -528,21 +664,21 @@ const Referral = () => {
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-3 gap-6">
-                <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border-2 border-blue-200">
+                <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 rounded-2xl border-2 border-blue-200 dark:border-blue-800">
                   <div className="text-5xl mb-4">1️⃣</div>
                   <h3 className="text-xl font-black mb-2">Share Your Code</h3>
                   <p className="text-sm font-medium text-muted-foreground">
                     Send your referral link to friends via email or social media!
                   </p>
                 </div>
-                <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200">
+                <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-2xl border-2 border-green-200 dark:border-green-800">
                   <div className="text-5xl mb-4">2️⃣</div>
                   <h3 className="text-xl font-black mb-2">Friend Joins</h3>
                   <p className="text-sm font-medium text-muted-foreground">
                     When they sign up using your code, you both get rewards!
                   </p>
                 </div>
-                <div className="text-center p-6 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl border-2 border-yellow-200">
+                <div className="text-center p-6 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 rounded-2xl border-2 border-yellow-200 dark:border-yellow-800">
                   <div className="text-5xl mb-4">3️⃣</div>
                   <h3 className="text-xl font-black mb-2">Earn Together!</h3>
                   <p className="text-sm font-medium text-muted-foreground">
@@ -567,8 +703,8 @@ const Referral = () => {
                     key={index}
                     className={`p-6 rounded-2xl border-4 transition-all ${
                       reward.unlocked
-                        ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-400"
-                        : "bg-gray-50 border-gray-300 opacity-60"
+                        ? "bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 border-yellow-400 dark:border-yellow-700"
+                        : "bg-gray-50 dark:bg-muted/20 border-gray-300 dark:border-muted opacity-60"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -590,7 +726,7 @@ const Referral = () => {
           </Card>
 
           {/* What You Can Win */}
-          <Card className="border-4 border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50 shadow-xl">
+          <Card className="border-4 border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 shadow-xl">
             <CardHeader className="text-center">
               <div className="text-5xl mb-2">✨</div>
               <CardTitle className="text-3xl font-black">What You Can Win!</CardTitle>
@@ -598,27 +734,51 @@ const Referral = () => {
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-purple-200">
+                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
                   <div className="text-3xl">🎖️</div>
-                  <p className="font-bold">Exclusive badges & certificates</p>
+                  <p className="font-bold">Exclusive badges &amp; certificates</p>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-purple-200">
+                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
                   <div className="text-3xl">🎁</div>
                   <p className="font-bold">Free premium features</p>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-purple-200">
+                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
                   <div className="text-3xl">🏆</div>
                   <p className="font-bold">Leaderboard recognition</p>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-purple-200">
+                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
                   <div className="text-3xl">⭐</div>
-                  <p className="font-bold">Special rewards & surprises</p>
+                  <p className="font-bold">Special rewards &amp; surprises</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </main>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <LogOut className="w-5 h-5 text-red-500" />
+              Sign Out
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Are you sure you want to sign out of your account? Any unsaved progress will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLogout}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Yes, sign me out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
