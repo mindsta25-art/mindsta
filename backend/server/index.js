@@ -4,11 +4,9 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize'
 import compression from 'compression';
 import morgan from 'morgan';
+import passport from './config/passport.js';
 import authRoutes from './routes/auth.js';
 import studentRoutes from './routes/students.js';
 import lessonRoutes from './routes/lessons.js';
@@ -34,7 +32,24 @@ import suggestionRoutes from './routes/suggestions.js';
 import searchHistoryRoutes from './routes/search-history.js';
 import courseReviewRoutes from './routes/course-reviews.js';
 import courseQuestionRoutes from './routes/course-questions.js';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import gamificationRoutes from './routes/gamification.js';
+import newsletterRoutes from './routes/newsletter.js';
+import ticketsRoutes from './routes/tickets.js';
+import adminAlertsRoutes from './routes/admin-alerts.js';
+import { errorHandler as oldErrorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { startActivityMonitor } from './middleware/activityTracker.js';
+import {
+  securityHeaders,
+  corsOptions,
+  sanitizeData,
+  preventPollution,
+  validateInput,
+  errorHandler,
+  requestLogger,
+  apiLimiter,
+  authLimiter,
+  otpLimiter,
+} from './middleware/security.js';
 
 // Load environment variables
 dotenv.config();
@@ -61,42 +76,34 @@ console.log('[ServerBoot] Environment:', NODE_ENV);
 console.log('[ServerBoot] process.cwd():', process.cwd());
 console.log('[ServerBoot] __dirnameLocal:', __dirnameLocal);
 
-// Security Middleware
-// 1. Helmet - Sets various HTTP headers for security
-// Disable CSP since this is an API-only backend (frontend handles its own CSP)
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-}));
+// ============================================
+// SECURITY MIDDLEWARE (Applied in Order)
+// ============================================
 
-// 2. MongoDB Query Sanitization - Prevent NoSQL injection
-// KNOWN ISSUE: express-mongo-sanitize v2.2.0 has compatibility issues with Express 5.x
-// Error: "Cannot set property query of #<IncomingMessage> which has only a getter"
-// Workaround: Manual input validation in routes until package is updated
-// Alternative: Downgrade to Express 4.x or wait for express-mongo-sanitize v3.x
-// Security Note: Ensure all user inputs are validated and sanitized in route handlers
-console.log('[Security] MongoDB query sanitization: DISABLED (compatibility issue)');
-console.log('[Security] Manual input validation enabled in routes');
-// app.use(mongoSanitize({
-//   replaceWith: '_',
-//   onSanitize: ({ req, key }) => {
-//     console.warn(`[Security] Sanitized key: ${key}`);
-//   },
-// }));
+// 1. Request Logger - Monitor all requests
+app.use(requestLogger);
 
-// 4. Compression - Compress all responses
+// 2. Security Headers - Helmet configuration
+app.use(securityHeaders);
+
+// 3. CORS - Cross-Origin Resource Sharing
+app.use(cors(corsOptions));
+
+// 4. Data Sanitization - Prevent NoSQL injection
+app.use(sanitizeData);
+
+// 5. Prevent HTTP Parameter Pollution
+app.use(preventPollution);
+
+// 6. Compression - Compress all responses
 app.use(compression());
 
-// 5. Logging - Morgan for HTTP request logging (reduced verbosity)
+// 7. Logging - Morgan for HTTP request logging
 if (IS_PRODUCTION) {
   app.use(morgan('combined')); // Apache combined format for production
 } else {
-  // Only log errors and important requests in development
   app.use(morgan('dev', {
-    skip: (req, res) => {
-      // Skip logging successful GET requests to reduce console noise
-      return req.method === 'GET' && res.statusCode < 400;
-    }
+    skip: (req, res) => req.method === 'GET' && res.statusCode < 400
   }));
 }
 
@@ -150,8 +157,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// 8. Input Validation - Sanitize user inputs
+app.use(validateInput);
+
+// 9. Body Parser - Parse JSON and URL-encoded bodies
 app.use(express.json({ limit: '10mb' })); // Limit payload size
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 10. Initialize Passport for OAuth
+app.use(passport.initialize());
 
 // MongoDB Connection with production settings
 const MONGODB_URI = process.env.MONGODB_URI || process.env.VITE_MONGODB_URI || 'mongodb+srv://mindsta:dbmindsta123456@mindsta.vxy6aly.mongodb.net/mindsta?retryWrites=true&w=majority';
@@ -167,6 +181,9 @@ mongoose.connect(MONGODB_URI, {
     if (IS_PRODUCTION) {
       console.log('[MongoDB] Running in PRODUCTION mode');
     }
+    
+    // Start activity monitor for online/offline tracking
+    startActivityMonitor();
   })
   .catch((error) => {
     console.error(' MongoDB Connection Error:', error);
@@ -218,13 +235,22 @@ app.get('/api/health', (req, res) => {
   res.status(statusCode).json(health);
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/lessons', lessonRoutes);
-app.use('/api/quizzes', quizRoutes);
-app.use('/api/progress', progressRoutes);
-app.use('/api/referrals', referralRoutes);
+// API Routes with Rate Limiting
+console.log('[Security] Applying rate limiters to routes');
+
+// Auth routes with strict rate limiting
+app.use('/api/auth/signin', authLimiter);
+app.use('/api/auth/admin-signin', authLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
+app.use('/api/auth/resend-otp', otpLimiter);
+app.use('/api/auth', apiLimiter, authRoutes);
+
+// Public routes with moderate rate limiting
+app.use('/api/students', apiLimiter, studentRoutes);
+app.use('/api/lessons', apiLimiter, lessonRoutes);
+app.use('/api/quizzes', apiLimiter, quizRoutes);
+app.use('/api/progress', apiLimiter, progressRoutes);
+app.use('/api/referrals', apiLimiter, referralRoutes);
 // Log the mounted referral routes to confirm active route stack
 try {
   const referralLayers = referralRoutes.stack?.map(l => l.route?.path || l.name);
@@ -251,6 +277,10 @@ app.use('/api/suggestions', suggestionRoutes);
 app.use('/api/search-history', searchHistoryRoutes);
 app.use('/api/course-reviews', courseReviewRoutes);
 app.use('/api/course-questions', courseQuestionRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/tickets', apiLimiter, ticketsRoutes);
+app.use('/api/admin-alerts', adminAlertsRoutes);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);
