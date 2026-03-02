@@ -13,10 +13,10 @@ const getApiBaseUrl = () => {
     return url;
   }
   
-  // In production, use Railway backend URL (hardcoded fallback)
+  // In production, use Render backend URL (hardcoded fallback)
   if (import.meta.env.PROD || import.meta.env.MODE === 'production') {
-    console.log('Production mode: using Railway URL');
-    return 'https://mindstabackend2-production-d53e.up.railway.app/api';
+    console.log('Production mode: using Render URL');
+    return 'https://mindsta-backend2.onrender.com/api';
   }
   
   // In development, use localhost
