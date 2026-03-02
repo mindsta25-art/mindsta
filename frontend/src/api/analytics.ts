@@ -141,3 +141,105 @@ export const getEnrollmentStats = async () => {
     return null;
   }
 };
+
+/**
+ * Get user growth analytics for the specified number of days (admin only)
+ */
+export const getUserGrowth = async (days: number = 30) => {
+  try {
+    const result = await api.get('/analytics/user-growth', { days });
+    return result;
+  } catch (error) {
+    console.error('Error fetching user growth:', error);
+    return [];
+  }
+};
+
+/**
+ * Get revenue over time analytics (admin only)
+ */
+export const getRevenueOverTime = async (days: number = 30) => {
+  try {
+    const result = await api.get('/analytics/revenue-over-time', { days });
+    return result;
+  } catch (error) {
+    console.error('Error fetching revenue over time:', error);
+    return [];
+  }
+};
+
+/**
+ * Get referral performance analytics (admin only)
+ */
+export const getReferralPerformance = async (days: number = 30) => {
+  try {
+    const result = await api.get('/analytics/referral-performance', { days });
+    return result;
+  } catch (error) {
+    console.error('Error fetching referral performance:', error);
+    return null;
+  }
+};
+
+/**
+ * Get user types distribution (admin only)
+ */
+export const getUserTypes = async () => {
+  try {
+    const result = await api.get('/analytics/user-types');
+    return result;
+  } catch (error) {
+    console.error('Error fetching user types:', error);
+    return [];
+  }
+};
+
+/**
+ * Get payment status distribution (admin only)
+ */
+export const getPaymentStatusDistribution = async () => {
+  try {
+    const result = await api.get('/analytics/payment-status');
+    return result;
+  } catch (error) {
+    console.error('Error fetching payment status distribution:', error);
+    return [];
+  }
+};
+
+/**
+ * Get student grade distribution (admin only)
+ */
+export const getStudentGrades = async () => {
+  try {
+    const result = await api.get('/analytics/student-grades');
+    return result;
+  } catch (error) {
+    console.error('Error fetching student grades:', error);
+    return [];
+  }
+};
+
+export interface StudentStudyTime {
+  userId: string;
+  name: string;
+  email: string;
+  totalMinutes: number;
+  todayMinutes: number;
+  weeklyMinutes: number;
+  lastStudyDate: string | null;
+  joinedAt: string;
+}
+
+/**
+ * Get all students' study time data (admin only)
+ */
+export const getAdminStudentStudyTime = async (): Promise<StudentStudyTime[]> => {
+  try {
+    const result = await api.get('/gamification/admin/students-study-time');
+    return result.students || [];
+  } catch (error) {
+    console.error('Error fetching student study times:', error);
+    return [];
+  }
+};

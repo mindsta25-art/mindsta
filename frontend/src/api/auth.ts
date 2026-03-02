@@ -32,18 +32,56 @@ export interface AuthUser {
   fullName: string;
   userType: string;
   token: string;
+  isVerified?: boolean;
+}
+
+export interface SignUpResponse {
+  message?: string;
+  email?: string;
+  requiresVerification?: boolean;
+  userId?: string;
+  // OR regular AuthUser if no verification needed
+  id?: string;
+  fullName?: string;
+  userType?: string;
+  token?: string;
 }
 
 /**
  * Sign up a new user
  */
-export const signUp = async (data: SignUpData): Promise<AuthUser> => {
+export const signUp = async (data: SignUpData): Promise<SignUpResponse> => {
   try {
     const result = await api.post('/auth/signup', data);
-    // Do NOT auto-login on signup. Require user to log in explicitly.
     return result;
   } catch (error) {
     console.error('Error signing up:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify email with OTP
+ */
+export const verifyOTP = async (email: string, otp: string): Promise<{ message: string; user: AuthUser }> => {
+  try {
+    const result = await api.post('/auth/verify-otp', { email, otp });
+    return result;
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    throw error;
+  }
+};
+
+/**
+ * Resend OTP for email verification
+ */
+export const resendOTP = async (email: string): Promise<{ message: string }> => {
+  try {
+    const result = await api.post('/auth/resend-otp', { email });
+    return result;
+  } catch (error) {
+    console.error('Error resending OTP:', error);
     throw error;
   }
 };
@@ -85,11 +123,30 @@ export const adminSignIn = async (data: AdminSignInData): Promise<AuthUser> => {
 };
 
 /**
- * Sign out (client-side - clear token)
+ * Sign out (call backend to update online status, then clear token)
  */
-export const signOut = (): void => {
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('currentUser');
+export const signOut = async (): Promise<void> => {
+  try {
+    const token = localStorage.getItem('authToken');
+    
+    // Call backend logout endpoint to update online status
+    if (token) {
+      try {
+        await api.post('/auth/logout', { token });
+      } catch (error) {
+        // Continue with logout even if API call fails
+        console.error('Error calling logout endpoint:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Error during logout:', error);
+  } finally {
+    // Always clear local storage and redirect
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    // Redirect to index page
+    window.location.href = '/';
+  }
 };
 
 /**
@@ -176,6 +233,76 @@ export const resetPassword = async (token: string, newPassword: string): Promise
     return result;
   } catch (error) {
     console.error('Error resetting password:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update notification preferences
+ */
+export const updateNotificationPreferences = async (
+  userId: string,
+  preferences: {
+    emailNotifications?: boolean;
+    quizReminders?: boolean;
+    progressUpdates?: boolean;
+    weeklyReport?: boolean;
+  }
+): Promise<{ success: boolean; message: string; preferences: any }> => {
+  try {
+    const result = await api.put('/auth/notification-preferences', {
+      userId,
+      ...preferences
+    });
+    return result;
+  } catch (error) {
+    console.error('Error updating notification preferences:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update privacy settings
+ */
+export const updatePrivacySettings = async (
+  userId: string,
+  settings: {
+    showProgress?: boolean;
+    allowAnalytics?: boolean;
+  }
+): Promise<{ success: boolean; message: string; settings: any }> => {
+  try {
+    const result = await api.put('/auth/privacy-settings', {
+      userId,
+      ...settings
+    });
+    return result;
+  } catch (error) {
+    console.error('Error updating privacy settings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get user preferences
+ */
+export const getUserPreferences = async (userId: string): Promise<{
+  notificationPreferences: {
+    emailNotifications: boolean;
+    quizReminders: boolean;
+    progressUpdates: boolean;
+    weeklyReport: boolean;
+  };
+  privacySettings: {
+    showProgress: boolean;
+    allowAnalytics: boolean;
+  };
+}> => {
+  try {
+    const result = await api.get(`/auth/preferences/${userId}`);
+    return result;
+  } catch (error) {
+    console.error('Error getting user preferences:', error);
     throw error;
   }
 };

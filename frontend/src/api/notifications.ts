@@ -18,6 +18,10 @@ export const markAllNotificationsAsRead = async () => {
   return await api.post('/notifications/read-all', {});
 };
 
+export const dismissNotification = async (notificationId: string) => {
+  return await api.delete(`/notifications/${notificationId}/dismiss`);
+};
+
 // ===== Admin Notification Functions =====
 
 export const getAllNotifications = async (params?: {

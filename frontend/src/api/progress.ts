@@ -10,8 +10,12 @@ export interface UserProgress {
   userId: string;
   lessonId: string;
   completed: boolean;
+  currentSection?: number;
   quizScore?: number;
   timeSpent?: number;
+  videoPosition?: number;      // seconds into the video where the student stopped
+  videoWatchPercent?: number;  // 0–100, highest percentage reached
+  streak?: number;
   lastAccessedAt: Date;
   completedAt?: Date;
   createdAt?: Date;

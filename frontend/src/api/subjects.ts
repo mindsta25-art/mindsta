@@ -77,19 +77,15 @@ export const createSubject = async (data: Partial<Subject>): Promise<Subject> =>
     console.log('[createSubject] Sending data:', data);
     const response = await api.post('/subjects', data);
     console.log('[createSubject] Full response:', response);
-    console.log('[createSubject] Response data:', response.data);
-    console.log('[createSubject] Response status:', response.status);
     
-    if (!response || response.status !== 201) {
-      console.error('[createSubject] Unexpected response status:', response?.status);
-    }
+    // API client returns data directly, not wrapped in response object
+    const subject = response;
     
-    if (!response.data) {
+    if (!subject) {
       console.error('[createSubject] No data in response');
       throw new Error('No data returned from server');
     }
     
-    const subject = response.data;
     if (!subject._id && !subject.id) {
       console.error('[createSubject] Subject missing ID:', subject);
       throw new Error('Invalid subject data returned');
@@ -107,18 +103,21 @@ export const createSubject = async (data: Partial<Subject>): Promise<Subject> =>
 // Update subject (admin only)
 export const updateSubject = async (id: string, data: Partial<Subject>): Promise<Subject> => {
   const response = await api.put(`/subjects/${id}`, data);
-  const subject = response.data;
+  // API client returns data directly
+  const subject = response;
   return { ...subject, id: subject._id || subject.id };
 };
 
 // Delete subject (admin only)
 export const deleteSubject = async (id: string): Promise<{ message: string }> => {
   const response = await api.delete(`/subjects/${id}`);
-  return response.data;
+  // API client returns data directly
+  return response;
 };
 
 // Toggle subject active status (admin only)
 export const toggleSubjectStatus = async (id: string): Promise<Subject> => {
   const response = await api.patch(`/subjects/${id}/toggle`, {});
-  return { ...response.data, id: response.data._id };
+  // API client returns data directly
+  return { ...response, id: response._id || response.id };
 };

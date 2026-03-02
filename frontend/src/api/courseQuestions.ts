@@ -103,7 +103,7 @@ export const acceptAnswer = async (
   questionId: string,
   answerId: string
 ): Promise<CourseQuestion> => {
-  const result = await api.post(`/course-questions/${questionId}/answers/${answerId}/accept`);
+  const result = await api.post(`/course-questions/${questionId}/answers/${answerId}/accept`, {});
   return result;
 };
 
@@ -111,7 +111,7 @@ export const acceptAnswer = async (
  * Upvote a question
  */
 export const upvoteQuestion = async (questionId: string): Promise<CourseQuestion> => {
-  const result = await api.post(`/course-questions/${questionId}/upvote`);
+  const result = await api.post(`/course-questions/${questionId}/upvote`, {});
   return result;
 };
 
@@ -122,7 +122,7 @@ export const upvoteAnswer = async (
   questionId: string,
   answerId: string
 ): Promise<CourseQuestion> => {
-  const result = await api.post(`/course-questions/${questionId}/answers/${answerId}/upvote`);
+  const result = await api.post(`/course-questions/${questionId}/answers/${answerId}/upvote`, {});
   return result;
 };
 

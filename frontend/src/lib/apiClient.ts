@@ -50,7 +50,9 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     ...(options.headers || {}),
   };
   
-  if (token) {
+  // Only add Authorization header if token exists
+  // This prevents sending empty Bearer tokens
+  if (token && token.trim().length > 0) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
@@ -70,6 +72,38 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     
     console.log(`📡 API Response: ${response.status} ${response.statusText}`);
     
+    // Handle 401 Unauthorized - clear invalid token
+    if (response.status === 401) {
+      console.warn('⚠️ 401 Unauthorized - Token may be invalid or expired');
+      
+      // Get the current path
+      const currentPath = window.location.pathname;
+      const isPublicPage = currentPath === '/' || 
+                          currentPath.includes('/auth') || 
+                          currentPath.includes('/admin-auth') || 
+                          currentPath.includes('/referral-auth') ||
+                          currentPath.includes('/verify-email') ||
+                          currentPath.includes('/faq') ||
+                          currentPath.includes('/about') ||
+                          currentPath.includes('/privacy') ||
+                          currentPath.includes('/terms') ||
+                          currentPath.includes('/cookies') ||
+                          currentPath.includes('/help') ||
+                          currentPath.includes('/support');
+      
+      // Only clear token and redirect if on a protected page
+      if (!isPublicPage) {
+        console.log('🔄 Clearing expired token and redirecting to login');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
+        
+        // Small delay to avoid immediate redirect during page load
+        setTimeout(() => {
+          window.location.href = '/auth?mode=login&reason=session-expired';
+        }, 100);
+      }
+    }
+    
     // Handle 304 Not Modified - return empty array or cached data
     if (response.status === 304) {
       console.log('⚡ 304 Not Modified - returning empty array');
@@ -84,6 +118,17 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
       console.error('❌ API Error:', errorData);
+      
+      // Handle 401 specifically with better error message
+      if (response.status === 401) {
+        const error: any = new Error('Your session has expired. Please log in again.');
+        error.response = {
+          status: response.status,
+          statusText: response.statusText,
+          data: errorData
+        };
+        throw error;
+      }
       
       // Create error object with response data attached
       const error: any = new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`);

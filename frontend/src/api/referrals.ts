@@ -258,3 +258,19 @@ export const adminProcessPayout = async (userId: string, notes?: string): Promis
 }> => {
   return api.post(`/referrals/admin/payout/${userId}`, { notes });
 };
+
+export interface StudentReferralStats {
+  totalReferrals: number;
+  activeReferrals: number;
+  referrals: Array<{
+    id: string;
+    name: string;
+    email: string;
+    status: string;
+    joinedAt: string;
+  }>;
+}
+
+export const getStudentReferralStats = async (userId: string): Promise<StudentReferralStats> => {
+  return api.get(`/referrals/student-stats/${userId}`);
+};

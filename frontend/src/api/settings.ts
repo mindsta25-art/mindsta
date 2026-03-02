@@ -12,6 +12,19 @@ export interface GeneralSettings {
   timezone: string;
 }
 
+export interface ContactSettings {
+  companyEmail: string;
+  supportEmail: string;
+  privacyEmail: string;
+  adminEmail: string;
+  phone: string;
+  whatsappNumber: string;
+  whatsappMessage: string;
+  address: string;
+  city: string;
+  country: string;
+}
+
 export interface NotificationSettings {
   emailNotifications: boolean;
   newUserAlerts: boolean;
@@ -38,27 +51,47 @@ export interface AppearanceSettings {
 export interface AdvancedSettings {
   backupFrequency: BackupFrequency;
   coursesPerPage: number;
+  leaderboardPerPage: number;
+  myLearningPerPage: number;
   paystackPublicKey?: string;
   paystackSecretKey?: string;
+}
+
+export interface QuoteItem {
+  quote: string;
+  author: string;
+}
+
+export interface QuotesSettings {
+  customQuotesEnabled: boolean;
+  dailyQuotes: QuoteItem[];
 }
 
 export interface SystemSettingsDoc {
   _id: string;
   general: GeneralSettings;
+  contact: ContactSettings;
   notifications: NotificationSettings;
   security: SecuritySettings;
   appearance: AppearanceSettings;
   advanced: AdvancedSettings;
+  quotes: QuotesSettings;
   createdAt: string;
   updatedAt: string;
 }
 
-export type SettingsSection = keyof Pick<SystemSettingsDoc, 'general' | 'notifications' | 'security' | 'appearance' | 'advanced'>;
+export type SettingsSection = keyof Pick<SystemSettingsDoc, 'general' | 'contact' | 'notifications' | 'security' | 'appearance' | 'advanced' | 'quotes'>;
 
-export const getSystemSettings = () => api.get('/settings') as Promise<SystemSettingsDoc>;
+export const getSystemSettings = (bustCache = false) => {
+  const url = bustCache ? `/settings?t=${Date.now()}` : '/settings';
+  return api.get(url) as Promise<SystemSettingsDoc>;
+};
 
 export const getSettingsSection = <K extends SettingsSection>(section: K) =>
   api.get(`/settings/${section}`) as Promise<SystemSettingsDoc[K]>;
 
 export const updateSettingsSection = <K extends SettingsSection>(section: K, data: Partial<SystemSettingsDoc[K]>) =>
   api.put(`/settings/${section}`, data) as Promise<SystemSettingsDoc>;
+
+export const getPublicAdvancedSettings = () =>
+  api.get('/settings/public/advanced') as Promise<{ coursesPerPage: number; leaderboardPerPage: number; myLearningPerPage: number }>;

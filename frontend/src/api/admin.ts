@@ -9,6 +9,7 @@ export interface CreateAdminInput {
 	email: string;
 	password: string;
 	fullName: string;
+	userType?: string; // Optional, defaults to 'admin' if not specified
 }
 
 export interface AdminUser {
