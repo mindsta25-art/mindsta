@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { StudentHeader } from "@/components/StudentHeader";
+import { StudentFooter } from "@/components/StudentFooter";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { getQuizByLessonId } from "@/api/quizzes";
 import { upsertProgress, getUserProgress } from "@/api/progress";
 import { getStudentByUserId } from "@/api/students";
 import { checkAccess } from "@/api/enrollments";
+import { recordStudyTime } from "@/api/gamification";
 
 interface LessonData {
   id: string;
@@ -65,6 +67,83 @@ const LessonDetail = () => {
   const [previousScore, setPreviousScore] = useState<number | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean>(false);
   const [checkingAccess, setCheckingAccess] = useState<boolean>(true);
+
+  // Video progress tracking
+  const [videoResumePos, setVideoResumePos] = useState<number>(0);
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
+  const videoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestVideoPositionRef = useRef<number>(0);
+  const latestWatchPercentRef = useRef<number>(0);
+  const LS_VIDEO_KEY = (id: string) => `mindsta_video_pos_${id}`;
+
+  // Study time tracking
+  const studyStartRef = useRef<number>(Date.now());
+  useEffect(() => {
+    if (!user) return;
+    studyStartRef.current = Date.now();
+    const interval = setInterval(() => {
+      recordStudyTime(5).catch(() => {});
+    }, 5 * 60 * 1000);
+    return () => {
+      clearInterval(interval);
+      const elapsed = Math.floor((Date.now() - studyStartRef.current) / 60000);
+      if (elapsed > 0) recordStudyTime(elapsed).catch(() => {});
+    };
+  }, [user]);
+
+  // Load saved position when lesson id is available
+  useEffect(() => {
+    if (!lessonId) return;
+    const saved = Number(localStorage.getItem(LS_VIDEO_KEY(lessonId)) || '0');
+    if (saved > 30) { setVideoResumePos(saved); setShowResumeBanner(true); }
+    else { setVideoResumePos(0); setShowResumeBanner(false); }
+    latestVideoPositionRef.current = 0;
+    latestWatchPercentRef.current = 0;
+  }, [lessonId]);
+
+  // Flush on unmount
+  useEffect(() => {
+    return () => {
+      if (videoSaveTimerRef.current) clearTimeout(videoSaveTimerRef.current);
+      if (lessonId && user && latestVideoPositionRef.current > 5) {
+        upsertProgress({
+          userId: user.id, lessonId, completed: false,
+          videoPosition: Math.floor(latestVideoPositionRef.current),
+          videoWatchPercent: latestWatchPercentRef.current,
+          lastAccessedAt: new Date(),
+        }).catch(() => {});
+      }
+    };
+  }, [lessonId, user]);
+
+  const handleVideoTimeUpdate = useCallback((seconds: number) => {
+    latestVideoPositionRef.current = seconds;
+    if (!videoSaveTimerRef.current && lessonId && user) {
+      videoSaveTimerRef.current = setTimeout(() => {
+        videoSaveTimerRef.current = null;
+        upsertProgress({
+          userId: user.id, lessonId, completed: false,
+          videoPosition: Math.floor(latestVideoPositionRef.current),
+          videoWatchPercent: latestWatchPercentRef.current,
+          lastAccessedAt: new Date(),
+        }).catch(() => {});
+      }, 60_000);
+    }
+  }, [lessonId, user]);
+
+  const handleVideoProgress = useCallback((percent: number) => {
+    latestWatchPercentRef.current = percent;
+    if (lessonId) localStorage.setItem(LS_VIDEO_KEY(lessonId), String(Math.floor(latestVideoPositionRef.current)));
+  }, [lessonId]);
+
+  const handleVideoEnded = useCallback(() => {
+    if (lessonId) localStorage.removeItem(LS_VIDEO_KEY(lessonId));
+    latestWatchPercentRef.current = 100;
+    if (lessonId && user) {
+      upsertProgress({ userId: user.id, lessonId, completed: false, videoPosition: 0, videoWatchPercent: 100, lastAccessedAt: new Date() }).catch(() => {});
+    }
+    toast({ title: "Video Complete! 🎬", description: quiz ? "Head to the Quiz tab to test your knowledge." : "Mark the lesson as complete when ready." });
+  }, [lessonId, user, quiz, toast]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -279,7 +358,7 @@ const LessonDetail = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <StudentHeader studentName={studentName} />
 
-      <main className="pt-20 pb-16">
+      <main className="pt-2 pb-16">
         {/* Video/Content Player - Full Width */}
         <div className="bg-black">
           <div className="container mx-auto px-4 py-6">
@@ -288,7 +367,12 @@ const LessonDetail = () => {
                 <VideoPlayer 
                   videoUrl={currentLecture.videoUrl} 
                   title={currentLecture.title}
+                  lessonId={lessonId}
                   enableDownload={true}
+                  startAt={showResumeBanner ? videoResumePos : 0}
+                  onTimeUpdate={handleVideoTimeUpdate}
+                  onProgress={handleVideoProgress}
+                  onEnded={handleVideoEnded}
                 />
               ) : currentLecture?.content ? (
                 <div className="aspect-video w-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
@@ -302,7 +386,12 @@ const LessonDetail = () => {
                 <VideoPlayer 
                   videoUrl={lesson.videoUrl} 
                   title={lesson.title}
+                  lessonId={lessonId}
                   enableDownload={true}
+                  startAt={showResumeBanner ? videoResumePos : 0}
+                  onTimeUpdate={handleVideoTimeUpdate}
+                  onProgress={handleVideoProgress}
+                  onEnded={handleVideoEnded}
                 />
               ) : (
                 <div className="aspect-video w-full bg-gray-900 rounded-lg flex items-center justify-center">
@@ -586,6 +675,7 @@ const LessonDetail = () => {
         </div>
       </main>
       <WhatsAppButton />
+      <StudentFooter />
     </div>
   );
 };

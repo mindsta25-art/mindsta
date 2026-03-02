@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { StudentHeader } from "@/components/StudentHeader";
+import { StudentFooter } from "@/components/StudentFooter";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, ArrowLeft, Star, Users, Clock } from "lucide-react";
+import { BookOpen, Star, Users, Clock } from "lucide-react";
 import { getStudentByUserId, initializePayment } from "@/api";
 import { getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
 
@@ -106,12 +107,8 @@ const Checkout = () => {
       <StudentHeader studentName={studentName} />
       <main className="pt-24 pb-16 container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
-              <ArrowLeft className="w-4 h-4" /> Back
-            </Button>
+          <div className="mb-6">
             <h1 className="text-2xl font-bold">Checkout</h1>
-            <div />
           </div>
 
           {isEmpty ? (
@@ -229,6 +226,7 @@ const Checkout = () => {
           )}
         </div>
       </main>
+      <StudentFooter />
       <WhatsAppButton />
     </div>
   );

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { StudentHeader } from "@/components/StudentHeader";
+import { StudentFooter } from "@/components/StudentFooter";
+import { StudentFooter } from "@/components/StudentFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -238,6 +241,7 @@ const TopicDetail = () => {
           </Card>
         </div>
       </main>
+      <StudentFooter />
     </div>
   );
 };

@@ -45,6 +45,7 @@ const Index = () => {
   const { user, loading } = useAuth();
   const [activeFeature, setActiveFeature] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoClickCount, setLogoClickCount] = useState(0);
 
   useEffect(() => {
     if (!loading && user) {
@@ -60,6 +61,19 @@ const Index = () => {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Hidden admin access: Click logo 5 times quickly
+  const handleLogoClick = () => {
+    setLogoClickCount(prev => prev + 1);
+    
+    if (logoClickCount === 4) {
+      navigate('/admin-auth');
+      setLogoClickCount(0);
+    }
+    
+    // Reset counter after 2 seconds
+    setTimeout(() => setLogoClickCount(0), 2000);
+  };
 
   const userTypes = [
     {
@@ -185,7 +199,11 @@ const Index = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-card backdrop-blur-sm shadow-lg border-b-4 border-purple-300">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:scale-105 transition-transform" 
+              onClick={handleLogoClick}
+              title="Mindsta"
+            >
               <div className="p-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
                 <BookOpen className="w-6 h-6 text-white" />
               </div>

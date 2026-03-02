@@ -13,6 +13,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { StudentHeader } from '@/components/StudentHeader';
 import { StudentFooter } from '@/components/StudentFooter';
+import { OnboardingTour } from '@/components/OnboardingTour';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -270,9 +271,9 @@ const Dashboard = () => {
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <StudentHeader studentName={studentInfo?.fullName} />
+        <OnboardingTour />
 
-        <main className="pt-20 sm:pt-24 pb-12 sm:pb-16 container mx-auto px-4 sm:px-6">
-          {/* Hero Section */}
+        <main className="pt-20 sm:pt-24 pb-12 sm:pb-16 container mx-auto px-4 sm:px-6">\n          {/* Hero Section */}
           <motion.div
             initial="hidden"
             animate="visible"

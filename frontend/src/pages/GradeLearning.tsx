@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { StudentHeader } from "@/components/StudentHeader";
+import { StudentFooter } from "@/components/StudentFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -242,6 +244,7 @@ const GradeLearning = () => {
           )}
         </div>
       </main>
+      <StudentFooter />
     </div>
   );
 };

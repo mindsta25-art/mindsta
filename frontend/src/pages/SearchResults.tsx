@@ -28,9 +28,16 @@ import {
   GraduationCap,
   ArrowRight,
   Loader2,
-  X
+  X,
+  CheckCircle,
+  PlayCircle,
+  ShoppingCart,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { getAllLessons, type Lesson } from '@/api/lessons';
+import { getEnrollments, type Enrollment } from '@/api/enrollments';
+import { isEnrolled as isEnrolledUtil } from '@/utils/enrollmentUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -64,16 +71,23 @@ export default function SearchResults() {
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const RESULTS_PER_PAGE = 12;
 
   const GRADES = ['1', '2', '3', '4', '5', '6', 'Common Entrance'];
 
-  // Fetch all lessons
+  // Fetch all lessons + enrollments
   useEffect(() => {
     const fetchLessons = async () => {
       setLoading(true);
       try {
-        const lessons = await getAllLessons();
-        setAllLessons(lessons || []);
+        const [lessons, userEnrollments] = await Promise.allSettled([
+          getAllLessons(),
+          user ? getEnrollments() : Promise.resolve([]),
+        ]);
+        setAllLessons(lessons.status === 'fulfilled' ? lessons.value || [] : []);
+        setEnrollments(userEnrollments.status === 'fulfilled' ? userEnrollments.value : []);
       } catch (error) {
         console.error('Error fetching lessons:', error);
       } finally {
@@ -81,7 +95,7 @@ export default function SearchResults() {
       }
     };
     fetchLessons();
-  }, []);
+  }, [user]);
 
   // Filter lessons based on search query and filters
   useEffect(() => {
@@ -113,6 +127,7 @@ export default function SearchResults() {
     }
 
     setFilteredLessons(results);
+    setCurrentPage(1);
   }, [searchQuery, allLessons, selectedGrade, selectedSubject, selectedDifficulty]);
 
   // Update URL when search query changes
@@ -136,6 +151,15 @@ export default function SearchResults() {
     return text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   };
 
+  const isLessonPurchased = (lesson: Lesson): boolean => {
+    return enrollments.some(e => isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term));
+  };
+
+  const buildSubjectUrl = (lesson: Lesson): string => {
+    const termSlug = lesson.term ? lesson.term.toLowerCase().replace(/\s+/g, '-') : '';
+    return `/subjects/${lesson.grade}/${encodeURIComponent(lesson.subject)}${termSlug ? `?term=${termSlug}` : ''}`;
+  };
+
   const formatPrice = (price?: number) => {
     return formatCurrency(price || siteConfig.defaults.lessonPrice);
   };
@@ -152,7 +176,7 @@ export default function SearchResults() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <StudentHeader studentName={user?.fullName} />
 
-      <main className="pt-20 sm:pt-24 pb-12 sm:pb-16 container mx-auto px-4 sm:px-6">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16 container mx-auto px-4 sm:px-6">
         {/* Search Header */}
         <motion.div
           initial="hidden"
@@ -274,6 +298,11 @@ export default function SearchResults() {
               <>
                 Found <strong>{filteredLessons.length}</strong> {filteredLessons.length === 1 ? 'result' : 'results'}
                 {searchQuery && <> for "<strong>{searchQuery}</strong>"</>}
+                {filteredLessons.length > RESULTS_PER_PAGE && (
+                  <span className="ml-2">
+                    — showing {Math.min((currentPage - 1) * RESULTS_PER_PAGE + 1, filteredLessons.length)}–{Math.min(currentPage * RESULTS_PER_PAGE, filteredLessons.length)}
+                  </span>
+                )}
               </>
             )}
           </p>
@@ -304,6 +333,7 @@ export default function SearchResults() {
 
         {/* Results Grid */}
         {!loading && filteredLessons.length > 0 && (
+          <>
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -311,7 +341,7 @@ export default function SearchResults() {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
           >
             <AnimatePresence>
-              {filteredLessons.map((lesson) => (
+              {filteredLessons.slice((currentPage - 1) * RESULTS_PER_PAGE, currentPage * RESULTS_PER_PAGE).map((lesson) => (
                 <motion.div
                   key={lesson.id}
                   variants={fadeInUp}
@@ -320,67 +350,160 @@ export default function SearchResults() {
                   whileHover={{ y: -5 }}
                   transition={{ type: 'spring', stiffness: 300 }}
                 >
-                  <Card className="h-full hover:shadow-xl transition-shadow group cursor-pointer overflow-hidden">
-                    <div
-                      onClick={() => {
-                        const subjectSlug = createSlug(lesson.subject);
-                        navigate(`/grade/${lesson.grade}/${subjectSlug}/lesson/${lesson.id}`);
-                      }}
-                    >
-                      {/* Thumbnail */}
-                      <div className="h-40 bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <BookOpen className="w-12 h-12 text-white opacity-90" />
-                        </div>
-                        {lesson.difficulty && (
-                          <div className="absolute top-3 left-3">
-                            <Badge className={`text-xs font-semibold ${difficultyColors[lesson.difficulty.toLowerCase() as keyof typeof difficultyColors] || 'bg-gray-500'}`}>
-                              {lesson.difficulty}
-                            </Badge>
+                  {(() => {
+                    const purchased = isLessonPurchased(lesson);
+                    return (
+                      <Card
+                        className={`h-full hover:shadow-xl transition-all group cursor-pointer overflow-hidden ${
+                          purchased ? 'border-green-400 dark:border-green-600' : ''
+                        }`}
+                        onClick={() => navigate(buildSubjectUrl(lesson))}
+                      >
+                        {/* Thumbnail */}
+                        <div className={`h-40 relative overflow-hidden ${
+                          purchased
+                            ? 'bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500'
+                            : 'bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500'
+                        }`}>
+                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            {purchased
+                              ? <PlayCircle className="w-12 h-12 text-white opacity-90" />
+                              : <BookOpen className="w-12 h-12 text-white opacity-90" />
+                            }
                           </div>
-                        )}
-                        {lesson.duration && (
-                          <div className="absolute bottom-3 right-3">
-                            <Badge variant="secondary" className="text-xs gap-1 bg-white/90">
-                              <Clock className="w-3 h-3" />
-                              {lesson.duration} min
+
+                          {/* Purchased banner */}
+                          {purchased && (
+                            <div className="absolute top-0 left-0 right-0 bg-green-600/90 text-white text-xs font-bold py-1 px-3 flex items-center gap-1 justify-center">
+                              <CheckCircle className="w-3 h-3" />
+                              Purchased
+                            </div>
+                          )}
+
+                          {!purchased && lesson.difficulty && (
+                            <div className="absolute top-3 left-3">
+                              <Badge className={`text-xs font-semibold ${difficultyColors[lesson.difficulty.toLowerCase() as keyof typeof difficultyColors] || 'bg-gray-500'}`}>
+                                {lesson.difficulty}
+                              </Badge>
+                            </div>
+                          )}
+                          {lesson.duration && (
+                            <div className="absolute bottom-3 right-3">
+                              <Badge variant="secondary" className={`text-xs gap-1 bg-white/90 transition-colors ${purchased ? 'group-hover:bg-green-100 group-hover:text-green-700' : 'group-hover:bg-indigo-100 group-hover:text-indigo-700'}`}>
+                                <Clock className="w-3 h-3" />
+                                {lesson.duration} min
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge variant="outline" className="text-xs">
+                              {lesson.subject}
                             </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Grade {lesson.grade}
+                            </span>
                           </div>
-                        )}
-                      </div>
 
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline" className="text-xs">
-                            {lesson.subject}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            Grade {lesson.grade}
-                          </span>
-                        </div>
-                        
-                        <h3 className="font-bold text-sm mb-2 group-hover:text-indigo-600 transition-colors line-clamp-2 leading-tight">
-                          {lesson.title}
-                        </h3>
-                        
-                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                          {lesson.description}
-                        </p>
+                          <h3 className={`font-bold text-sm mb-2 line-clamp-2 leading-tight transition-colors ${
+                            purchased ? 'group-hover:text-green-600' : 'group-hover:text-indigo-600'
+                          }`}>
+                            {lesson.title}
+                          </h3>
 
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-indigo-600">
-                            {formatPrice(lesson.price)}
-                          </span>
-                          <ArrowRight className="w-4 h-4 text-indigo-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                        </div>
-                      </CardContent>
-                    </div>
-                  </Card>
+                          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                            {lesson.description}
+                          </p>
+
+                          <div className="flex items-center justify-between">
+                            {purchased ? (
+                              <span className="text-sm font-bold text-green-600 flex items-center gap-1">
+                                <CheckCircle className="w-4 h-4" />
+                                Purchased
+                              </span>
+                            ) : (
+                              <span className="text-sm font-bold text-indigo-600">
+                                {formatPrice(lesson.price)}
+                              </span>
+                            )}
+                            <ArrowRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all ${
+                              purchased ? 'text-green-600' : 'text-indigo-600'
+                            }`} />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
                 </motion.div>
               ))}
             </AnimatePresence>
           </motion.div>
+
+          {/* Pagination Controls */}
+          {filteredLessons.length > RESULTS_PER_PAGE && (
+            <div className="flex justify-center items-center gap-2 mt-10 pt-6 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={currentPage === 1}
+                className="gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const totalPages = Math.ceil(filteredLessons.length / RESULTS_PER_PAGE);
+                  const pages: number[] = [];
+                  if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                  } else if (currentPage <= 4) {
+                    for (let i = 1; i <= 5; i++) pages.push(i);
+                    pages.push(-1); pages.push(totalPages);
+                  } else if (currentPage >= totalPages - 3) {
+                    pages.push(1); pages.push(-1);
+                    for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                  } else {
+                    pages.push(1); pages.push(-1);
+                    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                    pages.push(-2); pages.push(totalPages);
+                  }
+                  return pages.map((page, idx) =>
+                    page < 0 ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground text-sm">…</span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        className={currentPage === page ? 'bg-indigo-600 hover:bg-indigo-700 text-white w-9' : 'w-9'}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  );
+                })()}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setCurrentPage(p => Math.min(Math.ceil(filteredLessons.length / RESULTS_PER_PAGE), p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={currentPage >= Math.ceil(filteredLessons.length / RESULTS_PER_PAGE)}
+                className="gap-1"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+          </>
         )}
       </main>
 

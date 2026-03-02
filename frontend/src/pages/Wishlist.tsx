@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StudentHeader } from '@/components/StudentHeader';
+import { StudentFooter } from '@/components/StudentFooter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useCart } from '@/contexts/CartContext';
@@ -7,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, HeartCrack, ArrowLeft } from 'lucide-react';
+import { BookOpen, HeartCrack } from 'lucide-react';
 import { getStudentByUserId } from '@/api';
 
 const Wishlist = () => {
@@ -35,10 +36,8 @@ const Wishlist = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <StudentHeader studentName={studentName} />
       <main className="pt-24 pb-16 container mx-auto px-4 max-w-6xl">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2 text-sm sm:text-base"><ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4"/>Back</Button>
+        <div className="mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl font-bold">Wishlist</h1>
-          <div />
         </div>
         {isEmpty ? (
           <Card className="p-8 sm:p-16 text-center">
@@ -75,6 +74,7 @@ const Wishlist = () => {
           </div>
         )}
       </main>
+      <StudentFooter />
     </div>
   );
 };

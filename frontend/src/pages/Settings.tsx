@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { StudentHeader } from '@/components/StudentHeader';
+import { StudentFooter } from '@/components/StudentFooter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,14 +12,17 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  ArrowLeft, 
   Lock, 
   Bell, 
   Moon, 
   Shield, 
   Trash2,
   AlertCircle,
-  Save
+  Save,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { getStudentByUserId } from '@/api';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +50,26 @@ const Settings = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+
+  const getPasswordStrength = (pw: string) => {
+    if (!pw) return { score: 0, label: '', color: '' };
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[a-z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500' };
+    if (score === 3) return { score, label: 'Fair', color: 'bg-yellow-500' };
+    if (score === 4) return { score, label: 'Good', color: 'bg-blue-500' };
+    return { score, label: 'Strong', color: 'bg-green-500' };
+  };
+
+  const pwStrength = getPasswordStrength(newPassword);
+  const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
 
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -77,8 +101,42 @@ const Settings = () => {
     loadStudentName();
   }, [user]);
 
+  // Load user preferences
+  useEffect(() => {
+    const loadPreferences = async () => {
+      if (user?.id) {
+        try {
+          const { getUserPreferences } = await import('@/api/auth');
+          const prefs = await getUserPreferences(user.id);
+          
+          // Update notification preferences
+          setEmailNotifications(prefs.notificationPreferences?.emailNotifications ?? true);
+          setQuizReminders(prefs.notificationPreferences?.quizReminders ?? true);
+          setProgressUpdates(prefs.notificationPreferences?.progressUpdates ?? true);
+          setWeeklyReport(prefs.notificationPreferences?.weeklyReport ?? false);
+          
+          // Update privacy settings
+          setShowProgress(prefs.privacySettings?.showProgress ?? true);
+          setAllowAnalytics(prefs.privacySettings?.allowAnalytics ?? true);
+        } catch (error) {
+          console.error('Error loading preferences:', error);
+        }
+      }
+    };
+    loadPreferences();
+  }, [user]);
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user?.id) {
+      toast({
+        title: 'Error',
+        description: 'User not authenticated',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (newPassword !== confirmPassword) {
       toast({
@@ -89,10 +147,19 @@ const Settings = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       toast({
         title: 'Error',
-        description: 'Password must be at least 6 characters',
+        description: 'Password must be at least 8 characters long',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!currentPassword) {
+      toast({
+        title: 'Error',
+        description: 'Current password is required',
         variant: 'destructive',
       });
       return;
@@ -100,42 +167,139 @@ const Settings = () => {
 
     setLoading(true);
     
-    // TODO: Implement password change API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const { changePassword } = await import('@/api/auth');
+      const result = await changePassword(user.id, currentPassword, newPassword);
+      
       toast({
-        title: 'Success',
-        description: 'Password changed successfully',
+        title: '✅ Success',
+        description: result.message || 'Password changed successfully',
       });
+      
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    }, 1000);
+      setShowCurrentPw(false);
+      setShowNewPw(false);
+      setShowConfirmPw(false);
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      toast({
+        title: '❌ Error',
+        description: error.message || 'Failed to change password. Please check your current password.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveNotifications = () => {
-    // TODO: Save notification preferences to backend
-    toast({
-      title: 'Settings Saved',
-      description: 'Notification preferences updated',
-    });
+  const handleSaveNotifications = async () => {
+    if (!user?.id) {
+      toast({
+        title: 'Error',
+        description: 'User not authenticated',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { updateNotificationPreferences } = await import('@/api/auth');
+      await updateNotificationPreferences(user.id, {
+        emailNotifications,
+        quizReminders,
+        progressUpdates,
+        weeklyReport,
+      });
+      
+      toast({
+        title: '✅ Settings Saved',
+        description: 'Notification preferences updated successfully',
+      });
+    } catch (error: any) {
+      console.error('Error saving notification preferences:', error);
+      toast({
+        title: '❌ Error',
+        description: error.message || 'Failed to save notification preferences',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleSavePrivacy = () => {
-    // TODO: Save privacy settings to backend
-    toast({
-      title: 'Settings Saved',
-      description: 'Privacy settings updated',
-    });
+  const handleSavePrivacy = async () => {
+    if (!user?.id) {
+      toast({
+        title: 'Error',
+        description: 'User not authenticated',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { updatePrivacySettings } = await import('@/api/auth');
+      await updatePrivacySettings(user.id, {
+        showProgress,
+        allowAnalytics,
+      });
+      
+      toast({
+        title: '✅ Settings Saved',
+        description: 'Privacy settings updated successfully',
+      });
+    } catch (error: any) {
+      console.error('Error saving privacy settings:', error);
+      toast({
+        title: '❌ Error',
+        description: error.message || 'Failed to save privacy settings',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDeleteAccount = () => {
-    // TODO: Implement account deletion
-    toast({
-      title: 'Account Deletion',
-      description: 'Please contact support to delete your account',
-      variant: 'destructive',
-    });
+  const handleDeleteAccount = async () => {
+    if (!user?.id) return;
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account? This action cannot be undone.\n\nAll your data including:\n- Progress\n- Enrollments\n- Achievements\n- Settings\n\nwill be permanently deleted.'
+    );
+
+    if (!confirmed) return;
+
+    const password = window.prompt('Please enter your password to confirm:');
+    if (!password) return;
+
+    const confirmText = window.prompt('Type DELETE to confirm account deletion:');
+    if (confirmText !== 'DELETE') {
+      toast({
+        title: 'Deletion cancelled',
+        description: 'You must type DELETE exactly to confirm',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { deleteAccount } = await import('@/api/newsletter');
+      await deleteAccount(user.id, password, confirmText);
+      
+      toast({
+        title: 'Account Deleted',
+        description: 'Your account has been permanently deleted',
+      });
+
+      // Clear local storage and redirect to home
+      localStorage.clear();
+      window.location.href = '/';
+    } catch (error: any) {
+      toast({
+        title: 'Deletion Failed',
+        description: error.response?.data?.error || 'Failed to delete account',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -146,14 +310,6 @@ const Settings = () => {
         <div className="max-w-4xl mx-auto">
           {/* Header with gradient */}
           <div className="mb-8">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate(-1)} 
-              className="mb-4 gap-2 hover:bg-white/50 dark:hover:bg-gray-800/50"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-lg blur opacity-25"></div>
               <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
@@ -190,38 +346,105 @@ const Settings = () => {
                   <form onSubmit={handlePasswordChange} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="currentPassword">Current Password</Label>
-                      <Input
-                        id="currentPassword"
-                        type="password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="Enter current password"
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="currentPassword"
+                          type={showCurrentPw ? 'text' : 'password'}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="Enter current password"
+                          required
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPw(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          tabIndex={-1}
+                        >
+                          {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="newPassword">New Password</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Enter new password"
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          type={showNewPw ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="At least 8 characters"
+                          required
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPw(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          tabIndex={-1}
+                        >
+                          {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {newPassword.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${pwStrength.color}`}
+                                style={{ width: `${(pwStrength.score / 5) * 100}%` }}
+                              />
+                            </div>
+                            <span className={`text-xs font-medium ${pwStrength.score <= 2 ? 'text-red-500' : pwStrength.score === 3 ? 'text-yellow-500' : pwStrength.score === 4 ? 'text-blue-500' : 'text-green-500'}`}>
+                              {pwStrength.label}
+                            </span>
+                          </div>
+                          <ul className="space-y-1">
+                            {[
+                              { test: newPassword.length >= 8, label: 'At least 8 characters' },
+                              { test: /[A-Z]/.test(newPassword), label: 'Uppercase letter' },
+                              { test: /[a-z]/.test(newPassword), label: 'Lowercase letter' },
+                              { test: /[0-9]/.test(newPassword), label: 'Number' },
+                            ].map(req => (
+                              <li key={req.label} className={`flex items-center gap-1.5 text-xs ${req.test ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                                {req.test ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                {req.label}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Confirm new password"
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showConfirmPw ? 'text' : 'password'}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Re-enter new password"
+                          required
+                          className={`pr-10 ${confirmPassword.length > 0 ? (passwordsMatch ? 'border-green-500 focus-visible:ring-green-500' : 'border-red-500 focus-visible:ring-red-500') : ''}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPw(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          tabIndex={-1}
+                        >
+                          {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {confirmPassword.length > 0 && (
+                        <p className={`text-xs flex items-center gap-1 ${passwordsMatch ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                          {passwordsMatch ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
+                        </p>
+                      )}
                     </div>
 
                     <Button 
@@ -452,6 +675,7 @@ const Settings = () => {
           </Tabs>
         </div>
       </main>
+      <StudentFooter />
     </div>
   );
 };

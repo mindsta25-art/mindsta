@@ -272,7 +272,7 @@ export const AllGrades = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50 dark:from-slate-900 dark:via-indigo-900/20 dark:to-slate-900">
       <StudentHeader />
       
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-12 sm:pb-16">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-6 pb-12 sm:pb-16">
         {/* Hero Section */}
         <div className="text-center mb-8 sm:mb-12">
           <div className="inline-flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/30 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full mb-3 sm:mb-4">

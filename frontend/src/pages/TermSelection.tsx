@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { StudentHeader } from "@/components/StudentHeader";
+import { StudentFooter } from "@/components/StudentFooter";
+import { StudentFooter } from "@/components/StudentFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, BookOpen, Calendar, ChevronRight, Layers } from "lucide-react";
@@ -309,6 +312,7 @@ const TermSelection = () => {
           </Card>
         </div>
       </main>
+      <StudentFooter />
     </div>
   );
 };

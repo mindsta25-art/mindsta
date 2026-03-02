@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { StudentHeader } from "@/components/StudentHeader";
+import { StudentFooter } from "@/components/StudentFooter";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -264,7 +265,7 @@ const Cart = () => {
                       variant="outline"
                       size="lg"
                       className="w-full gap-2 text-sm sm:text-base"
-                      onClick={() => navigate("/dashboard")}
+                      onClick={() => navigate("/browse")}
                     >
                       <ShoppingBag className="w-3 h-3 sm:w-4 sm:h-4" />
                       Continue Shopping
@@ -298,6 +299,7 @@ const Cart = () => {
           )}
         </div>
       </main>
+      <StudentFooter />
       <WhatsAppButton />
     </div>
   );

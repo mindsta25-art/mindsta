@@ -221,11 +221,11 @@ const BrowseTopicsEnhanced = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-background to-blue-50 dark:from-gray-900 dark:via-background dark:to-gray-800">
         <StudentHeader studentName={studentName} />
         <div className="container mx-auto px-4 py-24 flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 dark:border-purple-400 mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading content...</p>
           </div>
         </div>
@@ -239,6 +239,9 @@ const BrowseTopicsEnhanced = () => {
     const description = 'description' in item ? item.description : (item as Lesson).description;
     const difficulty = 'difficulty' in item ? item.difficulty : (item as Lesson).difficulty;
     const rating = 'rating' in item ? item.rating : ((item as Lesson).rating || 0);
+    const enrolledStudents = 'enrolledStudents' in item ? item.enrolledStudents : ((item as Lesson).enrolledStudents || 0);
+    const thumbnail = ('thumbnail' in item ? (item as any).thumbnail : (item as any).thumbnail) || (item as Lesson).imageUrl || null;
+    const quizzesCount = ('quizzesCount' in item ? (item as any).quizzesCount : (item as any).quizzesCount) || 0;
 
     return (
       <motion.div
@@ -249,7 +252,7 @@ const BrowseTopicsEnhanced = () => {
         whileHover={{ scale: 1.02 }}
       >
         <Card 
-          className="h-full cursor-pointer hover:shadow-xl transition-all border-2 hover:border-purple-300"
+          className="h-full cursor-pointer hover:shadow-xl transition-all border-2 hover:border-purple-300 dark:hover:border-purple-600 overflow-hidden"
           onClick={() => {
             if (isLesson) {
               navigate(`/lessons/${item.id}`);
@@ -258,45 +261,92 @@ const BrowseTopicsEnhanced = () => {
             }
           }}
         >
-          <CardHeader>
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex gap-2">
-                <Badge className={isLesson ? "bg-blue-500" : "bg-purple-500"}>
-                  {isLesson ? 'Lesson' : 'Topic'}
-                </Badge>
-                <Badge variant="outline">{difficulty}</Badge>
+          {/* Thumbnail Image */}
+          <div className="relative w-full h-48 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 overflow-hidden">
+            {thumbnail ? (
+              <img 
+                src={thumbnail} 
+                alt={title}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to gradient if image fails to load
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <BookOpen className="w-20 h-20 text-purple-300 dark:text-purple-600" />
               </div>
-              {rating > 0 && (
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-semibold">{rating.toFixed(1)}</span>
-                </div>
-              )}
+            )})
+            <div className="absolute top-2 left-2 flex gap-2">
+              <Badge className={isLesson ? "bg-blue-500 hover:bg-blue-600" : "bg-purple-500 hover:bg-purple-600"}>
+                {isLesson ? 'Lesson' : 'Topic'}
+              </Badge>
+              <Badge variant="secondary" className="bg-white/90 dark:bg-gray-800/90">{difficulty}</Badge>
             </div>
+          </div>
+
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg line-clamp-2">{title}</CardTitle>
             <p className="text-sm text-muted-foreground">{item.subject} • {item.term}</p>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
               {description}
             </p>
 
-            <div className="space-y-2">
+            <div className="space-y-2 mb-4">
+              {/* Student Count */}
+              <div className="flex items-center gap-2 text-sm">
+                <GraduationCap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <span className="font-medium">{enrolledStudents}+ students</span>
+              </div>
+
+              {/* Lessons Count for Topics */}
               {!isLesson && 'lessonsCount' in item && (
                 <div className="flex items-center gap-2 text-sm">
-                  <BookOpen className="w-4 h-4 text-purple-600" />
+                  <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <span>{item.lessonsCount || (item as Topic).lessons?.length || 0} Lessons</span>
                 </div>
               )}
+
+              {/* Quizzes Count */}
+              {quizzesCount > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Target className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <span>{quizzesCount} {quizzesCount === 1 ? 'Quiz' : 'Quizzes'}</span>
+                </div>
+              )}
+
+              {/* Duration */}
               {'duration' in item && item.duration && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="w-4 h-4 text-blue-600" />
+                  <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                   <span>{item.duration} minutes</span>
+                </div>
+              )}
+
+              {/* Rating */}
+              {rating > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= rating
+                            ? 'fill-yellow-400 text-yellow-400 dark:fill-yellow-500 dark:text-yellow-500'
+                            : 'text-gray-300 dark:text-gray-600'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="font-semibold">{rating.toFixed(1)}</span>
                 </div>
               )}
             </div>
 
-            <Button className="w-full mt-4 gap-2">
+            <Button className="w-full gap-2">
               <PlayCircle className="w-4 h-4" />
               {isLesson ? 'Start Lesson' : 'View Topic'}
             </Button>
@@ -307,11 +357,11 @@ const BrowseTopicsEnhanced = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-background to-blue-50 dark:from-gray-900 dark:via-background dark:to-gray-800">
       <StudentHeader studentName={studentName} />
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-12 mt-16">
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-700 dark:to-blue-700 text-white py-12 mt-16">
         <div className="container mx-auto px-4">
           <Button
             variant="ghost"
@@ -333,13 +383,13 @@ const BrowseTopicsEnhanced = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-4 mt-6">
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-lg py-2 px-4">
+            <Badge variant="secondary" className="bg-white/20 dark:bg-black/20 text-white border-white/30 dark:border-white/20 text-lg py-2 px-4">
               {topics.length} Topics
             </Badge>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-lg py-2 px-4">
+            <Badge variant="secondary" className="bg-white/20 dark:bg-black/20 text-white border-white/30 dark:border-white/20 text-lg py-2 px-4">
               {lessons.length} Lessons
             </Badge>
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-lg py-2 px-4">
+            <Badge variant="secondary" className="bg-white/20 dark:bg-black/20 text-white border-white/30 dark:border-white/20 text-lg py-2 px-4">
               {availableSubjects.length} Subjects
             </Badge>
           </div>

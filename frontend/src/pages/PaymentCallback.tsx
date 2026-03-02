@@ -107,7 +107,7 @@ const PaymentCallback = () => {
                   {purchasedCourses.map((course, index) => (
                     <div
                       key={`${course.subject}-${course.grade}-${index}`}
-                      className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                      className="flex items-center gap-3 p-3 bg-muted rounded-lg"
                     >
                       <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded">
                         <BookOpen className="w-5 h-5 text-purple-600" />
@@ -119,9 +119,14 @@ const PaymentCallback = () => {
                           {course.term && ` • ${course.term}`}
                         </p>
                       </div>
-                      <div className="text-xs text-green-600 font-medium">
-                        ✓ Enrolled
-                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${encodeURIComponent(course.term)}` : ''}`)}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-xs flex-shrink-0"
+                      >
+                        Start
+                        <ArrowRight className="w-3 h-3 ml-1" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -135,7 +140,14 @@ const PaymentCallback = () => {
                   {status === 'success' ? (
                     <>
                       <Button 
-                        onClick={() => navigate('/my-learning')}
+                        onClick={() => {
+                          if (purchasedCourses.length === 1) {
+                            const c = purchasedCourses[0];
+                            navigate(`/subjects/${c.grade}/${c.subject}${c.term ? `?term=${encodeURIComponent(c.term)}` : ''}`);
+                          } else {
+                            navigate('/my-learning');
+                          }
+                        }}
                         className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                         size="lg"
                       >

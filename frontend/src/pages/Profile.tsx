@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { StudentHeader } from '@/components/StudentHeader';
+import { StudentFooter } from '@/components/StudentFooter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, School, GraduationCap, Calendar, Save, ArrowLeft, AlertCircle } from 'lucide-react';
+import { User, Mail, School, GraduationCap, Calendar, Save, AlertCircle } from 'lucide-react';
 import { getStudentByUserId, updateStudentProfile } from '@/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,7 +27,7 @@ interface StudentInfo {
 }
 
 const Profile = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
@@ -90,6 +91,21 @@ const Profile = () => {
 
       if (updated) {
         setStudentInfo(updated);
+
+        // Patch localStorage so the new name is immediately reflected in the header
+        // and any other component that reads from AuthContext.
+        const stored = localStorage.getItem('currentUser');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            parsed.fullName = updated.fullName;
+            localStorage.setItem('currentUser', JSON.stringify(parsed));
+            refreshUser(); // sync AuthContext state from the updated localStorage entry
+          } catch {
+            // ignore JSON parse errors
+          }
+        }
+
         toast({
           title: 'Success',
           description: 'Profile updated successfully',
@@ -154,14 +170,6 @@ const Profile = () => {
             transition={{ delay: 0.1, duration: 0.5 }}
             className="mb-8"
           >
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate(-1)} 
-              className="mb-4 gap-2 hover:bg-white/50 dark:hover:bg-gray-800/50"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-lg blur opacity-25"></div>
               <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
@@ -355,6 +363,7 @@ const Profile = () => {
           </div>
         </motion.div>
       </main>
+      <StudentFooter />
     </div>
   );
 };

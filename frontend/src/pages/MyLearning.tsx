@@ -33,12 +33,17 @@ import {
   Calendar,
   Sparkles,
   GraduationCap,
-  Trophy
+  Trophy,
+  ChevronLeft,
+  ChevronRight,
+  ShoppingBag
 } from "lucide-react";
 import { getStudentByUserId } from "@/api/students";
 import { getLessons, type Lesson } from "@/api/lessons";
 import { getUserProgress, type UserProgress } from "@/api/progress";
 import { getEnrollments, type Enrollment } from "@/api/enrollments";
+import { isEnrolled as isEnrolledUtil } from "@/utils/enrollmentUtils";
+import { getPublicAdvancedSettings } from "@/api/settings";
 
 interface EnrolledCourse {
   subject: string;
@@ -65,6 +70,14 @@ const MyLearning = () => {
   const [filterSubject, setFilterSubject] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<string>("recent");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
+
+  useEffect(() => {
+    getPublicAdvancedSettings()
+      .then((s) => setItemsPerPage(s.myLearningPerPage ?? 9))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -96,9 +109,7 @@ const MyLearning = () => {
         // Filter lessons to only include enrolled courses
         const enrolledLessons = lessons.filter(lesson => {
           return enrollmentsData.some(enrollment => 
-            enrollment.subject === lesson.subject &&
-            enrollment.grade === lesson.grade &&
-            enrollment.term === lesson.term
+            isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term)
           );
         });
 
@@ -235,6 +246,18 @@ const MyLearning = () => {
 
   const uniqueSubjects = Array.from(new Set(enrolled.map(c => c.subject)));
 
+  // Returns true if purchased within the last 7 days
+  const isNewPurchase = (enrollmentDate?: Date) => {
+    if (!enrollmentDate) return false;
+    const days = (Date.now() - enrollmentDate.getTime()) / (1000 * 60 * 60 * 24);
+    return days <= 7;
+  };
+
+  // Reset to page 1 when filters/search/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterSubject, sortBy]);
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -261,7 +284,7 @@ const MyLearning = () => {
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">My Purchased Courses</h1>
-          <p className="text-muted-foreground">View all your purchased subjects and topics, and track your learning progress</p>
+          <p className="text-muted-foreground">View all your purchased lessons and track your learning progress</p>
         </div>
 
         {/* Quick Stats Section */}
@@ -380,118 +403,233 @@ const MyLearning = () => {
             <div className="text-center">
               <BookOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">
-                {enrollments.length === 0 ? "No enrolled courses yet" : "No courses found"}
+                {enrollments.length === 0 ? "No enrolled lessons yet" : "No lessons found"}
               </h3>
               <p className="text-muted-foreground mb-6">
                 {enrollments.length === 0 
-                  ? "Purchase courses to start your learning journey" 
+                  ? "Purchase lessons to start your learning journey" 
                   : searchQuery || filterSubject !== "all" 
                     ? "Try adjusting your filters" 
-                    : "Start learning by exploring available subjects"}
+                    : "Start learning by exploring available lessons"}
               </p>
               <Button onClick={() => navigate("/browse")}>
-                Browse Courses
+                Browse Lessons expertly crafted lessons across all grades
               </Button>
             </div>
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAndSorted().map((course, index) => (
-              <Card
-                key={index}
-                className="group hover:shadow-lg transition-all cursor-pointer overflow-hidden"
-                onClick={() => {
-                  const subjectSlug = course.subject.toLowerCase().replace(/\s+/g, '-');
-                  const termSlug = course.term ? course.term.toLowerCase().replace(/\s+/g, '-') : '';
-                  navigate(`/subject/${subjectSlug}?grade=${course.grade}${termSlug ? `&term=${termSlug}` : ''}`);
-                }}
-              >
-                {/* Course Thumbnail */}
-                <div className="h-32 bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <BookOpen className="w-12 h-12 text-white opacity-80" />
+          <>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredAndSorted()
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                .map((course, index) => (
+                <Card
+                  key={index}
+                  className="group hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+                  onClick={() => {
+                    navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+                  }}
+                >
+                  {/* Course Thumbnail */}
+                  <div className="relative h-48 bg-gradient-to-br from-indigo-100 via-blue-100 to-cyan-100 overflow-hidden">
+                    {(course.nextLesson?.thumbnail || course.nextLesson?.imageUrl) ? (
+                      <>
+                        <img 
+                          src={course.nextLesson.thumbnail || course.nextLesson.imageUrl} 
+                          alt={course.subject}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <BookOpen className="w-16 h-16 text-indigo-300" />
+                      </div>
+                    )}
+                    {course.progress === 100 && (
+                      <div className="absolute top-3 right-3">
+                        <Badge className="bg-green-500">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Completed
+                        </Badge>
+                      </div>
+                    )}
+                    {isNewPurchase(course.enrollmentDate) && course.progress === 0 && (
+                      <div className="absolute top-3 left-3">
+                        <Badge className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-0 shadow-md">
+                          <ShoppingBag className="w-3 h-3 mr-1" />
+                          New Purchase
+                        </Badge>
+                      </div>
+                    )}
                   </div>
-                  {course.progress === 100 && (
-                    <div className="absolute top-3 right-3">
-                      <Badge className="bg-green-500">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Completed
-                      </Badge>
+
+                  <CardContent className="p-5">
+                    {/* Course Title */}
+                    <div className="mb-3">
+                      <h3 className="font-semibold text-base mb-1 group-hover:text-indigo-600 transition-colors">
+                        {course.subject}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Grade {course.grade}
+                        {course.term && ` • ${course.term}`}
+                      </p>
                     </div>
-                  )}
-                </div>
 
-                <CardContent className="p-5">
-                  {/* Course Title */}
-                  <div className="mb-3">
-                    <h3 className="font-semibold text-base mb-1 group-hover:text-indigo-600 transition-colors">
-                      {course.subject}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Grade {course.grade}
-                      {course.term && ` • ${course.term}`}
-                    </p>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {course.progress}% complete
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {course.lessonsCompleted}/{course.lessonsTotal} lessons
-                      </span>
-                    </div>
-                    <Progress value={course.progress} className="h-2" />
-                  </div>
-
-                  {/* Stats */}
-                  <div className="flex items-center gap-4 mb-4 text-xs text-muted-foreground">
-                    {course.lastAccessed && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span>
-                          {(() => {
-                            const now = new Date();
-                            const diff = now.getTime() - course.lastAccessed.getTime();
-                            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                            if (days === 0) return "Today";
-                            if (days === 1) return "Yesterday";
-                            return `${days}d ago`;
-                          })()}
+                    {/* Progress Bar */}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {course.progress}% complete
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {course.lessonsCompleted}/{course.lessonsTotal} lessons
                         </span>
                       </div>
-                    )}
-                    {typeof course.averageScore === 'number' && (
-                      <div className="flex items-center gap-1">
-                        <BarChart3 className="w-3 h-3" />
-                        <span>{course.averageScore}% avg</span>
-                      </div>
-                    )}
-                  </div>
+                      <Progress value={course.progress} className="h-2" />
+                    </div>
 
-                  {/* Action Button */}
-                  {course.nextLesson && (
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Navigate to SubjectLessonsUdemy page (same as Browse page)
-                        navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
-                      }}
-                      className="w-full gap-2"
-                      size="sm"
-                    >
-                      <PlayCircle className="w-4 h-4" />
-                      {course.progress > 0 ? "Continue Learning" : "Start Course"}
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    {/* Stats */}
+                    <div className="flex items-center gap-4 mb-4 text-xs text-muted-foreground">
+                      {course.lastAccessed && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>
+                            {(() => {
+                              const now = new Date();
+                              const diff = now.getTime() - course.lastAccessed.getTime();
+                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                              if (days === 0) return "Today";
+                              if (days === 1) return "Yesterday";
+                              return `${days}d ago`;
+                            })()}
+                          </span>
+                        </div>
+                      )}
+                      {!course.lastAccessed && course.enrollmentDate && (
+                        <div className="flex items-center gap-1">
+                          <ShoppingBag className="w-3 h-3" />
+                          <span>Purchased {(() => {
+                            const days = Math.floor((Date.now() - course.enrollmentDate.getTime()) / (1000 * 60 * 60 * 24));
+                            if (days === 0) return 'today';
+                            if (days === 1) return 'yesterday';
+                            return `${days}d ago`;
+                          })()}</span>
+                        </div>
+                      )}
+                      {typeof course.averageScore === 'number' && (
+                        <div className="flex items-center gap-1">
+                          <BarChart3 className="w-3 h-3" />
+                          <span>{course.averageScore}% avg</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Button */}
+                    {course.nextLesson && (
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+                        }}
+                        className="w-full gap-2"
+                        size="sm"
+                      >
+                        <PlayCircle className="w-4 h-4" />
+                        {course.progress > 0 ? "Continue Learning" : "Start Course"}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {filteredAndSorted().length > itemsPerPage && (
+              <div className="flex justify-center items-center gap-2 mt-10 pt-6 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setCurrentPage(p => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  disabled={currentPage === 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const totalPages = Math.ceil(filteredAndSorted().length / itemsPerPage);
+                    const pages: number[] = [];
+                    if (totalPages <= 7) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else if (currentPage <= 4) {
+                      for (let i = 1; i <= 5; i++) pages.push(i);
+                      pages.push(-1);
+                      pages.push(totalPages);
+                    } else if (currentPage >= totalPages - 3) {
+                      pages.push(1);
+                      pages.push(-1);
+                      for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      pages.push(-1);
+                      for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                      pages.push(-2);
+                      pages.push(totalPages);
+                    }
+                    return pages.map((page, idx) =>
+                      page < 0 ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground text-sm">…</span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => {
+                            setCurrentPage(page);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className={currentPage === page ? 'bg-indigo-600 hover:bg-indigo-700 text-white w-9' : 'w-9'}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    );
+                  })()}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setCurrentPage(p => Math.min(Math.ceil(filteredAndSorted().length / itemsPerPage), p + 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  disabled={currentPage >= Math.ceil(filteredAndSorted().length / itemsPerPage)}
+                  className="gap-1"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* Results summary */}
+            <p className="text-center text-sm text-muted-foreground mt-4 pb-4">
+              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredAndSorted().length)}–{Math.min(currentPage * itemsPerPage, filteredAndSorted().length)} of {filteredAndSorted().length} course{filteredAndSorted().length !== 1 ? 's' : ''}
+            </p>
+          </>
         )}
       </main>
+      <StudentFooter />
     </div>
   );
 };
