@@ -1,12 +1,19 @@
+import { HomeHeader } from '@/components/HomeHeader';
+import { HomeFooter } from '@/components/HomeFooter';
 import { StudentHeader } from '@/components/StudentHeader';
 import { StudentFooter } from '@/components/StudentFooter';
+import { useAuth } from '@/contexts/AuthContext';
+import { useContactSettings } from '@/contexts/ContactSettingsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Cookie, Shield, Settings, Eye, CheckCircle, Mail } from 'lucide-react';
 import { useState } from 'react';
-import { siteConfig } from '@/config/siteConfig';
 
 export default function Cookies() {
+  const { user } = useAuth();
+  const { contactSettings } = useContactSettings();
+  const Header = user ? StudentHeader : HomeHeader;
+  const Footer = user ? StudentFooter : HomeFooter;
   const [preferences, setPreferences] = useState({
     necessary: true, // Always required
     functional: true,
@@ -22,7 +29,7 @@ export default function Cookies() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-gray-950">
-      <StudentHeader />
+      <Header />
       
       <main className="container mx-auto px-4 py-12 max-w-5xl mt-20">
         {/* Hero Section */}
@@ -347,15 +354,15 @@ export default function Cookies() {
                 If you have questions about our use of cookies or other tracking technologies, please contact us:
               </p>
               <div className="space-y-2">
-                <p><strong>Email:</strong> <a href={`mailto:${siteConfig.contact.privacyEmail}`} className="text-purple-600 hover:underline">{siteConfig.contact.privacyEmail}</a></p>
-                <p><strong>Support:</strong> <a href={`mailto:${siteConfig.contact.supportEmail}`} className="text-purple-600 hover:underline">{siteConfig.contact.supportEmail}</a></p>
+                <p><strong>Email:</strong> <a href={`mailto:${contactSettings.privacyEmail}`} className="text-purple-600 hover:underline">{contactSettings.privacyEmail}</a></p>
+                <p><strong>Support:</strong> <a href={`mailto:${contactSettings.supportEmail}`} className="text-purple-600 hover:underline">{contactSettings.supportEmail}</a></p>
               </div>
             </CardContent>
           </Card>
         </div>
       </main>
       
-      <StudentFooter />
+      <Footer />
     </div>
   );
 }

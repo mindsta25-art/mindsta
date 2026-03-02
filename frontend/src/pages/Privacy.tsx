@@ -1,13 +1,21 @@
+import { HomeHeader } from '@/components/HomeHeader';
+import { HomeFooter } from '@/components/HomeFooter';
 import { StudentHeader } from '@/components/StudentHeader';
 import { StudentFooter } from '@/components/StudentFooter';
+import { useAuth } from '@/contexts/AuthContext';
+import { useContactSettings } from '@/contexts/ContactSettingsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Lock, Eye, UserCheck, Database, Bell, Mail, FileText, Cookie, AlertTriangle } from 'lucide-react';
-import { siteConfig } from '@/config/siteConfig';
 
 export default function Privacy() {
+  const { user } = useAuth();
+  const { contactSettings } = useContactSettings();
+  const Header = user ? StudentHeader : HomeHeader;
+  const Footer = user ? StudentFooter : HomeFooter;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-gray-950">
-      <StudentHeader />
+      <Header />
       
       <main className="container mx-auto px-4 py-12 max-w-5xl mt-20">
         {/* Hero Section */}
@@ -194,7 +202,7 @@ export default function Privacy() {
             </CardHeader>
             <CardContent className="text-muted-foreground">
               <p className="mb-3">
-                We store and process your personal information on Our computers in {siteConfig.location.country}. Where We need to transfer your data to another country, such country must have an adequate data protection law.
+                We store and process your personal information on Our computers in {contactSettings.country}. Where We need to transfer your data to another country, such country must have an adequate data protection law.
               </p>
               <p className="mb-3">
                 Please be assured that We have put in place appropriate security measures including but not limited to access controls, firewalls, data encryption, and physical security to prevent your personal data from being lost, altered, disclosed, or otherwise used in an unauthorized way.
@@ -335,7 +343,7 @@ export default function Privacy() {
         </div>
       </main>
       
-      <StudentFooter />
+      <Footer />
     </div>
   );
 }

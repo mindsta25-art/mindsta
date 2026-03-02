@@ -1,12 +1,19 @@
+import { HomeHeader } from '@/components/HomeHeader';
+import { HomeFooter } from '@/components/HomeFooter';
 import { StudentHeader } from '@/components/StudentHeader';
 import { StudentFooter } from '@/components/StudentFooter';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
 
 export default function Terms() {
+  const { user } = useAuth();
+  const Header = user ? StudentHeader : HomeHeader;
+  const Footer = user ? StudentFooter : HomeFooter;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-gray-950">
-      <StudentHeader />
+      <Header />
       
       <main className="container mx-auto px-4 py-12 max-w-5xl mt-20">
         <div className="text-center mb-12">
@@ -37,7 +44,7 @@ export default function Terms() {
         </div>
       </main>
       
-      <StudentFooter />
+      <Footer />
     </div>
   );
 }
