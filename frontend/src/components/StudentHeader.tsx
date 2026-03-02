@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import NotificationBell from "@/components/NotificationBell";
+import { formatUserName } from "@/lib/stringUtils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,12 +48,25 @@ import {
   TrendingUp,
   Home,
   Moon,
-  Sun
+  Sun,
+  Trophy,
+  Award,
+  Target
 } from "lucide-react";
 import { signOut } from "@/api";
 import { getStudentByUserId, updateStudentGrade } from "@/api";
 import { getAllLessons, type Lesson } from "@/api/lessons";
 import { formatCurrency } from "@/config/siteConfig";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface StudentHeaderProps {
   studentName?: string; // Optional override, defaults to auth user's name
@@ -75,20 +89,11 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   const searchRef = useRef<HTMLDivElement>(null);
   const [currentGrade, setCurrentGrade] = useState<string>("");
   const [updatingGrade, setUpdatingGrade] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   
-  // Use auth user's fullName as the source of truth
-  const displayName = studentName || user?.fullName || "Student";
+  // Use auth user's fullName as the source of truth, capitalize properly
+  const displayName = formatUserName(studentName || user?.fullName || "Student");
   
-  // Debug: Warn if passed name doesn't match auth user
-  useEffect(() => {
-    if (studentName && user?.fullName && studentName !== user.fullName) {
-      console.warn(' StudentHeader: Name mismatch detected!', {
-        passedName: studentName,
-        authUserName: user.fullName,
-        using: displayName
-      });
-    }
-  }, [studentName, user?.fullName, displayName]);
 
   // Fetch student grade
   useEffect(() => {
@@ -167,8 +172,8 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   };
 
   const handleSuggestionClick = (lesson: Lesson) => {
-    const subjectSlug = lesson.subject.toLowerCase().replace(/\s+/g, '-');
-    navigate(`/grade/${lesson.grade}/${subjectSlug}/lesson/${lesson.id}`);
+    const termSlug = lesson.term ? lesson.term.toLowerCase().replace(/\s+/g, '-') : '';
+    navigate(`/subjects/${lesson.grade}/${encodeURIComponent(lesson.subject)}${termSlug ? `?term=${termSlug}` : ''}`);
     setSearchQuery('');
     setShowSuggestions(false);
   };
@@ -267,6 +272,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   }, [cartCount]);
 
   return (
+    <>
     <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 shadow-sm border-b z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
@@ -279,7 +285,12 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
                 <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">Mindsta</span>
+              <div>
+                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">
+                  
+                  Mindsta</span>
+                <span className="text-[10px] block text-muted-foreground leading-tight">... Every Child Can Do Well</span>
+              </div>
             </button>
 
             {/* Desktop Navigation */}
@@ -306,6 +317,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               >
                 My Learning
               </Button>
+              {/* Categories dropdown - hidden for now
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="font-medium">
@@ -319,9 +331,29 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                     <GraduationCap className="w-4 h-4 mr-2" />
                     All Grades
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/all-subjects")}>
-                    <BookOpen className="w-4 h-4 mr-2" />
-                    All Subjects
+                </DropdownMenuContent>
+              </DropdownMenu>
+              */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="font-medium">
+                    Progress
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  <DropdownMenuLabel>My Progress</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/leaderboard")}>
+                    <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
+                    Leaderboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/progress")}>
+                    <TrendingUp className="w-4 h-4 mr-2 text-teal-500" />
+                    Progress Milestones
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/achievements")}>
+                    <Award className="w-4 h-4 mr-2 text-indigo-500" />
+                    Achievements
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -588,7 +620,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400">
+                  <DropdownMenuItem onClick={() => setShowLogoutDialog(true)} className="text-red-600 dark:text-red-400">
                     <LogOut className="w-4 h-4 mr-2" />
                     Log Out
                   </DropdownMenuItem>
@@ -729,6 +761,39 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <Button
               variant="ghost"
               onClick={() => {
+                navigate("/leaderboard");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full justify-start"
+            >
+              <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
+              Leaderboard
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                navigate("/progress");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full justify-start"
+            >
+              <TrendingUp className="w-4 h-4 mr-2 text-teal-500" />
+              Progress Milestones
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                navigate("/progress?tab=achievements");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full justify-start"
+            >
+              <Award className="w-4 h-4 mr-2 text-indigo-500" />
+              Achievements
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
                 navigate("/profile");
                 setMobileMenuOpen(false);
               }}
@@ -751,7 +816,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <Button
               variant="ghost"
               onClick={() => {
-                handleLogout();
+                setShowLogoutDialog(true);
                 setMobileMenuOpen(false);
               }}
               className="w-full justify-start text-red-600 dark:text-red-400"
@@ -763,6 +828,33 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
         )}
       </div>
     </header>
+
+    {/* Logout Confirmation Dialog */}
+    <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <LogOut className="w-5 h-5 text-red-500" />
+            Sign Out
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-base">
+            Are you sure you want to sign out of your account? Any unsaved progress will be lost.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleLogout}
+            className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+          >
+            Yes, sign me out
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {/* Height sentinel: pushes page body below the fixed header on all screen sizes */}
+    <div aria-hidden="true" className="h-[116px] md:h-16" />
+    </>
   );
 };
 

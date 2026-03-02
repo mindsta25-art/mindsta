@@ -2,6 +2,16 @@ import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   LayoutDashboard, 
   Users, 
@@ -20,15 +30,20 @@ import {
   ChevronRight,
   Plus,
   Award,
-  Layers,
   BookMarked,
   Lightbulb,
-  MessageSquare
+  MessageSquare,
+  DollarSign,
+  Mail,
+  TrendingUp,
+  Wallet,
+  Trophy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingScreen } from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentUser, signOut, isAdmin as checkIsAdmin } from "@/api";
+import { AdminHeader } from "@/components/AdminHeader";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -44,6 +59,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [contentMenuExpanded, setContentMenuExpanded] = useState(false);
+  const [referralMenuExpanded, setReferralMenuExpanded] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -61,6 +78,17 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     
     if (isOnContentPage) {
       setContentMenuExpanded(true);
+    }
+    
+    // Auto-expand Referral Management dropdown when on related pages
+    const referralPages = [
+      '/admin/referrals',
+      '/admin/referral-payouts'
+    ];
+    const isOnReferralPage = referralPages.some(page => location.pathname.startsWith(page));
+    
+    if (isOnReferralPage) {
+      setReferralMenuExpanded(true);
     }
   }, [location.pathname, location.search]);
 
@@ -113,7 +141,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     try {
       signOut();
       refreshUser();
-      navigate("/");
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of the admin panel.",
@@ -137,61 +164,113 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
 
   const menuItems = [
+    // Overview Section
     {
-      icon: LayoutDashboard,
-      label: "Dashboard",
-      path: "/admin",
-      exact: true,
+      section: "Overview",
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: "Dashboard",
+          path: "/admin",
+          exact: true,
+        },
+        {
+          icon: BarChart3,
+          label: "Analytics",
+          path: "/admin/analytics",
+        },
+        {
+          icon: FileText,
+          label: "Reports",
+          path: "/admin/reports",
+        },
+      ]
     },
+    // Content Management Section
     {
-      icon: Users,
-      label: "User Management",
-      path: "/admin/users",
+      section: "Content",
+      items: [
+        {
+          icon: Package,
+          label: "Content Management",
+          path: "/admin/content",
+          hasDropdown: true,
+        },
+        {
+          icon: GraduationCap,
+          label: "Lessons & Quizzes",
+          path: "/admin/lessons",
+        },
+        {
+          icon: MessageSquare,
+          label: "Q&A Management",
+          path: "/admin/questions",
+        },
+        {
+          icon: Lightbulb,
+          label: "Suggestions",
+          path: "/admin/suggestions",
+        },
+      ]
     },
+    // User Management Section
     {
-      icon: Package,
-      label: "Content Management",
-      path: "/admin/content",
+      section: "Users",
+      items: [
+        {
+          icon: Users,
+          label: "User Management",
+          path: "/admin/users",
+        },
+        {
+          icon: MessageSquare,
+          label: "Tickets & Support",
+          path: "/admin/tickets",
+        },
+        {
+          icon: Mail,
+          label: "Newsletter",
+          path: "/admin/newsletter",
+        },
+        {
+          icon: Bell,
+          label: "Notifications",
+          path: "/admin/notifications",
+        },
+        {
+          icon: Trophy,
+          label: "Leaderboard",
+          path: "/admin/leaderboard",
+        },
+      ]
     },
+    // Financial Section
     {
-      icon: GraduationCap,
-      label: "Lessons & Quizzes",
-      path: "/admin/lessons",
+      section: "Financial",
+      items: [
+        {
+          icon: TrendingUp,
+          label: "Financial Report",
+          path: "/admin/financial-report",
+        },
+        {
+          icon: UserPlus,
+          label: "Referral Program",
+          path: "/admin/referrals",
+          hasDropdown: true,
+        },
+      ]
     },
+    // System Section
     {
-      icon: Lightbulb,
-      label: "Suggestions",
-      path: "/admin/suggestions",
-    },
-    {
-      icon: MessageSquare,
-      label: "Q&A Management",
-      path: "/admin/questions",
-    },
-    {
-      icon: Bell,
-      label: "Notifications",
-      path: "/admin/notifications",
-    },
-    {
-      icon: UserPlus,
-      label: "Referral Management",
-      path: "/admin/referrals",
-    },
-    {
-      icon: BarChart3,
-      label: "Analytics",
-      path: "/admin/analytics",
-    },
-    {
-      icon: FileText,
-      label: "Reports",
-      path: "/admin/reports",
-    },
-    {
-      icon: Settings,
-      label: "Settings",
-      path: "/admin/settings",
+      section: "System",
+      items: [
+        {
+          icon: Settings,
+          label: "Settings",
+          path: "/admin/settings",
+        },
+      ]
     },
   ];
 
@@ -203,6 +282,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   };
 
   return (
+    <>
     <div className="flex h-screen bg-gradient-to-br from-background to-muted">
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
@@ -258,120 +338,196 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
         {/* Navigation */}
         <ScrollArea className="flex-1 py-4">
-          <nav className="space-y-1 px-3">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.path, item.exact);
-              
-              // Special handling for Content Management with dropdown
-              if (item.path === "/admin/content") {
-                const isContentActive = isActive(item.path);
-                
-                return (
-                  <div key={item.path}>
-                    <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => {
-                          if (sidebarCollapsed) {
-                            navigate(item.path);
-                            setMobileMenuOpen(false);
-                          } else {
-                            setContentMenuExpanded(!contentMenuExpanded);
-                          }
-                        }}
-                        className={`
-                          flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-lg text-sm font-medium transition-all w-full
-                          ${isContentActive 
-                            ? 'bg-primary text-primary-foreground shadow-sm' 
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                          }
-                        `}
-                        title={sidebarCollapsed ? item.label : undefined}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon className="w-5 h-5 flex-shrink-0" />
-                          {!sidebarCollapsed && <span>{item.label}</span>}
-                        </div>
-                        {!sidebarCollapsed && (
-                          contentMenuExpanded ? 
-                            <ChevronDown className="w-4 h-4 flex-shrink-0" /> : 
-                            <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                        )}
-                      </button>
-                      
-                      {/* Dropdown items */}
-                      {!sidebarCollapsed && contentMenuExpanded && (
-                        <div className="ml-8 mt-1 space-y-1">
-                          <Link
-                            to="/admin/content?create=lesson"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                              location.search.includes('create=lesson')
-                                ? 'bg-primary/10 text-primary'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
-                          >
-                            <Plus className="w-4 h-4 flex-shrink-0" />
-                            <span>Create Lesson</span>
-                          </Link>
-                          <Link
-                            to="/admin/content?create=quiz"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                              location.search.includes('create=quiz')
-                                ? 'bg-primary/10 text-primary'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
-                          >
-                            <Award className="w-4 h-4 flex-shrink-0" />
-                            <span>Create Quiz</span>
-                          </Link>
-                          {/* <Link
-                            to="/admin/topics"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-                          >
-                            <Layers className="w-4 h-4 flex-shrink-0" />
-                            <span>Topic Management</span>
-                          </Link> */}
-                          <Link
-                            to="/admin/subjects"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                              location.pathname === '/admin/subjects'
-                                ? 'bg-primary/10 text-primary'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
-                          >
-                            <BookMarked className="w-4 h-4 flex-shrink-0" />
-                            <span>Subject Management</span>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
+          <nav className="space-y-6 px-3">
+            {menuItems.map((section, sectionIndex) => (
+              <div key={sectionIndex} className="space-y-1">
+                {/* Section Label */}
+                {!sidebarCollapsed && (
+                  <div className="px-3 py-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {section.section}
+                    </h3>
                   </div>
-                );
-              }
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`
-                    flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm font-medium transition-all
-                    ${active 
-                      ? 'bg-primary text-primary-foreground shadow-sm' 
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }
-                  `}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {!sidebarCollapsed && <span>{item.label}</span>}
-                </Link>
-              );
-            })}
+                )}
+                
+                {/* Section Items */}
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.path, item.exact);
+                  
+                  // Special handling for Content Management with dropdown
+                  if (item.path === "/admin/content") {
+                    const isContentActive = isActive(item.path);
+                    
+                    return (
+                      <div key={item.path}>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => {
+                              if (sidebarCollapsed) {
+                                navigate(item.path);
+                                setMobileMenuOpen(false);
+                              } else {
+                                setContentMenuExpanded(!contentMenuExpanded);
+                              }
+                            }}
+                            className={`
+                              flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-lg text-sm font-medium transition-all w-full
+                              ${isContentActive 
+                                ? 'bg-primary text-primary-foreground shadow-sm' 
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              }
+                            `}
+                            title={sidebarCollapsed ? item.label : undefined}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon className="w-5 h-5 flex-shrink-0" />
+                              {!sidebarCollapsed && <span>{item.label}</span>}
+                            </div>
+                            {!sidebarCollapsed && (
+                              contentMenuExpanded ? 
+                                <ChevronDown className="w-4 h-4 flex-shrink-0" /> : 
+                                <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                            )}
+                          </button>
+                          
+                          {/* Dropdown items */}
+                          {!sidebarCollapsed && contentMenuExpanded && (
+                            <div className="ml-8 mt-1 space-y-1">
+                              <Link
+                                to="/admin/content?create=lesson"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                  location.search.includes('create=lesson')
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                              >
+                                <Plus className="w-4 h-4 flex-shrink-0" />
+                                <span>Create Lesson</span>
+                              </Link>
+                              <Link
+                                to="/admin/content?create=quiz"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                  location.search.includes('create=quiz')
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                              >
+                                <Award className="w-4 h-4 flex-shrink-0" />
+                                <span>Create Quiz</span>
+                              </Link>
+                              <Link
+                                to="/admin/subjects"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                  location.pathname === '/admin/subjects'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                              >
+                                <BookMarked className="w-4 h-4 flex-shrink-0" />
+                                <span>Subject Management</span>
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  // Special handling for Referral Program with dropdown
+                  if (item.path === "/admin/referrals") {
+                    const isReferralActive = isActive(item.path);
+                    
+                    return (
+                      <div key={item.path}>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => {
+                              if (sidebarCollapsed) {
+                                navigate(item.path);
+                                setMobileMenuOpen(false);
+                              } else {
+                                setReferralMenuExpanded(!referralMenuExpanded);
+                              }
+                            }}
+                            className={`
+                              flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-lg text-sm font-medium transition-all w-full
+                              ${isReferralActive 
+                                ? 'bg-primary text-primary-foreground shadow-sm' 
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              }
+                            `}
+                            title={sidebarCollapsed ? item.label : undefined}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon className="w-5 h-5 flex-shrink-0" />
+                              {!sidebarCollapsed && <span>{item.label}</span>}
+                            </div>
+                            {!sidebarCollapsed && (
+                              referralMenuExpanded ? 
+                                <ChevronDown className="w-4 h-4 flex-shrink-0" /> : 
+                                <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                            )}
+                          </button>
+                          
+                          {/* Dropdown items */}
+                          {!sidebarCollapsed && referralMenuExpanded && (
+                            <div className="ml-8 mt-1 space-y-1">
+                              <Link
+                                to="/admin/referrals"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                  location.pathname === '/admin/referrals'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                              >
+                                <TrendingUp className="w-4 h-4 flex-shrink-0" />
+                                <span>Overview</span>
+                              </Link>
+                              <Link
+                                to="/admin/referral-payouts"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                  location.pathname === '/admin/referral-payouts'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                              >
+                                <Wallet className="w-4 h-4 flex-shrink-0" />
+                                <span>Payouts</span>
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`
+                        flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm font-medium transition-all
+                        ${active 
+                          ? 'bg-primary text-primary-foreground shadow-sm' 
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }
+                      `}
+                      title={sidebarCollapsed ? item.label : undefined}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {!sidebarCollapsed && <span>{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </ScrollArea>
 
@@ -380,7 +536,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           <Button
             variant="outline"
             className={`w-full ${sidebarCollapsed ? 'px-2' : 'gap-2'}`}
-            onClick={handleLogout}
+            onClick={() => setShowLogoutDialog(true)}
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
             {!sidebarCollapsed && <span>Logout</span>}
@@ -389,7 +545,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto flex flex-col">
+        {/* Desktop Admin Header - Shows admin info */}
+        <div className="hidden lg:block">
+          <AdminHeader />
+        </div>
+
         {/* Mobile Header */}
         <div className="lg:hidden sticky top-0 z-30 bg-card border-b border-border p-4 flex items-center justify-between">
           <Button
@@ -400,21 +561,40 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <Menu className="w-5 h-5" />
           </Button>
           <div className="flex items-center gap-2">
-            <img 
-              src="/assets/icons/mindsta2.png" 
-              alt="Mindsta Logo" 
-              className="w-6 h-6 object-contain"
-            />
             <span className="font-bold">Mindsta Admin</span>
           </div>
           <div className="w-10" /> {/* Spacer for centering */}
         </div>
 
-        <div className="container mx-auto p-4 sm:p-6">
+        <div className="flex-1 container mx-auto p-4 sm:p-6">
           {children}
         </div>
       </main>
     </div>
+
+    <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <LogOut className="w-5 h-5 text-red-500" />
+            Sign Out of Admin Panel
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-base">
+            Are you sure you want to sign out? You will need to log in again to access the admin panel.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleLogout}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            Yes, sign me out
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 

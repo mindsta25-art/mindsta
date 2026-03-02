@@ -30,10 +30,15 @@ export const ProtectedRoute = ({
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
-  // 3️⃣ If no auth required (login/register pages) and user exists → redirect to dashboard/admin
+  // 3️⃣ If no auth required (login/register pages) and user exists → redirect to appropriate dashboard
   if (!requireAuth && user) {
-    const destination = user.userType === "admin" ? "/admin" : "/dashboard";
-    return <Navigate to={destination} replace />;
+    let destination = "/home"; // students land on the home page
+    if (user.userType === "admin") {
+      destination = "/admin";
+    } else if (user.userType === "referral") {
+      destination = "/referral/dashboard";
+    }
+    return <Navigate to={destination} replace />
   }
 
   // 4️⃣ Admin-only route

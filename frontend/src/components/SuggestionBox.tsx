@@ -149,6 +149,7 @@ export const SuggestionBox = ({
               <SelectItem value="10">Grade 10</SelectItem>
               <SelectItem value="11">Grade 11</SelectItem>
               <SelectItem value="12">Grade 12</SelectItem>
+              <SelectItem value="Common Entrance">Common Entrance</SelectItem>
             </SelectContent>
           </Select>
         </div>

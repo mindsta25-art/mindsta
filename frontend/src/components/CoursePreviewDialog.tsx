@@ -58,29 +58,47 @@ export const CoursePreviewDialog = ({
   const [ratingStats, setRatingStats] = useState<RatingStats | null>(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewsPage, setReviewsPage] = useState(1);
+  const [hasMoreReviews, setHasMoreReviews] = useState(false);
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     if (open && course?.id) {
-      fetchReviews();
+      // Reset reviews when opening dialog
+      setAllReviews([]);
+      setReviewsPage(1);
+      fetchReviews(1);
       fetchRatingStats();
     }
   }, [open, course?.id]);
 
-  const fetchReviews = async () => {
+  const fetchReviews = async (page = 1) => {
     if (!course?.id) return;
     try {
       setLoadingReviews(true);
       const data = await getReviews(course.id, {
         sortBy: 'helpful',
-        page: reviewsPage,
-        limit: 5
+        page,
+        limit: 10  // Increased from 5 to show more reviews
       });
-      setReviews(data.reviews || []);
+      
+      if (page === 1) {
+        setAllReviews(data.reviews || []);
+      } else {
+        setAllReviews(prev => [...prev, ...(data.reviews || [])]);
+      }
+      
+      setHasMoreReviews((data.reviews?.length || 0) >= 10);
     } catch (error) {
       console.error('Error fetching reviews:', error);
     } finally {
       setLoadingReviews(false);
     }
+  };
+
+  const loadMoreReviews = () => {
+    const nextPage = reviewsPage + 1;
+    setReviewsPage(nextPage);
+    fetchReviews(nextPage);
   };
 
   const fetchRatingStats = async () => {
@@ -156,114 +174,107 @@ export const CoursePreviewDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-4">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0">
+        {/* Premium Header with Gradient */}
+        <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white p-6 sm:p-8">
+          <DialogHeader>
             <div className="flex-1">
-              <DialogTitle className="text-3xl font-bold mb-2">{course.title}</DialogTitle>
+              <DialogTitle className="text-2xl sm:text-3xl font-bold mb-2">{course.title}</DialogTitle>
               {course.subtitle && (
-                <DialogDescription className="text-lg">{course.subtitle}</DialogDescription>
+                <DialogDescription className="text-base sm:text-lg text-white/90">{course.subtitle}</DialogDescription>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="flex-shrink-0"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-        </DialogHeader>
+          </DialogHeader>
 
-        {/* Course Header Info */}
-        <div className="space-y-4">
-          <p className="text-muted-foreground text-lg leading-relaxed">{course.description}</p>
-
-          {/* Course Metadata */}
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="w-5 h-5 text-purple-600" />
-              <span className="font-medium">
+          {/* Course Metadata - White on gradient */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-4">
+            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="font-medium text-sm sm:text-base">
                 {course.grade === "Common Entrance" ? "Common Entrance" : `Grade ${course.grade}`}
               </span>
             </div>
-            <Badge className={getDifficultyColor(course.difficulty)}>
-              {course.difficulty?.charAt(0).toUpperCase() + course.difficulty?.slice(1).toLowerCase()}
-            </Badge>
             {course.rating && course.rating > 0 && (
-              <div className="flex items-center gap-1">
-                <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                <span className="font-bold">{course.rating.toFixed(1)}</span>
+              <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+                <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-amber-300 text-amber-300" />
+                <span className="font-bold text-sm sm:text-base">{course.rating.toFixed(1)}</span>
                 {course.ratingsCount && (
-                  <span className="text-muted-foreground text-sm">({course.ratingsCount} ratings)</span>
+                  <span className="text-white/80 text-xs sm:text-sm">({course.ratingsCount})</span>
                 )}
               </div>
             )}
             {course.enrolledStudents && course.enrolledStudents > 0 && (
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Users className="w-4 h-4" />
-                <span className="text-sm">{course.enrolledStudents.toLocaleString()} students</span>
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+                <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm">{course.enrolledStudents.toLocaleString()} students</span>
               </div>
             )}
+            <Badge className={`${getDifficultyColor(course.difficulty)} text-xs sm:text-sm`}>
+              {course.difficulty?.charAt(0).toUpperCase() + course.difficulty?.slice(1).toLowerCase()}
+            </Badge>
           </div>
+        </div>
 
-          {/* Course Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="p-4 sm:p-6">
+          {/* Course Description */}
+          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6">{course.description}</p>
+
+          {/* Course Stats - Responsive Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-6">
             <Card className="bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-purple-600" />
+              <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Sections</p>
-                  <p className="text-xl font-bold">{course.curriculum?.length || 0}</p>
+                  <p className="text-xs text-muted-foreground">Sections</p>
+                  <p className="text-lg sm:text-xl font-bold">{course.curriculum?.length || 0}</p>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                  <PlayCircle className="w-5 h-5 text-blue-600" />
+              <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Lectures</p>
-                  <p className="text-xl font-bold">{getTotalLectures()}</p>
+                  <p className="text-xs text-muted-foreground">Lectures</p>
+                  <p className="text-lg sm:text-xl font-bold">{getTotalLectures()}</p>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-green-600" />
+              <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="text-xl font-bold">{formatDuration(getTotalDuration())}</p>
+                  <p className="text-xs text-muted-foreground">Duration</p>
+                  <p className="text-base sm:text-xl font-bold">{formatDuration(getTotalDuration())}</p>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/50 rounded-lg flex items-center justify-center">
-                  <Award className="w-5 h-5 text-amber-600" />
+              <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 dark:bg-amber-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Award className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Level</p>
-                  <p className="text-lg font-bold capitalize">{course.difficulty || 'Beginner'}</p>
+                  <p className="text-xs text-muted-foreground">Level</p>
+                  <p className="text-sm sm:text-lg font-bold capitalize">{course.difficulty || 'Beginner'}</p>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
 
-        <Separator className="my-6" />
+        <Separator />
 
         {/* Tabs for Different Sections */}
-        <Tabs defaultValue="curriculum" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
             <TabsTrigger value="reviews">
               Reviews
               {ratingStats && ratingStats.totalReviews > 0 && (
@@ -272,7 +283,6 @@ export const CoursePreviewDialog = ({
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="requirements">Requirements</TabsTrigger>
           </TabsList>
 
           {/* Curriculum Tab */}
@@ -391,16 +401,18 @@ export const CoursePreviewDialog = ({
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
-            {/* Course Overview - Added for student preview */}
-            {(course as any).overview && (
-              <Card className="border-2 border-purple-200 dark:border-purple-800">
+            {/* Course Overview/Description */}
+            {((course as any).overview || course.description || course.content) && (
+              <Card className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border-2 border-purple-200 dark:border-purple-800">
                 <CardContent className="p-6">
                   <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-purple-600" />
                     Course Overview
                   </h3>
                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <p className="text-muted-foreground whitespace-pre-wrap">{(course as any).overview}</p>
+                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {(course as any).overview || course.description || course.content}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -529,9 +541,9 @@ export const CoursePreviewDialog = ({
                   <p className="text-muted-foreground">Loading reviews...</p>
                 </CardContent>
               </Card>
-            ) : reviews.length > 0 ? (
+            ) : allReviews.length > 0 ? (
               <div className="space-y-4">
-                {reviews.map((review) => (
+                {allReviews.map((review) => (
                   <Card key={review._id}>
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between gap-4 mb-3">
@@ -597,6 +609,26 @@ export const CoursePreviewDialog = ({
                     </CardContent>
                   </Card>
                 ))}
+                
+                {/* Load More Reviews Button */}
+                {hasMoreReviews && (
+                  <div className="flex justify-center pt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={loadMoreReviews}
+                      disabled={loadingReviews}
+                    >
+                      {loadingReviews ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>Load More Reviews</>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <Card>
@@ -606,36 +638,6 @@ export const CoursePreviewDialog = ({
                   <p className="text-sm text-muted-foreground mt-2">
                     Be the first to share your experience!
                   </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Requirements Tab */}
-          <TabsContent value="requirements" className="space-y-6 mt-6">
-            {course.requirements && course.requirements.length > 0 ? (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
-                    Requirements
-                  </h3>
-                  <ul className="space-y-3">
-                    {course.requirements.map((item, index) => (
-                      <li key={index} className="flex gap-3">
-                        <span className="text-blue-600 font-bold">•</span>
-                        <span className="text-sm">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-16 text-center">
-                  <CheckCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No specific requirements</p>
-                  <p className="text-sm text-muted-foreground mt-2">This course is suitable for all students</p>
                 </CardContent>
               </Card>
             )}

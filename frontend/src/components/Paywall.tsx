@@ -26,7 +26,16 @@ const Paywall: React.FC<PaywallProps> = ({ amount = 5000, onSuccess }) => {
     setError(null);
     try {
       const callbackUrl = window.location.origin + '/payment/callback';
-      const init = await initializePayment(amount, callbackUrl);
+      // Create a default subscription item
+      const items = [
+        {
+          subject: 'Premium Subscription',
+          grade: 'All',
+          term: 'Full Access',
+          price: amount
+        }
+      ];
+      const init = await initializePayment(amount, items, callbackUrl);
       // Redirect to Paystack hosted payment page
       window.location.href = init.authorizationUrl;
     } catch (e: any) {

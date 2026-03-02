@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, X, Check, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles } from 'lucide-react';
+import { Bell, X, Check, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -11,6 +11,7 @@ import {
   getUnreadNotificationCount, 
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  dismissNotification,
   type Notification 
 } from '@/api/notifications';
 import { useToast } from '@/hooks/use-toast';
@@ -95,6 +96,26 @@ const NotificationBell = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Dismiss (delete from student's view)
+  const handleDismiss = async (notificationId: string) => {
+    try {
+      await dismissNotification(notificationId);
+      setNotifications(prev => prev.filter(n => n._id !== notificationId));
+      // Also update unread count if dismissed notification was unread
+      setUnreadCount(prev => {
+        const wasUnread = notifications.find(n => n._id === notificationId && !n.isRead);
+        return wasUnread ? Math.max(0, prev - 1) : prev;
+      });
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to dismiss notification',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -212,16 +233,27 @@ const NotificationBell = () => {
                           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                         </span>
                         
-                        {!notification.isRead && (
+                        <div className="flex items-center gap-1">
+                          {!notification.isRead && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMarkAsRead(notification._id)}
+                              className="h-6 text-xs px-2"
+                            >
+                              Mark read
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
-                            size="sm"
-                            onClick={() => handleMarkAsRead(notification._id)}
-                            className="h-6 text-xs px-2"
+                            size="icon"
+                            onClick={() => handleDismiss(notification._id)}
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            title="Dismiss notification"
                           >
-                            Mark read
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
-                        )}
+                        </div>
                       </div>
 
                       {notification.metadata?.actionUrl && notification.metadata?.actionLabel && (

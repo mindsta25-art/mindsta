@@ -1,6 +1,7 @@
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { siteConfig, getWhatsAppUrl } from "@/config/siteConfig";
+import { useContactSettings } from "@/contexts/ContactSettingsContext";
 
 interface WhatsAppButtonProps {
   phoneNumber?: string;
@@ -11,8 +12,12 @@ export const WhatsAppButton = ({
   phoneNumber, 
   message 
 }: WhatsAppButtonProps) => {
+  const { contactSettings } = useContactSettings();
+  
   const handleWhatsAppClick = () => {
-    const whatsappUrl = getWhatsAppUrl(phoneNumber, message);
+    const phone = phoneNumber || contactSettings.whatsappNumber;
+    const msg = message || contactSettings.whatsappMessage;
+    const whatsappUrl = getWhatsAppUrl(phone, msg);
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
