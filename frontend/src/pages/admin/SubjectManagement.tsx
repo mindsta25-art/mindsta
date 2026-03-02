@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Table,
   TableBody,
@@ -58,6 +68,10 @@ const SubjectManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   
   const [formData, setFormData] = useState({
     name: ''
@@ -184,13 +198,16 @@ const SubjectManagement = () => {
     }
   };
 
-  const handleDelete = async (subject: Subject) => {
-    if (!confirm(`Are you sure you want to delete "${subject.name}"? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = (subject: Subject) => {
+    setSubjectToDelete(subject);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!subjectToDelete) return;
 
     try {
-      const subjectId = getSubjectId(subject);
+      const subjectId = getSubjectId(subjectToDelete);
       if (!subjectId) {
         throw new Error('Subject ID is missing');
       }
@@ -207,6 +224,9 @@ const SubjectManagement = () => {
         description: error.response?.data?.error || error.message || 'Failed to delete subject',
         variant: 'destructive'
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setSubjectToDelete(null);
     }
   };
 
@@ -244,16 +264,19 @@ const SubjectManagement = () => {
                 <p className="text-muted-foreground">No subjects found. Create your first subject.</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subjects.map((subject) => {
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((subject) => {
                     if (!subject || !subject._id) {
                       console.warn('[SubjectTable] Invalid subject:', subject);
                       return null;
@@ -299,8 +322,50 @@ const SubjectManagement = () => {
                       </TableRow>
                     );
                   }).filter(Boolean)}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+                
+                {/* Pagination Controls */}
+                {subjects.length > itemsPerPage && (
+                  <div className="flex items-center justify-between px-4 py-4 border-t">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {Math.min((currentPage - 1) * itemsPerPage + 1, subjects.length)} to{' '}
+                      {Math.min(currentPage * itemsPerPage, subjects.length)} of {subjects.length} subjects
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.ceil(subjects.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className="w-8"
+                          >
+                            {page}
+                          </Button>
+                        ))}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(subjects.length / itemsPerPage), prev + 1))}
+                        disabled={currentPage === Math.ceil(subjects.length / itemsPerPage)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -347,6 +412,25 @@ const SubjectManagement = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the subject "{subjectToDelete?.name}". 
+              This action cannot be undone and will affect all related lessons and topics.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Subject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };

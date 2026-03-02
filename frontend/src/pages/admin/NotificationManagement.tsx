@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
   Select,
   SelectContent,
@@ -76,6 +77,10 @@ const NotificationManagement = () => {
   const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [gradePopoverOpen, setGradePopoverOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
+  const [notifPage, setNotifPage] = useState(1);
+  const [notifPerPage, setNotifPerPage] = useState(10);
   const { toast } = useToast();
 
   // Form state
@@ -226,11 +231,16 @@ const NotificationManagement = () => {
   };
 
   // Handle delete
-  const handleDelete = async (notificationId: string) => {
-    if (!confirm('Are you sure you want to delete this notification?')) return;
+  const handleDelete = (notificationId: string) => {
+    setNotificationToDelete(notificationId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!notificationToDelete) return;
 
     try {
-      await deleteNotification(notificationId);
+      await deleteNotification(notificationToDelete);
       toast({
         title: 'Notification deleted',
         description: 'The notification has been deleted',
@@ -244,6 +254,9 @@ const NotificationManagement = () => {
         description: 'Failed to delete notification',
         variant: 'destructive',
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setNotificationToDelete(null);
     }
   };
 
@@ -267,10 +280,19 @@ const NotificationManagement = () => {
     }
   };
 
+  // Reset page when search changes
+  useEffect(() => { setNotifPage(1); }, [searchQuery]);
+
   // Filter notifications
   const filteredNotifications = notifications.filter(notification =>
     notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     notification.message.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const notifTotalPages = Math.max(1, Math.ceil(filteredNotifications.length / notifPerPage));
+  const paginatedNotifications = filteredNotifications.slice(
+    (notifPage - 1) * notifPerPage,
+    notifPage * notifPerPage
   );
 
   // Get type badge variant
@@ -288,12 +310,12 @@ const NotificationManagement = () => {
   // Get priority badge
   const getPriorityBadge = (priority: string) => {
     const colors: Record<string, string> = {
-      low: 'bg-gray-100 text-gray-800',
-      medium: 'bg-blue-100 text-blue-800',
-      high: 'bg-orange-100 text-orange-800',
-      urgent: 'bg-red-100 text-red-800',
+      low: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300',
+      medium: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+      high: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300',
+      urgent: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
     };
-    return colors[priority] || 'bg-gray-100 text-gray-800';
+    return colors[priority] || 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300';
   };
 
   // Format grade display
@@ -331,7 +353,7 @@ const NotificationManagement = () => {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Inactive</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
+                <div className="text-2xl font-bold text-foreground">{stats.inactive}</div>
               </CardContent>
             </Card>
             <Card>
@@ -570,7 +592,7 @@ const NotificationManagement = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredNotifications.map((notification) => (
+                paginatedNotifications.map((notification) => (
                   <TableRow key={notification._id}>
                     <TableCell>
                       <div>
@@ -639,7 +661,52 @@ const NotificationManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      {filteredNotifications.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Showing {Math.min((notifPage - 1) * notifPerPage + 1, filteredNotifications.length)}–{Math.min(notifPage * notifPerPage, filteredNotifications.length)} of {filteredNotifications.length} notifications</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Rows per page:</span>
+              <Select
+                value={String(notifPerPage)}
+                onValueChange={(val) => { setNotifPerPage(Number(val)); setNotifPage(1); }}
+              >
+                <SelectTrigger className="w-16 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={() => setNotifPage(1)} disabled={notifPage === 1} className="h-8 w-8 p-0">«</Button>
+              <Button variant="outline" size="sm" onClick={() => setNotifPage(p => Math.max(1, p - 1))} disabled={notifPage === 1} className="h-8 px-2">‹ Prev</Button>
+              <span className="text-sm font-medium px-2">Page {notifPage} of {notifTotalPages}</span>
+              <Button variant="outline" size="sm" onClick={() => setNotifPage(p => Math.min(notifTotalPages, p + 1))} disabled={notifPage === notifTotalPages} className="h-8 px-2">Next ›</Button>
+              <Button variant="outline" size="sm" onClick={() => setNotifPage(notifTotalPages)} disabled={notifPage === notifTotalPages} className="h-8 w-8 p-0">»</Button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={confirmDelete}
+        title="Delete Notification"
+        description="Are you sure you want to delete this notification? This action cannot be undone and will remove the notification for all users."
+        confirmText="Delete Notification"
+      />
     </AdminLayout>
   );
 };

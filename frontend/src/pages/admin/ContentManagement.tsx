@@ -10,11 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion, AnimatePresence } from "framer-motion";
 import AdminLayout from "@/components/AdminLayout";
-import { CurriculumBuilder } from "@/components/CurriculumBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { getAllLessons, createLesson, updateLesson, deleteLesson, type Lesson, type Section } from "@/api/lessons";
 import { getAllQuizzes, createQuiz, updateQuiz, deleteQuiz, type Quiz, type QuizQuestion } from "@/api/quizzes";
@@ -27,7 +27,11 @@ import {
   Edit,
   Trash2,
   X,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle,
+  Users,
+  Upload,
+  Link
 } from "lucide-react";
 
 const ContentManagement = () => {
@@ -78,6 +82,8 @@ const ContentManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingProgress, setIsSavingProgress] = useState(false);
+  const [showDraftModal, setShowDraftModal] = useState(false);
+  const [draftInfo, setDraftInfo] = useState<{timestamp: string} | null>(null);
 
   // LocalStorage keys for saving progress
   const DRAFT_KEY = 'mindsta_lesson_draft';
@@ -107,6 +113,7 @@ const ContentManagement = () => {
   // Curriculum state for Udemy-style structure
   const [curriculum, setCurriculum] = useState<Section[]>([]);
   const [curriculumMode, setCurriculumMode] = useState<"simple" | "advanced">("simple");
+  const [thumbnailMode, setThumbnailMode] = useState<"url" | "upload">("url");
 
   // Quiz form state
   const [quizForm, setQuizForm] = useState({
@@ -148,7 +155,22 @@ const ContentManagement = () => {
   // Fetch data
   useEffect(() => {
     fetchContent();
+    // Check for saved draft on mount
+    checkForSavedDraft();
   }, []);
+
+  const checkForSavedDraft = () => {
+    try {
+      const draftStr = localStorage.getItem(DRAFT_KEY);
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        setDraftInfo({ timestamp: draft.timestamp });
+        setShowDraftModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking for draft:', error);
+    }
+  };
 
   // Handle URL parameters for creating lessons/quizzes
   useEffect(() => {
@@ -369,7 +391,7 @@ const ContentManagement = () => {
         targetAudience: lesson.targetAudience || [],
       });
       setCurriculum(lesson.curriculum || []);
-      setCurriculumMode(lesson.curriculum && lesson.curriculum.length > 0 ? "advanced" : "simple");
+      setCurriculumMode("simple");
     } else {
       const quiz = item as Quiz;
       const associatedLesson = lessons.find(l => l.id === quiz.lessonId);
@@ -394,65 +416,52 @@ const ContentManagement = () => {
 
   // Handle lesson submit
   const handleLessonSubmit = async () => {
-    // Validate based on mode
-    if (curriculumMode === "simple") {
-      const missingFields = [];
-      if (!lessonForm.title) missingFields.push("Title");
-      if (!lessonForm.description) missingFields.push("Description");
-      if (!lessonForm.content) missingFields.push("Content");
-      if (!lessonForm.subject) missingFields.push("Subject");
-      if (!lessonForm.grade) missingFields.push("Grade");
-      if (!lessonForm.term) missingFields.push("Term");
-      if (!lessonForm.difficulty) missingFields.push("Difficulty");
+    const missingFields = [];
+    if (!lessonForm.title) missingFields.push("Title");
+    if (!lessonForm.description) missingFields.push("Description");
+    if (!lessonForm.content) missingFields.push("Content");
+    if (!lessonForm.subject) missingFields.push("Subject");
+    if (!lessonForm.grade) missingFields.push("Grade");
+    if (!lessonForm.term) missingFields.push("Term");
+    if (!lessonForm.difficulty) missingFields.push("Difficulty");
 
-      if (missingFields.length > 0) {
-        toast({
-          title: "Missing Required Fields",
-          description: `Please fill in: ${missingFields.join(", ")}`,
-          variant: "destructive",
-        });
-        return;
-      }
+    if (missingFields.length > 0) {
+      toast({
+        title: "Missing Required Fields",
+        description: `Please fill in: ${missingFields.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (lessonForm.title.length < 5) {
-        toast({
-          title: "Invalid Title",
-          description: "Title must be at least 5 characters long",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (lessonForm.title.length < 5) {
+      toast({
+        title: "Invalid Title",
+        description: "Title must be at least 5 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (lessonForm.content.length < 50) {
-        toast({
-          title: "Insufficient Content",
-          description: "Please provide more detailed lesson content (at least 50 characters)",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      const missingFields = [];
-      if (!lessonForm.title) missingFields.push("Title");
-      if (!lessonForm.description) missingFields.push("Description");
-      if (!lessonForm.subject) missingFields.push("Subject");
-      if (!lessonForm.grade) missingFields.push("Grade");
-      if (!lessonForm.term) missingFields.push("Term");
-      if (!lessonForm.difficulty) missingFields.push("Difficulty");
+    if (lessonForm.content.length < 50) {
+      toast({
+        title: "Insufficient Content",
+        description: "Please provide more detailed lesson content (at least 50 characters)",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (missingFields.length > 0) {
+    // Validate video URL if provided
+    if (lessonForm.videoUrl?.trim()) {
+      const url = lessonForm.videoUrl.trim();
+      const isYoutube = /(?:youtube\.com|youtu\.be)/i.test(url);
+      const isDirect = /^https?:\/\/.+\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+      const isEmbed = /youtube(?:-nocookie)?\.com\/embed\//i.test(url);
+      if (!isYoutube && !isDirect && !isEmbed) {
         toast({
-          title: "Missing Required Fields",
-          description: `Please fill in: ${missingFields.join(", ")}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (curriculum.length === 0) {
-        toast({
-          title: "Empty Curriculum",
-          description: "Please add at least one section with lectures to your course curriculum",
+          title: "Invalid Video URL",
+          description: "Please enter a valid YouTube link (e.g. youtube.com/watch?v=...) or a direct video file URL (.mp4, .webm).",
           variant: "destructive",
         });
         return;
@@ -473,18 +482,7 @@ const ContentManagement = () => {
         learningObjectives: [],
       };
 
-      // Add curriculum if in advanced mode
-      if (curriculumMode === "advanced") {
-        lessonData.curriculum = curriculum;
-        // Calculate total duration from curriculum
-        const totalDuration = curriculum.reduce((sum, section) => 
-          sum + section.lectures.reduce((lectureSum, lecture) => lectureSum + (lecture.duration || 0), 0), 
-        0);
-        lessonData.duration = totalDuration;
-      }
-
       console.log('Submitting lesson data:', lessonData);
-      console.log('Mode:', curriculumMode);
 
       if (editingId) {
         await updateLesson(editingId, lessonData);
@@ -892,13 +890,8 @@ const ContentManagement = () => {
               
               {/* Render form inline */}
               {dialogMode === "lesson" ? (
-                <Tabs value={curriculumMode} onValueChange={(v: "simple" | "advanced") => setCurriculumMode(v)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="simple">Simple Lesson</TabsTrigger>
-                    <TabsTrigger value="advanced">Course with Curriculum</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="simple" className="space-y-4 py-4">
+                <div className="w-full">
+                  <div className="space-y-4 py-4">
                     {/* Basic Information Card */}
                     <Card>
                       <CardHeader className="pb-3">
@@ -960,6 +953,7 @@ const ContentManagement = () => {
                                 {[1, 2, 3, 4, 5, 6].map((g) => (
                                   <SelectItem key={g} value={g.toString()}>Grade {g}</SelectItem>
                                 ))}
+                                <SelectItem value="Common Entrance">Common Entrance</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1006,7 +1000,7 @@ const ContentManagement = () => {
                               onChange={(e) => setLessonForm({ ...lessonForm, duration: parseInt(e.target.value) || 30 })}
                               placeholder="30"
                             />
-                            <p className="text-xs text-muted-foreground">Estimated completion time</p>
+                            <p className="text-xs text-muted-foreground">⚡ Auto-filled when you paste a video URL below — or set manually</p>
                           </div>
                         </div>
                       </CardContent>
@@ -1022,24 +1016,28 @@ const ContentManagement = () => {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="space-y-2">
-                          <RichTextEditor
-                            label="Brief Description *"
-                            value={lessonForm.description}
-                            onChange={(value) => setLessonForm({ ...lessonForm, description: value })}
-                            placeholder="A short overview that helps students understand what they'll learn..."
-                            minHeight="120px"
-                          />
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Brief Description *</Label>
+                            <Textarea
+                              value={lessonForm.description}
+                              onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
+                              placeholder="A short overview that helps students understand what they'll learn..."
+                              className="min-h-[100px] resize-y"
+                            />
+                          </div>
                           <p className="text-xs text-muted-foreground">Keep it concise - this appears in lesson previews</p>
                         </div>
 
                         <div className="space-y-2">
-                          <RichTextEditor
-                            label="Course Overview (For Student Preview)"
-                            value={lessonForm.overview}
-                            onChange={(value) => setLessonForm({ ...lessonForm, overview: value })}
-                            placeholder="What will students learn in this course? List key topics, skills, and learning outcomes..."
-                            minHeight="150px"
-                          />
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Course Overview (For Student Preview)</Label>
+                            <Textarea
+                              value={lessonForm.overview}
+                              onChange={(e) => setLessonForm({ ...lessonForm, overview: e.target.value })}
+                              placeholder="What will students learn in this course? List key topics, skills, and learning outcomes..."
+                              className="min-h-[120px] resize-y"
+                            />
+                          </div>
                           <p className="text-xs text-muted-foreground">This overview helps students decide if this course is right for them before purchasing</p>
                         </div>
 
@@ -1063,24 +1061,276 @@ const ContentManagement = () => {
                               id="videoUrl"
                               value={lessonForm.videoUrl}
                               onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
-                              placeholder="https://youtube.com/embed/..."
+                              placeholder="https://youtube.com/watch?v=... or https://..."
                               type="url"
+                              className={lessonForm.videoUrl?.trim() && !/(?:youtube\.com|youtu\.be|youtube-nocookie\.com\/embed)/i.test(lessonForm.videoUrl) && !/^https?:\/\/.+\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(lessonForm.videoUrl) ? 'border-destructive' : ''}
                             />
-                            <p className="text-xs text-muted-foreground">YouTube, Vimeo, or direct video link</p>
+                            {lessonForm.videoUrl?.trim() && (
+                              /(?:youtube\.com|youtu\.be|youtube-nocookie\.com\/embed)/i.test(lessonForm.videoUrl) ? (
+                                <p className="text-xs text-green-600 flex items-center gap-1">✓ Valid YouTube URL</p>
+                              ) : /^https?:\/\/.+\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(lessonForm.videoUrl) ? (
+                                <p className="text-xs text-green-600 flex items-center gap-1">✓ Valid direct video URL</p>
+                              ) : (
+                                <p className="text-xs text-destructive">⚠ Must be a YouTube link or direct video URL (.mp4, .webm)</p>
+                              )
+                            )}
+                            {!lessonForm.videoUrl?.trim() && (
+                              <p className="text-xs text-muted-foreground">YouTube URL or direct video link — leave blank if no video</p>
+                            )}
                           </div>
 
                           <div className="space-y-2">
                             <Label htmlFor="imageUrl" className="text-sm font-medium">
-                              Thumbnail Image URL (Optional)
+                              Thumbnail Image (Optional)
                             </Label>
-                            <Input
-                              id="imageUrl"
-                              value={lessonForm.imageUrl}
-                              onChange={(e) => setLessonForm({ ...lessonForm, imageUrl: e.target.value })}
-                              placeholder="https://..."
-                              type="url"
-                            />
+                            {/* Mode toggle */}
+                            <div className="flex gap-2 mb-2">
+                              <button
+                                type="button"
+                                onClick={() => setThumbnailMode('url')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                                  thumbnailMode === 'url'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-background text-muted-foreground border-border hover:border-primary'
+                                }`}
+                              >
+                                <Link className="w-3.5 h-3.5" /> Image URL
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setThumbnailMode('upload')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                                  thumbnailMode === 'upload'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-background text-muted-foreground border-border hover:border-primary'
+                                }`}
+                              >
+                                <Upload className="w-3.5 h-3.5" /> Upload File
+                              </button>
+                            </div>
+                            {thumbnailMode === 'url' ? (
+                              <Input
+                                id="imageUrl"
+                                value={lessonForm.imageUrl}
+                                onChange={(e) => setLessonForm({ ...lessonForm, imageUrl: e.target.value })}
+                                placeholder="https://..."
+                                type="url"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center w-full">
+                                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/60 transition-colors">
+                                  <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                                    <Upload className="w-6 h-6 mb-1 text-muted-foreground" />
+                                    <p className="text-xs text-muted-foreground">Click to upload image</p>
+                                    <p className="text-[10px] text-muted-foreground/70">PNG, JPG, GIF, WebP</p>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      const reader = new FileReader();
+                                      reader.onload = (ev) => {
+                                        setLessonForm({ ...lessonForm, imageUrl: ev.target?.result as string });
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            )}
+                            {/* Preview */}
+                            {lessonForm.imageUrl && (
+                              <div className="relative mt-2 rounded-lg overflow-hidden border bg-muted/20" style={{ aspectRatio: '16/9', maxHeight: 120 }}>
+                                <img src={lessonForm.imageUrl} alt="Thumbnail preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                <button
+                                  type="button"
+                                  onClick={() => setLessonForm({ ...lessonForm, imageUrl: '' })}
+                                  className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            )}
                             <p className="text-xs text-muted-foreground">Cover image for the lesson card</p>
+                          </div>
+                        </div>
+
+                        {/* Live video preview — auto-detects duration */}
+                        {lessonForm.videoUrl?.trim() && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium flex items-center gap-2">
+                              📽️ Video Preview
+                              <span className="text-xs font-normal text-muted-foreground">(duration auto-filled when video loads)</span>
+                            </Label>
+                            <VideoPlayer
+                              videoUrl={lessonForm.videoUrl}
+                              title={lessonForm.title || 'Lesson Preview'}
+                              enableDownload={false}
+                              onDurationDetected={(mins) =>
+                                setLessonForm((prev) => ({ ...prev, duration: mins }))
+                              }
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Course Metadata Card - What You'll Learn, Requirements, Target Audience */}
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          Course Details (Shown on Student Overview)
+                        </CardTitle>
+                        <CardDescription>
+                          These appear on the student's subject overview page to help them understand what they'll learn
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {/* What You Will Learn */}
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-medium">What Students Will Learn</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              List the key skills and concepts students will gain from this lesson
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            {lessonForm.whatYouWillLearn.map((item, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                <Input
+                                  value={item}
+                                  onChange={(e) => {
+                                    const updated = [...lessonForm.whatYouWillLearn];
+                                    updated[index] = e.target.value;
+                                    setLessonForm({ ...lessonForm, whatYouWillLearn: updated });
+                                  }}
+                                  placeholder={`Learning outcome ${index + 1}`}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const updated = lessonForm.whatYouWillLearn.filter((_, i) => i !== index);
+                                    setLessonForm({ ...lessonForm, whatYouWillLearn: updated });
+                                  }}
+                                >
+                                  <X className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 mt-1"
+                              onClick={() => setLessonForm({ ...lessonForm, whatYouWillLearn: [...lessonForm.whatYouWillLearn, ""] })}
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add Learning Outcome
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Requirements */}
+                        <div className="space-y-3 border-t pt-4">
+                          <div>
+                            <Label className="text-sm font-medium">Requirements / Prerequisites</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              What should students know or have before starting this lesson?
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            {lessonForm.requirements.map((item, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                <Input
+                                  value={item}
+                                  onChange={(e) => {
+                                    const updated = [...lessonForm.requirements];
+                                    updated[index] = e.target.value;
+                                    setLessonForm({ ...lessonForm, requirements: updated });
+                                  }}
+                                  placeholder={`Requirement ${index + 1}`}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const updated = lessonForm.requirements.filter((_, i) => i !== index);
+                                    setLessonForm({ ...lessonForm, requirements: updated });
+                                  }}
+                                >
+                                  <X className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 mt-1"
+                              onClick={() => setLessonForm({ ...lessonForm, requirements: [...lessonForm.requirements, ""] })}
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add Requirement
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Target Audience */}
+                        <div className="space-y-3 border-t pt-4">
+                          <div>
+                            <Label className="text-sm font-medium">Who This Lesson Is For</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Describe who will benefit most from this lesson
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            {lessonForm.targetAudience.map((item, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Users className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                <Input
+                                  value={item}
+                                  onChange={(e) => {
+                                    const updated = [...lessonForm.targetAudience];
+                                    updated[index] = e.target.value;
+                                    setLessonForm({ ...lessonForm, targetAudience: updated });
+                                  }}
+                                  placeholder={`Target student ${index + 1}, e.g., "Grade 4 students learning fractions"`}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const updated = lessonForm.targetAudience.filter((_, i) => i !== index);
+                                    setLessonForm({ ...lessonForm, targetAudience: updated });
+                                  }}
+                                >
+                                  <X className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 mt-1"
+                              onClick={() => setLessonForm({ ...lessonForm, targetAudience: [...lessonForm.targetAudience, ""] })}
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add Target Audience
+                            </Button>
                           </div>
                         </div>
                       </CardContent>
@@ -1140,160 +1390,8 @@ const ContentManagement = () => {
                         </div>
                       </CardContent>
                     </Card>
-                  </TabsContent>
-
-                  <TabsContent value="advanced" className="space-y-4 py-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Basic Information</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="title-adv">Course Title *</Label>
-                            <Input
-                              id="title-adv"
-                              value={lessonForm.title}
-                              onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                              placeholder="e.g., Complete Introduction to Algebra"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="subtitle">Course Subtitle</Label>
-                            <Input
-                              id="subtitle"
-                              value={lessonForm.subtitle}
-                              onChange={(e) => setLessonForm({ ...lessonForm, subtitle: e.target.value })}
-                              placeholder="Short tagline for your course"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="grade-adv">Grade *</Label>
-                            <Select value={lessonForm.grade} onValueChange={(value) => setLessonForm({ ...lessonForm, grade: value })}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select grade" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {[1, 2, 3, 4, 5, 6].map((g) => (
-                                  <SelectItem key={g} value={g.toString()}>Grade {g}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="term-adv">Term *</Label>
-                            <Select value={lessonForm.term} onValueChange={(value) => setLessonForm({ ...lessonForm, term: value })}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select term" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="First Term">First Term</SelectItem>
-                                <SelectItem value="Second Term">Second Term</SelectItem>
-                                <SelectItem value="Third Term">Third Term</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="subject-adv">Subject *</Label>
-                            <Select value={lessonForm.subject} onValueChange={(value) => setLessonForm({ ...lessonForm, subject: value })}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select subject" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {dbSubjects.map((subject) => (
-                                  <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="difficulty-adv">Difficulty *</Label>
-                            <Select value={lessonForm.difficulty} onValueChange={(value) => setLessonForm({ ...lessonForm, difficulty: value })}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select difficulty" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="easy">Easy</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="hard">Hard</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="description-adv">Course Description *</Label>
-                          <Textarea
-                            id="description-adv"
-                            value={lessonForm.description}
-                            onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
-                            placeholder="Comprehensive description of what this course covers..."
-                            rows={4}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="imageUrl">Course Thumbnail URL</Label>
-                          <Input
-                            id="imageUrl"
-                            value={lessonForm.imageUrl}
-                            onChange={(e) => setLessonForm({ ...lessonForm, imageUrl: e.target.value })}
-                            placeholder="https://..."
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="price-adv">Course Price (₦) *</Label>
-                          <Input
-                            id="price-adv"
-                            type="number"
-                            min="0"
-                            required
-                            value={lessonForm.price}
-                            onChange={(e) => setLessonForm({ ...lessonForm, price: parseInt(e.target.value) || 0 })}
-                            placeholder="Enter price in Naira"
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Curriculum</CardTitle>
-                        <CardDescription>Build your course structure with sections and lectures</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <CurriculumBuilder curriculum={curriculum} onChange={setCurriculum} />
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-center">
-                          <Button 
-                            variant="secondary" 
-                            onClick={saveProgressDraft}
-                            disabled={isSavingProgress || editingId !== null}
-                            className="gap-2"
-                          >
-                            {isSavingProgress ? "Saving..." : "💾 Save Progress"}
-                          </Button>
-                          <div className="flex gap-2">
-                            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleLessonSubmit}>
-                              {editingId ? "Update" : "Create"} Course
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                </div>
               ) : (
                 <Card>
                   <CardContent className="pt-6 space-y-4">
@@ -1566,10 +1664,7 @@ const ContentManagement = () => {
             </p>
             <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                💡 Tip: Use the "Simple Lesson" mode for quick content creation
-              </span>
-              <span className="flex items-center gap-1">
-                📚 Advanced mode for full courses with sections
+                💡 Tip: Fill in all required fields marked with * to create a lesson
               </span>
             </div>
           </div>
@@ -1790,7 +1885,7 @@ const ContentManagement = () => {
                                       Lesson Draft
                                     </Badge>
                                     <Badge variant="secondary">
-                                      {draft.curriculumMode === "advanced" ? "Advanced Course" : "Simple Lesson"}
+                                      Simple Lesson
                                     </Badge>
                                   </div>
                                   <h3 className="font-semibold text-lg mb-1">
@@ -2173,13 +2268,7 @@ const ContentManagement = () => {
             </DialogHeader>
 
             {dialogMode === "lesson" ? (
-              <Tabs value={curriculumMode} onValueChange={(v: "simple" | "advanced") => setCurriculumMode(v)} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="simple">Simple Lesson</TabsTrigger>
-                  <TabsTrigger value="advanced">Course with Curriculum</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="simple" className="space-y-4 py-4">
+              <div className="space-y-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="title">Title *</Label>
@@ -2298,6 +2387,44 @@ const ContentManagement = () => {
                     />
                   </div>
 
+                  {/* What You'll Learn / Requirements / Target Audience */}
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      Course Details (Shown on Student Overview)
+                    </h4>
+                    <div className="space-y-2">
+                      <Label className="text-sm">What Students Will Learn</Label>
+                      {lessonForm.whatYouWillLearn.map((item, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Input value={item} onChange={(e) => { const u = [...lessonForm.whatYouWillLearn]; u[index] = e.target.value; setLessonForm({ ...lessonForm, whatYouWillLearn: u }); }} placeholder={`Learning outcome ${index + 1}`} className="flex-1" />
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { const u = lessonForm.whatYouWillLearn.filter((_, i) => i !== index); setLessonForm({ ...lessonForm, whatYouWillLearn: u }); }}><X className="w-4 h-4 text-destructive" /></Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setLessonForm({ ...lessonForm, whatYouWillLearn: [...lessonForm.whatYouWillLearn, ""] })}><Plus className="w-4 h-4" /> Add</Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Requirements / Prerequisites</Label>
+                      {lessonForm.requirements.map((item, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Input value={item} onChange={(e) => { const u = [...lessonForm.requirements]; u[index] = e.target.value; setLessonForm({ ...lessonForm, requirements: u }); }} placeholder={`Requirement ${index + 1}`} className="flex-1" />
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { const u = lessonForm.requirements.filter((_, i) => i !== index); setLessonForm({ ...lessonForm, requirements: u }); }}><X className="w-4 h-4 text-destructive" /></Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setLessonForm({ ...lessonForm, requirements: [...lessonForm.requirements, ""] })}><Plus className="w-4 h-4" /> Add</Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Who This Lesson Is For</Label>
+                      {lessonForm.targetAudience.map((item, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Input value={item} onChange={(e) => { const u = [...lessonForm.targetAudience]; u[index] = e.target.value; setLessonForm({ ...lessonForm, targetAudience: u }); }} placeholder={`Target student ${index + 1}`} className="flex-1" />
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { const u = lessonForm.targetAudience.filter((_, i) => i !== index); setLessonForm({ ...lessonForm, targetAudience: u }); }}><X className="w-4 h-4 text-destructive" /></Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setLessonForm({ ...lessonForm, targetAudience: [...lessonForm.targetAudience, ""] })}><Plus className="w-4 h-4" /> Add</Button>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
@@ -2306,134 +2433,7 @@ const ContentManagement = () => {
                       {editingId ? "Update" : "Create"} Lesson
                     </Button>
                   </div>
-                </TabsContent>
-
-                <TabsContent value="advanced" className="space-y-4 py-4">
-                  {/* Basic Info */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Basic Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="title-adv">Course Title *</Label>
-                          <Input
-                            id="title-adv"
-                            value={lessonForm.title}
-                            onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                            placeholder="e.g., Complete Introduction to Algebra"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="subtitle">Course Subtitle</Label>
-                          <Input
-                            id="subtitle"
-                            value={lessonForm.subtitle}
-                            onChange={(e) => setLessonForm({ ...lessonForm, subtitle: e.target.value })}
-                            placeholder="Short tagline for your course"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="grade-adv">Grade *</Label>
-                          <Select value={lessonForm.grade} onValueChange={(value) => setLessonForm({ ...lessonForm, grade: value })}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select grade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[1, 2, 3, 4, 5, 6].map((g) => (
-                                <SelectItem key={g} value={g.toString()}>Grade {g}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="term-adv">Term *</Label>
-                          <Select value={lessonForm.term} onValueChange={(value) => setLessonForm({ ...lessonForm, term: value })}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select term" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="First Term">First Term</SelectItem>
-                              <SelectItem value="Second Term">Second Term</SelectItem>
-                              <SelectItem value="Third Term">Third Term</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="subject-adv">Subject *</Label>
-                          <Select value={lessonForm.subject} onValueChange={(value) => setLessonForm({ ...lessonForm, subject: value })}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select subject" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {dbSubjects.map((subject) => (
-                                <SelectItem key={subject.id} value={subject.name}>{subject.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="difficulty-adv">Difficulty *</Label>
-                          <Select value={lessonForm.difficulty} onValueChange={(value) => setLessonForm({ ...lessonForm, difficulty: value })}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select difficulty" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="easy">Easy</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="hard">Hard</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <RichTextEditor
-                          label="Course Description *"
-                          value={lessonForm.description}
-                          onChange={(value) => setLessonForm({ ...lessonForm, description: value })}
-                          placeholder="Comprehensive description of what this course covers..."
-                          minHeight="150px"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="imageUrl">Course Thumbnail URL</Label>
-                        <Input
-                          id="imageUrl"
-                          value={lessonForm.imageUrl}
-                          onChange={(e) => setLessonForm({ ...lessonForm, imageUrl: e.target.value })}
-                          placeholder="https://..."
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Curriculum Builder */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Curriculum </CardTitle>
-                      <CardDescription>Build your course structure with sections and lectures</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <CurriculumBuilder curriculum={curriculum} onChange={setCurriculum} />
-                    </CardContent>
-                  </Card>
-
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleLessonSubmit}>
-                      {editingId ? "Update" : "Create"} Course
-                    </Button>
-                  </div>
-                </TabsContent>
-              </Tabs>
+              </div>
             ) : (
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-3 gap-4">
@@ -2746,6 +2746,144 @@ const ContentManagement = () => {
                     Delete {selectedItems.size} Item{selectedItems.size !== 1 ? 's' : ''}
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Saved Draft Modal */}
+        <Dialog open={showDraftModal} onOpenChange={setShowDraftModal}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-3 rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Continue from where you left off?</DialogTitle>
+                  <DialogDescription className="mt-1">
+                    You have unsaved work from a previous session
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="rounded-lg border-2 border-dashed border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <svg
+                      className="w-5 h-5 text-blue-600 dark:text-blue-400"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-sm text-foreground mb-1">Draft Information</h4>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <p>
+                        <span className="font-medium">Last saved:</span>{' '}
+                        {draftInfo?.timestamp && new Date(draftInfo.timestamp).toLocaleString('en-US', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <p className="text-xs">
+                        Your progress was automatically saved. You can continue editing or start fresh.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border p-3 bg-card">
+                  <div className="font-semibold text-sm mb-1">Continue Editing</div>
+                  <p className="text-xs text-muted-foreground">
+                    Load your saved progress and continue where you left off
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3 bg-card">
+                  <div className="font-semibold text-sm mb-1">Start Fresh</div>
+                  <p className="text-xs text-muted-foreground">
+                    Discard the draft and begin with a clean slate
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  clearDraft();
+                  setShowDraftModal(false);
+                  toast({
+                    title: 'Draft Discarded',
+                    description: 'Starting with a clean slate',
+                  });
+                }}
+                className="gap-2"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Start Fresh
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  const loaded = loadProgressDraft();
+                  if (loaded) {
+                    setShowDraftModal(false);
+                    // Open the lesson dialog to show the loaded content
+                    setIsDialogOpen(true);
+                    setDialogMode('lesson');
+                  }
+                }}
+                className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Continue Editing
               </Button>
             </DialogFooter>
           </DialogContent>

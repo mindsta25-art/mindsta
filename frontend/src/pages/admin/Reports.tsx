@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   FileText, 
   Download,
@@ -32,6 +33,7 @@ import {
   FileJson,
   Eye,
   AlertCircle,
+  DollarSign,
 } from "lucide-react";
 import {
   generateStudentProgressReport,
@@ -48,6 +50,14 @@ import {
   type UserActivityReport,
   type ContentInventoryReport,
 } from "@/api";
+import { generatePurchasesReport } from "@/api/payments";
+import {
+  generatePDFReport,
+  generatePDFPreview,
+  generateCSVReport,
+  generateJSONReport,
+  generateExcelReport
+} from "@/utils/reportGenerator";
 
 interface Report {
   id: string;
@@ -60,11 +70,47 @@ interface Report {
 
 const Reports = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState("month");
-  const [selectedFormat, setSelectedFormat] = useState("json");
+  const [selectedFormat, setSelectedFormat] = useState("pdf");
+  const [selectedOrientation, setSelectedOrientation] = useState<"portrait" | "landscape">("portrait");
   const [generating, setGenerating] = useState<string | null>(null);
   const [viewingReport, setViewingReport] = useState<any | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [recentReports, setRecentReports] = useState<any[]>([]);
+
+  // Load recent reports from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('mindsta_recent_reports');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setRecentReports(parsed || []);
+      } catch (err) {
+        console.error('Error loading recent reports:', err);
+      }
+    }
+  }, []);
+
+  // Save report to recent reports
+  const saveReportToHistory = (reportInfo: {
+    name: string;
+    format: string;
+    period: string;
+    size?: string;
+  }) => {
+    const newReport = {
+      ...reportInfo,
+      date: new Date().toISOString(),
+      id: Date.now().toString()
+    };
+
+    const updated = [newReport, ...recentReports].slice(0, 10); // Keep only last 10
+    setRecentReports(updated);
+    localStorage.setItem('mindsta_recent_reports', JSON.stringify(updated));
+  };
 
   const reports: Report[] = [
     {
@@ -115,7 +161,54 @@ const Reports = () => {
       type: "inventory",
       generator: generateContentInventoryReport,
     },
+    {
+      id: "purchases-report",
+      title: "Purchases Report",
+      description: "Comprehensive report of all purchases, transactions, revenue, and payment details",
+      icon: DollarSign,
+      type: "purchases",
+      generator: generatePurchasesReport,
+    },
   ];
+
+  const handlePreviewReport = async (report: Report) => {
+    try {
+      setGenerating(report.id);
+      
+      const params = {
+        period: selectedPeriod,
+        format: 'json',
+      };
+      
+      const result = await report.generator(params);
+      
+      const reportHeader = {
+        title: report.title,
+        period: selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1),
+        generatedBy: user?.fullName || 'Admin'
+      };
+
+      if (selectedFormat === 'pdf') {
+        const previewUrl = generatePDFPreview(reportHeader, result, selectedOrientation);
+        setPreviewData({ url: previewUrl, header: reportHeader, report });
+        setPreviewDialogOpen(true);
+      } else {
+        toast({
+          title: "Preview Not Available",
+          description: "Preview is only available for PDF reports.",
+          variant: "destructive"
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Preview Failed',
+        description: err?.message || 'Unable to generate preview',
+        variant: 'destructive'
+      });
+    } finally {
+      setGenerating(null);
+    }
+  };
 
   const handleGenerateReport = async (report: Report) => {
     try {
@@ -123,69 +216,167 @@ const Reports = () => {
       
       const params = {
         period: selectedPeriod,
-        format: selectedFormat,
+        format: 'json', // Always get JSON from API first
       };
       
       const result = await report.generator(params);
       
-      if (selectedFormat === 'csv') {
-        // Download CSV file
-        const blob = result as Blob;
-        downloadReport(blob, `${report.id}-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.csv`);
-        
+      // Prepare report header
+      const reportHeader = {
+        title: report.title,
+        period: selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1),
+        generatedBy: user?.fullName || 'Admin'
+      };
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const baseFilename = `${report.id}-${selectedPeriod}-${timestamp}`;
+      
+      // Generate report based on selected format
+      if (selectedFormat === 'pdf') {
+        generatePDFReport(reportHeader, result, `${baseFilename}.pdf`, selectedOrientation);
+        saveReportToHistory({
+          name: report.title,
+          format: 'PDF',
+          period: selectedPeriod
+        });
         toast({
-          title: "✅ Report Downloaded",
+          title: "✅ PDF Downloaded",
+          description: `${report.title} has been downloaded as PDF.`,
+        });
+      } else if (selectedFormat === 'csv') {
+        generateCSVReport(reportHeader, result, `${baseFilename}.csv`);
+        saveReportToHistory({
+          name: report.title,
+          format: 'CSV',
+          period: selectedPeriod
+        });
+        toast({
+          title: "✅ CSV Downloaded",
           description: `${report.title} has been downloaded as CSV.`,
         });
-      } else {
-        // Show JSON report in dialog
-        setViewingReport({
-          ...result,
-          reportTitle: report.title,
+      } else if (selectedFormat === 'excel') {
+        generateExcelReport(reportHeader, result, `${baseFilename}.xlsx`);
+        saveReportToHistory({
+          name: report.title,
+          format: 'Excel',
+          period: selectedPeriod
         });
-        setReportDialogOpen(true);
-        
         toast({
-          title: "✅ Report Generated",
-          description: "Your report has been generated successfully.",
+          title: "✅ Excel Downloaded",
+          description: `${report.title} has been downloaded as Excel.`,
+        });
+      } else if (selectedFormat === 'json') {
+        generateJSONReport(reportHeader, result, `${baseFilename}.json`);
+        saveReportToHistory({
+          name: report.title,
+          format: 'JSON',
+          period: selectedPeriod
+        });
+        toast({
+          title: "✅ JSON Downloaded",
+          description: `${report.title} has been downloaded as JSON.`,
         });
       }
-    } catch (error: any) {
-      console.error("Error generating report:", error);
+    } catch (err: any) {
       toast({
-        title: "❌ Error",
-        description: error.message || "Failed to generate report. Please try again.",
-        variant: "destructive",
+        title: 'Export Failed',
+        description: err?.message || 'Unable to generate report',
+        variant: 'destructive'
       });
     } finally {
       setGenerating(null);
     }
   };
 
-  const handleQuickReport = async (period: 'today' | 'week' | 'month', format: 'json' | 'csv' = 'json') => {
+  const generateQuickReport = async (period: 'daily' | 'weekly' | 'monthly' = 'weekly', format: 'pdf' | 'csv' | 'excel' | 'json' = 'pdf') => {
     try {
       setGenerating('quick-report');
       
-      const result = await generateEngagementSummaryReport({ period, format });
+      const result = await generateEngagementSummaryReport({ period, format: 'json' });
       
-      if (format === 'csv') {
-        const blob = result as Blob;
-        downloadReport(blob, `quick-engagement-${period}-${new Date().toISOString().split('T')[0]}.csv`);
-        
+      const reportHeader = {
+        title: `${period.charAt(0).toUpperCase() + period.slice(1)} Engagement Summary`,
+        period: period.charAt(0).toUpperCase() + period.slice(1),
+        generatedBy: user?.fullName || 'Admin'
+      };
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const baseFilename = `quick-engagement-${period}-${timestamp}`;
+      
+      if (format === 'pdf') {
+        generatePDFReport(reportHeader, result, `${baseFilename}.pdf`, selectedOrientation);
         toast({
           title: "✅ Quick Report Downloaded",
-          description: `${period} engagement report downloaded.`,
+          description: `${period} engagement report downloaded as PDF.`,
+        });
+      } else if (format === 'csv') {
+        generateCSVReport(reportHeader, result, `${baseFilename}.csv`);
+        toast({
+          title: "✅ Quick Report Downloaded",
+          description: `${period} engagement report downloaded as CSV.`,
+        });
+      } else if (format === 'excel') {
+        generateExcelReport(reportHeader, result, `${baseFilename}.xlsx`);
+        toast({
+          title: "✅ Quick Report Downloaded",
+          description: `${period} engagement report downloaded as Excel.`,
         });
       } else {
-        setViewingReport({
-          ...result,
-          reportTitle: `${period.charAt(0).toUpperCase() + period.slice(1)} Engagement Summary`,
-        });
-        setReportDialogOpen(true);
-        
+        generateJSONReport(reportHeader, result, `${baseFilename}.json`);
         toast({
-          title: "✅ Quick Report Ready",
-          description: `${period.charAt(0).toUpperCase() + period.slice(1)} report generated.`,
+          title: "✅ Quick Report Downloaded",
+          description: `${period} engagement report downloaded as JSON.`,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Export Failed',
+        description: err?.message || 'Unable to generate report',
+        variant: 'destructive'
+      });
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const handleQuickReport = async (period: 'daily' | 'weekly' | 'monthly', format: 'pdf' | 'csv' | 'excel' | 'json' = 'pdf') => {
+    try {
+      setGenerating('quick-report');
+      
+      const result = await generateEngagementSummaryReport({ period, format: 'json' });
+      
+      const reportHeader = {
+        title: `${period.charAt(0).toUpperCase() + period.slice(1)} Engagement Summary`,
+        period: period.charAt(0).toUpperCase() + period.slice(1),
+        generatedBy: user?.fullName || 'Admin'
+      };
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const baseFilename = `quick-engagement-${period}-${timestamp}`;
+      
+      if (format === 'pdf') {
+        generatePDFReport(reportHeader, result, `${baseFilename}.pdf`, selectedOrientation);
+        toast({
+          title: "✅ Quick Report Downloaded",
+          description: `${period} engagement report downloaded as PDF.`,
+        });
+      } else if (format === 'csv') {
+        generateCSVReport(reportHeader, result, `${baseFilename}.csv`);
+        toast({
+          title: "✅ Quick Report Downloaded",
+          description: `${period} engagement report downloaded as CSV.`,
+        });
+      } else if (format === 'excel') {
+        generateExcelReport(reportHeader, result, `${baseFilename}.xlsx`);
+        toast({
+          title: "✅ Quick Report Downloaded",
+          description: `${period} engagement report downloaded as Excel.`,
+        });
+      } else {
+        generateJSONReport(reportHeader, result, `${baseFilename}.json`);
+        toast({
+          title: "✅ Quick Report Downloaded",
+          description: `${period} engagement report downloaded as JSON.`,
         });
       }
     } catch (error: any) {
@@ -200,10 +391,10 @@ const Reports = () => {
     }
   };
 
-  const quickReports: Array<{ label: string; period: 'today' | 'week' | 'month'; icon: any }> = [
-    { label: "Today's Activity", period: "today", icon: Calendar },
-    { label: "Weekly Summary", period: "week", icon: TrendingUp },
-    { label: "Monthly Overview", period: "month", icon: BarChart3 },
+  const quickReports = [
+    { label: "Daily Overview", period: "daily" as const, icon: Calendar },
+    { label: "Weekly Overview", period: "weekly" as const, icon: TrendingUp },
+    { label: "Monthly Overview", period: "monthly" as const, icon: BarChart3 },
   ];
 
   return (
@@ -261,7 +452,7 @@ const Reports = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="period">Time Period</Label>
                 <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -313,6 +504,21 @@ const Reports = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedFormat === 'pdf' && (
+                <div className="space-y-2">
+                  <Label htmlFor="orientation">PDF Orientation</Label>
+                  <Select value={selectedOrientation} onValueChange={(value: "portrait" | "landscape") => setSelectedOrientation(value)}>
+                    <SelectTrigger id="orientation">
+                      <SelectValue placeholder="Select orientation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="portrait">Portrait</SelectItem>
+                      <SelectItem value="landscape">Landscape</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -342,6 +548,17 @@ const Reports = () => {
                         </div>
                       </div>
                       <div className="flex gap-2">
+                        {selectedFormat === 'pdf' && (
+                          <Button 
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => handlePreviewReport(report)}
+                            disabled={isGenerating}
+                          >
+                            <Eye className="w-4 h-4" />
+                            Preview
+                          </Button>
+                        )}
                         {selectedFormat === 'json' && (
                           <Button 
                             variant="outline"
@@ -366,7 +583,7 @@ const Reports = () => {
                           ) : (
                             <>
                               <Download className="w-4 h-4" />
-                              {selectedFormat === 'csv' ? 'Download' : 'Generate'}
+                              Download {selectedFormat.toUpperCase()}
                             </>
                           )}
                         </Button>
@@ -384,38 +601,39 @@ const Reports = () => {
           <CardHeader>
             <CardTitle>Recent Reports</CardTitle>
             <CardDescription>
-              Previously generated reports available for download
+              Previously generated reports (last 10)
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {[
-                { name: "Student Progress - November 2025", date: "2025-11-10", size: "2.4 MB", format: "PDF" },
-                { name: "Lesson Analytics - October 2025", date: "2025-11-01", size: "1.8 MB", format: "Excel" },
-                { name: "Engagement Summary - Q3 2025", date: "2025-10-15", size: "3.1 MB", format: "PDF" },
-              ].map((report, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded bg-primary/10">
-                      <FileText className="w-5 h-5 text-primary" />
+            {recentReports.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No reports generated yet</p>
+                <p className="text-sm">Generated reports will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentReports.map((report) => (
+                  <div 
+                    key={report.id}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded bg-primary/10">
+                        <FileText className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{report.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(report.date).toLocaleDateString()} • {report.period} • {report.format}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{report.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {report.date} • {report.size} • {report.format}
-                      </p>
-                    </div>
+                    <Badge variant="outline">{report.format}</Badge>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Download className="w-4 h-4" />
-                    Download
-                  </Button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -573,6 +791,43 @@ const Reports = () => {
               </div>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>PDF Preview - {previewData?.header?.title}</DialogTitle>
+            <DialogDescription>
+              Preview of the report in {selectedOrientation} orientation. Click Download to save the full PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[70vh] w-full">
+            {previewData?.url && (
+              <div className="w-full">
+                <iframe 
+                  src={previewData.url} 
+                  className="w-full h-[70vh] border rounded"
+                  title="PDF Preview"
+                />
+              </div>
+            )}
+          </ScrollArea>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={() => {
+              if (previewData?.report) {
+                handleGenerateReport(previewData.report);
+                setPreviewDialogOpen(false);
+              }
+            }}>
+              <Download className="w-4 h-4 mr-2" />
+              Download Full PDF
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </AdminLayout>

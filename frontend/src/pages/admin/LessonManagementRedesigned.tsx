@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { getAllLessons, deleteLesson, type Lesson } from "@/api/lessons";
@@ -30,7 +31,9 @@ import {
   GraduationCap,
   DollarSign,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -48,10 +51,16 @@ const LessonManagementRedesigned = () => {
   const [filterGrade, setFilterGrade] = useState<string>("all");
   const [filterSubject, setFilterSubject] = useState<string>("all");
   const [filterTerm, setFilterTerm] = useState<string>("all");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [lessonToDelete, setLessonToDelete] = useState<string | null>(null);
   const [filterDifficulty, setFilterDifficulty] = useState<string>("all");
   
   // Sorting
   const [sortBy, setSortBy] = useState<string>("newest");
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
   
   // Stats
   const [stats, setStats] = useState({
@@ -153,11 +162,27 @@ const LessonManagementRedesigned = () => {
     setFilteredLessons(filtered);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this lesson?")) return;
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredLessons.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLessons = filteredLessons.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterGrade, filterSubject, filterTerm, filterDifficulty, sortBy, searchQuery]);
+
+  const handleDelete = (id: string) => {
+    setLessonToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!lessonToDelete) return;
     
     try {
-      await deleteLesson(id);
+      await deleteLesson(lessonToDelete);
       toast({
         title: "Success",
         description: "Lesson deleted successfully",
@@ -169,6 +194,9 @@ const LessonManagementRedesigned = () => {
         description: "Failed to delete lesson",
         variant: "destructive",
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setLessonToDelete(null);
     }
   };
 
@@ -430,7 +458,7 @@ const LessonManagementRedesigned = () => {
         ) : viewMode === "grid" ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence mode="popLayout">
-              {filteredLessons.map((lesson) => (
+              {paginatedLessons.map((lesson) => (
                 <motion.div
                   key={lesson.id}
                   layout
@@ -527,7 +555,7 @@ const LessonManagementRedesigned = () => {
                   </thead>
                   <tbody>
                     <AnimatePresence mode="popLayout">
-                      {filteredLessons.map((lesson) => (
+                      {paginatedLessons.map((lesson) => (
                         <motion.tr
                           key={lesson.id}
                           layout
@@ -590,7 +618,67 @@ const LessonManagementRedesigned = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Pagination */}
+        {filteredLessons.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(endIndex, filteredLessons.length)} of {filteredLessons.length} lessons
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6">6 / page</SelectItem>
+                      <SelectItem value="12">12 / page</SelectItem>
+                      <SelectItem value="24">24 / page</SelectItem>
+                      <SelectItem value="48">48 / page</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={confirmDelete}
+        title="Delete Lesson"
+        description="Are you sure you want to delete this lesson? This action cannot be undone and will remove all associated content, quizzes, and student progress."
+        confirmText="Delete Lesson"
+      />
     </AdminLayout>
   );
 };

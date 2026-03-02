@@ -16,7 +16,9 @@ import {
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getSystemSettings, updateSettingsSection, type GeneralSettings, type NotificationSettings, type SecuritySettings, type AppearanceSettings, type AdvancedSettings } from "@/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useContactSettings } from "@/contexts/ContactSettingsContext";
+import { getSystemSettings, updateSettingsSection, type GeneralSettings, type ContactSettings, type NotificationSettings, type SecuritySettings, type AppearanceSettings, type AdvancedSettings, type QuotesSettings, type QuoteItem } from "@/api";
 import { 
   Settings as SettingsIcon, 
   Bell,
@@ -27,23 +29,55 @@ import {
   Palette,
   Save,
   Moon,
-  Sun
+  Sun,
+  User,
+  Lock,
+  Quote,
+  Plus,
+  Trash2,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { siteConfig } from "@/config/siteConfig";
 
 const Settings = () => {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+  const { refreshContactSettings } = useContactSettings();
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Account/Password Settings
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // General Settings State
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({
     siteName: siteConfig.company.name,
     siteDescription: siteConfig.company.tagline,
-    supportEmail: siteConfig.contact.supportEmail,
+    supportEmail: '',
     language: "en",
     timezone: "UTC",
+  });
+
+  // Contact Settings State
+  const [contactSettings, setContactSettings] = useState<ContactSettings>({
+    companyEmail: '',
+    supportEmail: '',
+    privacyEmail: '',
+    adminEmail: '',
+    phone: '',
+    whatsappNumber: '',
+    whatsappMessage: '',
+    address: '',
+    city: '',
+    country: '',
   });
 
   // Notification Settings State
@@ -78,26 +112,24 @@ const Settings = () => {
     logoUrl: '',
   });
 
-  // Apply theme changes in real-time
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    
-    if (appearanceSettings.theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(appearanceSettings.theme);
-    }
-  }, [appearanceSettings.theme]);
+  // Do NOT apply theme changes in real-time - only on save
+  // This prevents the theme from changing just by clicking the Settings menu
 
   // Advanced Settings State
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
     backupFrequency: 'daily',
     coursesPerPage: 12,
-    paystackPublicKey: '',
-    paystackSecretKey: '',
+    leaderboardPerPage: 10,
+    myLearningPerPage: 9,
   });
+
+  // Quotes Settings State
+  const [quotesSettings, setQuotesSettings] = useState<QuotesSettings>({
+    customQuotesEnabled: false,
+    dailyQuotes: [],
+  });
+  const [newQuote, setNewQuote] = useState('');
+  const [newQuoteAuthor, setNewQuoteAuthor] = useState('');
 
   // Load settings on mount
   useEffect(() => {
@@ -106,6 +138,7 @@ const Settings = () => {
         setLoading(true);
         const settings = await getSystemSettings();
         setGeneralSettings(settings.general);
+        setContactSettings(settings.contact);
         setNotificationSettings(settings.notifications);
         setSecuritySettings({
           requireEmailVerification: settings.security.requireEmailVerification,
@@ -116,6 +149,7 @@ const Settings = () => {
         });
         setAppearanceSettings(settings.appearance);
         setAdvancedSettings(settings.advanced);
+        if (settings.quotes) setQuotesSettings(settings.quotes);
       } catch (error) {
         console.error('Failed to load settings', error);
         toast({ title: 'Failed to load settings', description: 'Please try again.', variant: 'destructive' });
@@ -126,11 +160,12 @@ const Settings = () => {
     load();
   }, [toast]);
 
-  const handleSaveSettings = async (section: 'general' | 'notifications' | 'security' | 'appearance' | 'advanced') => {
+  const handleSaveSettings = async (section: 'general' | 'contact' | 'notifications' | 'security' | 'appearance' | 'advanced' | 'quotes') => {
     try {
       setSaving(true);
       let payload: any = {};
       if (section === 'general') payload = generalSettings;
+      if (section === 'contact') payload = contactSettings;
       if (section === 'notifications') payload = notificationSettings;
       if (section === 'security') {
         payload = {
@@ -143,10 +178,12 @@ const Settings = () => {
       }
       if (section === 'appearance') payload = appearanceSettings;
       if (section === 'advanced') payload = advancedSettings;
+      if (section === 'quotes') payload = quotesSettings;
 
       const updated = await updateSettingsSection(section, payload);
       // rehydrate from server in case of defaulting or normalization
       setGeneralSettings(updated.general);
+      setContactSettings(updated.contact);
       setNotificationSettings(updated.notifications);
       setSecuritySettings({
         requireEmailVerification: updated.security.requireEmailVerification,
@@ -157,6 +194,14 @@ const Settings = () => {
       });
       setAppearanceSettings(updated.appearance);
       setAdvancedSettings(updated.advanced);
+      if (updated.quotes) setQuotesSettings(updated.quotes);
+
+      // Refresh contact settings context if contact settings were updated
+      if (section === 'contact') {
+        console.log('[Settings] Contact settings saved, refreshing context...');
+        await refreshContactSettings();
+        console.log('[Settings] Contact context refresh triggered');
+      }
 
       toast({ title: 'Settings Saved', description: `${section[0].toUpperCase()}${section.slice(1)} settings have been updated successfully.` });
     } catch (error) {
@@ -168,6 +213,71 @@ const Settings = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user?.id) {
+      toast({
+        title: 'Error',
+        description: 'User not authenticated',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Error',
+        description: 'New passwords do not match',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: 'Error',
+        description: 'Password must be at least 8 characters long',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!currentPassword) {
+      toast({
+        title: 'Error',
+        description: 'Current password is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setChangingPassword(true);
+    
+    try {
+      const { changePassword } = await import('@/api/auth');
+      const result = await changePassword(user.id, currentPassword, newPassword);
+      
+      toast({
+        title: '✅ Success',
+        description: result.message || 'Password changed successfully',
+      });
+      
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      toast({
+        title: '❌ Error',
+        description: error.message || 'Failed to change password. Please check your current password.',
+        variant: 'destructive',
+      });
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -184,10 +294,18 @@ const Settings = () => {
 
         {/* Settings Tabs */}
   <Tabs defaultValue="general" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-8">
+            <TabsTrigger value="account" className="gap-2">
+              <User className="w-4 h-4" />
+              Account
+            </TabsTrigger>
             <TabsTrigger value="general" className="gap-2">
               <SettingsIcon className="w-4 h-4" />
               General
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="gap-2">
+              <Mail className="w-4 h-4" />
+              Contact
             </TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2">
               <Bell className="w-4 h-4" />
@@ -201,11 +319,92 @@ const Settings = () => {
               <Palette className="w-4 h-4" />
               Appearance
             </TabsTrigger>
+            <TabsTrigger value="quotes" className="gap-2">
+              <Quote className="w-4 h-4" />
+              Quotes
+            </TabsTrigger>
             <TabsTrigger value="advanced" className="gap-2">
               <Database className="w-4 h-4" />
               Advanced
             </TabsTrigger>
           </TabsList>
+
+          {/* Account Settings */}
+          <TabsContent value="account" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="w-5 h-5" />
+                  Change Password
+                </CardTitle>
+                <CardDescription>
+                  Update your admin account password
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="currentPassword"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter current password"
+                        required
+                        className="pr-10"
+                      />
+                      <button type="button" onClick={() => setShowCurrentPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min. 8 characters)"
+                        required
+                        className="pr-10"
+                      />
+                      <button type="button" onClick={() => setShowNewPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        required
+                        className="pr-10"
+                      />
+                      <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={changingPassword} className="gap-2">
+                    <Lock className="w-4 h-4" />
+                    {changingPassword ? 'Changing Password...' : 'Change Password'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* General Settings */}
           <TabsContent value="general" className="space-y-4">
@@ -281,6 +480,156 @@ const Settings = () => {
                 <Button onClick={() => handleSaveSettings('general')} disabled={saving || loading} className="gap-2">
                   <Save className="w-4 h-4" />
                   {saving ? "Saving..." : "Save Changes"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Contact Settings */}
+          <TabsContent value="contact" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+                <CardDescription>
+                  Manage all email addresses and contact details used throughout the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm text-foreground">Email Addresses</h3>
+                  
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="companyEmail">Company Email</Label>
+                      <Input
+                        id="companyEmail"
+                        type="email"
+                        value={contactSettings.companyEmail}
+                        onChange={(e) => setContactSettings({ ...contactSettings, companyEmail: e.target.value })}
+                        placeholder="info@company.com"
+                      />
+                      <p className="text-xs text-muted-foreground">General company inquiries</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="supportEmail">Support Email</Label>
+                      <Input
+                        id="supportEmail"
+                        type="email"
+                        value={contactSettings.supportEmail}
+                        onChange={(e) => setContactSettings({ ...contactSettings, supportEmail: e.target.value })}
+                        placeholder="support@company.com"
+                      />
+                      <p className="text-xs text-muted-foreground">Customer support requests</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="privacyEmail">Privacy Email</Label>
+                      <Input
+                        id="privacyEmail"
+                        type="email"
+                        value={contactSettings.privacyEmail}
+                        onChange={(e) => setContactSettings({ ...contactSettings, privacyEmail: e.target.value })}
+                        placeholder="privacy@company.com"
+                      />
+                      <p className="text-xs text-muted-foreground">Privacy and data requests</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="adminEmail">Admin Email</Label>
+                      <Input
+                        id="adminEmail"
+                        type="email"
+                        value={contactSettings.adminEmail}
+                        onChange={(e) => setContactSettings({ ...contactSettings, adminEmail: e.target.value })}
+                        placeholder="admin@company.com"
+                      />
+                      <p className="text-xs text-muted-foreground">Administrative notifications</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm text-foreground">Phone & WhatsApp</h3>
+                  
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={contactSettings.phone}
+                        onChange={(e) => setContactSettings({ ...contactSettings, phone: e.target.value })}
+                        placeholder="+1 234 567 8900"
+                      />
+                      <p className="text-xs text-muted-foreground">Main contact number</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
+                      <Input
+                        id="whatsappNumber"
+                        type="tel"
+                        value={contactSettings.whatsappNumber}
+                        onChange={(e) => setContactSettings({ ...contactSettings, whatsappNumber: e.target.value })}
+                        placeholder="+1234567890"
+                      />
+                      <p className="text-xs text-muted-foreground">WhatsApp contact (no spaces)</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsappMessage">WhatsApp Default Message</Label>
+                    <Textarea
+                      id="whatsappMessage"
+                      value={contactSettings.whatsappMessage}
+                      onChange={(e) => setContactSettings({ ...contactSettings, whatsappMessage: e.target.value })}
+                      rows={2}
+                      placeholder="Hello! I'd like to know more about..."
+                    />
+                    <p className="text-xs text-muted-foreground">Pre-filled message for WhatsApp chat</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm text-foreground">Physical Address</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Street Address</Label>
+                    <Input
+                      id="address"
+                      value={contactSettings.address}
+                      onChange={(e) => setContactSettings({ ...contactSettings, address: e.target.value })}
+                      placeholder="123 Main Street, Suite 100"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={contactSettings.city}
+                        onChange={(e) => setContactSettings({ ...contactSettings, city: e.target.value })}
+                        placeholder="Abuja"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="country">Country</Label>
+                      <Input
+                        id="country"
+                        value={contactSettings.country}
+                        onChange={(e) => setContactSettings({ ...contactSettings, country: e.target.value })}
+                        placeholder="Nigeria"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button onClick={() => handleSaveSettings('contact')} disabled={saving || loading} className="gap-2">
+                  <Save className="w-4 h-4" />
+                  {saving ? "Saving..." : "Save Contact Settings"}
                 </Button>
               </CardContent>
             </Card>
@@ -504,7 +853,7 @@ const Settings = () => {
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    ✨ Your admin theme preference is saved separately from student and referral portals.
+                    ✨ Admin Theme
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
                     Current theme: <span className="font-semibold capitalize">{appearanceSettings.theme}</span>
@@ -535,9 +884,126 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
-          {/* Advanced Settings */}
-          <TabsContent value="advanced" className="space-y-4">
+          {/* Quotes Settings */}
+          <TabsContent value="quotes" className="space-y-4">
             <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Quote className="w-5 h-5" />
+                  Daily Quote Management
+                </CardTitle>
+                <CardDescription>
+                  Control the motivational quotes displayed to students on their home page.
+                  When custom quotes are enabled, only your quotes will be shown.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Enable toggle */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Use Custom Quotes</p>
+                    <p className="text-sm text-muted-foreground">
+                      Override the default quotes with your own curated list
+                    </p>
+                  </div>
+                  <Switch
+                    checked={quotesSettings.customQuotesEnabled}
+                    onCheckedChange={(val) => setQuotesSettings({ ...quotesSettings, customQuotesEnabled: val })}
+                  />
+                </div>
+
+                {/* Add new quote */}
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                  <h3 className="text-sm font-semibold">Add New Quote</h3>
+                  <div className="space-y-2">
+                    <Label>Quote Text</Label>
+                    <Textarea
+                      placeholder="Enter the motivational quote..."
+                      value={newQuote}
+                      onChange={(e) => setNewQuote(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Author</Label>
+                    <Input
+                      placeholder="Author name (e.g. Nelson Mandela)"
+                      value={newQuoteAuthor}
+                      onChange={(e) => setNewQuoteAuthor(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => {
+                      if (!newQuote.trim()) return;
+                      setQuotesSettings({
+                        ...quotesSettings,
+                        dailyQuotes: [
+                          ...quotesSettings.dailyQuotes,
+                          { quote: newQuote.trim(), author: newQuoteAuthor.trim() || 'Unknown' },
+                        ],
+                      });
+                      setNewQuote('');
+                      setNewQuoteAuthor('');
+                    }}
+                    disabled={!newQuote.trim()}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Quote
+                  </Button>
+                </div>
+
+                {/* Quote list */}
+                {quotesSettings.dailyQuotes.length > 0 ? (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold">
+                      Your Quotes ({quotesSettings.dailyQuotes.length})
+                    </h3>
+                    {quotesSettings.dailyQuotes.map((q, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3 p-4 border rounded-lg bg-card"
+                      >
+                        <Quote className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium italic text-sm leading-relaxed">"{q.quote}"</p>
+                          <p className="text-xs text-muted-foreground mt-1">— {q.author}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive flex-shrink-0"
+                          onClick={() =>
+                            setQuotesSettings({
+                              ...quotesSettings,
+                              dailyQuotes: quotesSettings.dailyQuotes.filter((_, i) => i !== idx),
+                            })
+                          }
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Quote className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No custom quotes yet. Add one above.</p>
+                    <p className="text-xs mt-1">Default system quotes will be used until custom quotes are added and enabled.</p>
+                  </div>
+                )}
+
+                <Button onClick={() => handleSaveSettings('quotes')} disabled={saving || loading} className="gap-2">
+                  <Save className="w-4 h-4" />
+                  {saving ? "Saving..." : "Save Quotes Settings"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Advanced Settings */}
+          <TabsContent value="advanced" className="space-y-4">            <Card>
               <CardHeader>
                 <CardTitle>Advanced Settings</CardTitle>
                 <CardDescription>
@@ -595,42 +1061,44 @@ const Settings = () => {
                   </p>
                 </div>
 
-                <div className="space-y-4 pt-6 border-t">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Mail className="w-5 h-5" />
-                    Paystack Payment Configuration
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Configure your Paystack payment gateway credentials for processing payments
+                <div className="space-y-2">
+                  <Label htmlFor="leaderboardPerPage">Entries Per Page (Leaderboard)</Label>
+                  <Select value={String(advancedSettings.leaderboardPerPage ?? 10)} onValueChange={(v) => setAdvancedSettings({ ...advancedSettings, leaderboardPerPage: Number(v) })}>
+                    <SelectTrigger id="leaderboardPerPage">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 entries</SelectItem>
+                      <SelectItem value="10">10 entries</SelectItem>
+                      <SelectItem value="15">15 entries</SelectItem>
+                      <SelectItem value="20">20 entries</SelectItem>
+                      <SelectItem value="25">25 entries</SelectItem>
+                      <SelectItem value="50">50 entries</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Number of students to display per page on the leaderboard
                   </p>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="paystackPublicKey">Paystack Public Key</Label>
-                    <Input 
-                      id="paystackPublicKey" 
-                      type="text" 
-                      value={advancedSettings.paystackPublicKey || ''}
-                      onChange={(e) => setAdvancedSettings({ ...advancedSettings, paystackPublicKey: e.target.value })}
-                      placeholder="pk_test_..." 
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Your Paystack public key (starts with pk_test_ or pk_live_)
-                    </p>
-                  </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="paystackSecretKey">Paystack Secret Key</Label>
-                    <Input 
-                      id="paystackSecretKey" 
-                      type="password" 
-                      value={advancedSettings.paystackSecretKey || ''}
-                      onChange={(e) => setAdvancedSettings({ ...advancedSettings, paystackSecretKey: e.target.value })}
-                      placeholder="sk_test_..." 
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Your Paystack secret key (starts with sk_test_ or sk_live_) - kept secure
-                    </p>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="myLearningPerPage">Courses Per Page (My Learning)</Label>
+                  <Select value={String(advancedSettings.myLearningPerPage ?? 9)} onValueChange={(v) => setAdvancedSettings({ ...advancedSettings, myLearningPerPage: Number(v) })}>
+                    <SelectTrigger id="myLearningPerPage">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 courses</SelectItem>
+                      <SelectItem value="6">6 courses</SelectItem>
+                      <SelectItem value="9">9 courses</SelectItem>
+                      <SelectItem value="12">12 courses</SelectItem>
+                      <SelectItem value="18">18 courses</SelectItem>
+                      <SelectItem value="24">24 courses</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Number of courses to display per page on the My Learning page
+                  </p>
                 </div>
 
                 <Button onClick={() => handleSaveSettings('advanced')} disabled={saving || loading} className="gap-2">

@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
+import { formatUserName } from "@/lib/stringUtils";
 import { 
   Users, 
   BookOpen, 
@@ -15,10 +17,24 @@ import {
   UserCheck,
   BarChart3,
   ShoppingCart,
-  Package
+  Package,
+  RefreshCw,
+  AlertCircle,
+  Circle
 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading";
-import { getDashboardStats, getOverviewStats, getRecentPurchases } from "@/api";
+import { 
+  getDashboardStats, 
+  getOverviewStats, 
+  getRecentPurchases,
+  getUserGrowth,
+  getRevenueOverTime,
+  getReferralPerformance,
+  getUserTypes,
+  getPaymentStatusDistribution,
+  getStudentGrades,
+  getAllProfiles
+} from "@/api";
 import { getSalesAnalytics, SalesAnalytics } from "@/api/payments";
 import { getSalesStats, SalesStats } from "@/api/admin";
 import {
@@ -82,8 +98,21 @@ const AdminDashboard = () => {
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
   const [salesAnalytics, setSalesAnalytics] = useState<SalesAnalytics | null>(null);
   const [salesStats, setSalesStats] = useState<SalesStats | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   const COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b'];
+
+  const fetchOnlineCount = async () => {
+    try {
+      const profiles = await getAllProfiles();
+      const count = profiles.filter((p: any) => p.isOnline).length;
+      setOnlineCount(count);
+    } catch (error) {
+      console.error('Error fetching online count:', error);
+    }
+  };
 
   useEffect(() => {
     fetchDashboardStats();
@@ -91,6 +120,11 @@ const AdminDashboard = () => {
     fetchRecentPurchases();
     fetchSalesAnalytics();
     fetchSalesStats();
+    fetchOnlineCount();
+
+    // Refresh online count every 15 seconds
+    const onlineInterval = setInterval(fetchOnlineCount, 15000);
+    return () => clearInterval(onlineInterval);
   }, []);
 
   const fetchSalesStats = async () => {
@@ -159,17 +193,17 @@ const AdminDashboard = () => {
   };
 
   const fetchAnalyticsData = async () => {
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    
     try {
-      const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-
       const [userGrowth, revenue, referralPerf, userTypes, paymentStatus, grades] = await Promise.all([
-        fetch('/api/analytics/user-growth?days=30', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/analytics/revenue-over-time?days=30', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/analytics/referral-performance?days=30', { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/analytics/user-types', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/analytics/payment-status', { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/analytics/student-grades', { headers }).then(r => r.ok ? r.json() : []).catch(() => [])
+        getUserGrowth(30),
+        getRevenueOverTime(30),
+        getReferralPerformance(30),
+        getUserTypes(),
+        getPaymentStatusDistribution(),
+        getStudentGrades()
       ]);
 
       setUserGrowthData(userGrowth);
@@ -178,8 +212,25 @@ const AdminDashboard = () => {
       setUserTypesData(userTypes);
       setPaymentStatusData(paymentStatus);
       setGradeDistribution(grades);
-    } catch (error) {
+      
+      console.log('[Analytics] Data loaded successfully:', {
+        userGrowth: userGrowth.length,
+        revenue: revenue.length,
+        referralPerf: referralPerf ? 'loaded' : 'null',
+        userTypes: userTypes.length,
+        paymentStatus: paymentStatus.length,
+        grades: grades.length
+      });
+    } catch (error: any) {
       console.error("Error fetching analytics data:", error);
+      setAnalyticsError(error.message || 'Failed to load analytics data');
+      toast({
+        title: "Analytics Error",
+        description: "Some analytics data could not be loaded. Check console for details.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -225,10 +276,12 @@ const AdminDashboard = () => {
     },
     {
       title: "Active Users",
-      value: stats.activeUsers || 0,
+      value: onlineCount,
       icon: Activity,
-      description: "Users this week",
+      description: "Currently online now",
       color: "text-cyan-500",
+      onClick: () => navigate('/admin/users'),
+      isLive: true,
     },
     {
       title: "Total Enrollments",
@@ -250,11 +303,29 @@ const AdminDashboard = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Welcome to Mindsta's Administrative Excellence Portal. Monitor, manage, and elevate your educational platform.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+            <p className="text-muted-foreground mt-2">
+              Welcome to Mindsta's Administrative Excellence Portal. Monitor, manage, and elevate your educational platform.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 self-start shrink-0"
+            onClick={() => {
+              fetchDashboardStats();
+              fetchAnalyticsData();
+              fetchRecentPurchases();
+              fetchSalesAnalytics();
+              fetchSalesStats();
+              fetchOnlineCount();
+            }}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh All
+          </Button>
         </div>
 
         {/* Stats Grid */}
@@ -262,10 +333,22 @@ const AdminDashboard = () => {
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
-              <Card key={stat.title} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={stat.title}
+                className={`hover:shadow-lg transition-shadow ${
+                  (stat as any).onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''
+                }`}
+                onClick={(stat as any).onClick}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
                     {stat.title}
+                    {(stat as any).isLive && (
+                      <span className="inline-flex items-center gap-1 text-xs font-normal text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-full px-1.5 py-0.5">
+                        <Circle className="w-1.5 h-1.5 fill-green-500 animate-pulse" />
+                        LIVE
+                      </span>
+                    )}
                   </CardTitle>
                   <Icon className={`h-4 w-4 ${stat.color}`} />
                 </CardHeader>
@@ -300,6 +383,12 @@ const AdminDashboard = () => {
                 <CardContent className="space-y-2">
                   <button onClick={() => navigate('/admin/notifications')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
                     Send Notifications
+                  </button>
+                  <button onClick={() => navigate('/admin/leaderboard')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
+                    🏆 View Leaderboard
+                  </button>
+                  <button onClick={() => navigate('/admin/newsletter')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
+                    Newsletter Subscribers
                   </button>
                   <button onClick={() => navigate('/admin/referrals')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
                     Referral Management
@@ -415,7 +504,7 @@ const AdminDashboard = () => {
                           <ShoppingCart className="w-4 h-4 text-green-500" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{purchase.userName}</p>
+                          <p className="text-sm font-medium truncate">{formatUserName(purchase.userName)}</p>
                           <p className="text-xs text-muted-foreground truncate">
                             {purchase.subject} - Grade {purchase.grade} {purchase.term && `• ${purchase.term}`}
                           </p>
@@ -435,6 +524,42 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
+            {analyticsLoading && (
+              <Card>
+                <CardContent className="py-12">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+                    <p className="text-muted-foreground">Loading analytics data...</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {analyticsError && !analyticsLoading && (
+              <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+                <CardContent className="py-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-red-900 dark:text-red-200">Analytics Error</p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-1">{analyticsError}</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-3"
+                        onClick={fetchAnalyticsData}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {!analyticsLoading && (
+              <>
             {/* User Growth Chart */}
             <Card>
               <CardHeader>
@@ -447,6 +572,11 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {userGrowthData.length === 0 ? (
+                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                    <p>No user growth data available</p>
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={userGrowthData}>
                     <defs>
@@ -481,6 +611,7 @@ const AdminDashboard = () => {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -712,6 +843,8 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+            )}
+            </>
             )}
           </TabsContent>
         </Tabs>

@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getDetailedAnalytics, exportAnalytics, type DetailedAnalytics } from '@/api/analytics';
+import { getDetailedAnalytics, exportAnalytics, type DetailedAnalytics, getAdminStudentStudyTime, type StudentStudyTime } from '@/api/analytics';
 import { useToast } from '@/hooks/use-toast';
 import { Download, RefreshCw, TrendingUp, Users, BookOpen, Award, Clock } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
@@ -17,6 +17,9 @@ const Analytics = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [dateRange, setDateRange] = useState<string>('30');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [studyTimeData, setStudyTimeData] = useState<StudentStudyTime[]>([]);
+  const [studyTimeLoading, setStudyTimeLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
 
   const fetchAnalytics = async (isRefresh = false) => {
@@ -108,6 +111,24 @@ const Analytics = () => {
 
     return () => clearInterval(interval);
   }, [autoRefresh, dateRange]);
+
+  const fetchStudyTime = async () => {
+    setStudyTimeLoading(true);
+    try {
+      const data = await getAdminStudentStudyTime();
+      setStudyTimeData(data);
+    } catch (error) {
+      console.error('Error fetching study time:', error);
+    } finally {
+      setStudyTimeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'studytime') {
+      fetchStudyTime();
+    }
+  }, [activeTab]);
 
   const handleExport = async (format: 'json' | 'csv') => {
     try {
@@ -213,15 +234,6 @@ const Analytics = () => {
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
           
-          <Button
-            variant={autoRefresh ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setAutoRefresh(!autoRefresh)}
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            {autoRefresh ? 'Auto: ON' : 'Auto: OFF'}
-          </Button>
-          
           <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
@@ -286,11 +298,12 @@ const Analytics = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue="overview" className="space-y-4" onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="students">Student Analytics</TabsTrigger>
           <TabsTrigger value="content">Content Performance</TabsTrigger>
+          <TabsTrigger value="studytime">Study Time</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -396,6 +409,81 @@ const Analytics = () => {
                   </p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="studytime" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Student Study Time</CardTitle>
+                <CardDescription>Time each student has spent on lessons (recorded in real-time)</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchStudyTime} disabled={studyTimeLoading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${studyTimeLoading ? 'animate-spin' : ''}`} />
+                {studyTimeLoading ? 'Loading...' : 'Refresh'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {studyTimeLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : studyTimeData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No study time data recorded yet
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">#</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Student</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Email</th>
+                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">Today</th>
+                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">This Week</th>
+                        <th className="text-right py-3 px-2 font-medium text-muted-foreground">All Time</th>
+                        <th className="text-left py-3 px-2 font-medium text-muted-foreground">Last Active</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {studyTimeData.map((student, idx) => (
+                        <tr key={student.userId} className="border-b hover:bg-muted/50 transition-colors">
+                          <td className="py-3 px-2 text-muted-foreground">{idx + 1}</td>
+                          <td className="py-3 px-2 font-medium">{student.name}</td>
+                          <td className="py-3 px-2 text-muted-foreground">{student.email}</td>
+                          <td className="py-3 px-2 text-right">
+                            {student.todayMinutes > 0 ? (
+                              <Badge variant="secondary">{student.todayMinutes} min</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <span className={student.weeklyMinutes > 0 ? 'font-semibold text-blue-600' : 'text-muted-foreground'}>
+                              {student.weeklyMinutes > 0 ? `${student.weeklyMinutes} min` : '—'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <span className={student.totalMinutes >= 60 ? 'font-bold text-green-600' : student.totalMinutes > 0 ? 'font-semibold' : 'text-muted-foreground'}>
+                              {student.totalMinutes >= 60
+                                ? `${Math.floor(student.totalMinutes / 60)}h ${student.totalMinutes % 60}m`
+                                : student.totalMinutes > 0 ? `${student.totalMinutes} min` : '—'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-muted-foreground text-xs">
+                            {student.lastStudyDate
+                              ? new Date(student.lastStudyDate).toLocaleDateString()
+                              : 'Never'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

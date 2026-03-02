@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { getAllCourseQuestions, addCourseAnswer, acceptAnswer } from '@/api/courseQuestions';
 import { useToast } from '@/hooks/use-toast';
+import { formatUserName } from '@/lib/stringUtils';
 
 const QuestionManagement = () => {
   const [questions, setQuestions] = useState<any[]>([]);
@@ -166,7 +167,7 @@ const QuestionManagement = () => {
                 <p className="text-sm text-muted-foreground">Closed</p>
                 <p className="text-2xl font-bold">{stats.closed}</p>
               </div>
-              <CheckCircle2 className="w-8 h-8 text-gray-600" />
+              <CheckCircle2 className="w-8 h-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -221,7 +222,7 @@ const QuestionManagement = () => {
                   <div className="flex-1">
                     <CardTitle className="text-lg mb-2">{question.question}</CardTitle>
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span className="font-medium">{question.studentName}</span>
+                      <span className="font-medium">{formatUserName(question.studentName)}</span>
                       <span>•</span>
                       <span>{question.subject} - Grade {question.grade}</span>
                       {question.term && (
@@ -277,7 +278,7 @@ const QuestionManagement = () => {
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{answer.userName}</span>
+                            <span className="font-medium">{formatUserName(answer.userName)}</span>
                             {answer.isInstructor && (
                               <Badge variant="default" className="text-xs">Instructor</Badge>
                             )}

@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
   getAllSuggestions, 
@@ -44,7 +45,9 @@ import {
   Trash2,
   Filter,
   RefreshCw,
-  Activity
+  Activity,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -57,6 +60,10 @@ const SuggestionManagement = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [suggestionToDelete, setSuggestionToDelete] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fetchSuggestions = async () => {
     try {
@@ -124,11 +131,16 @@ const SuggestionManagement = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this suggestion?')) return;
+  const handleDelete = (id: string) => {
+    setSuggestionToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!suggestionToDelete) return;
 
     try {
-      await deleteSuggestion(id);
+      await deleteSuggestion(suggestionToDelete);
       toast({
         title: 'Success',
         description: 'Suggestion deleted successfully',
@@ -141,6 +153,9 @@ const SuggestionManagement = () => {
         description: 'Failed to delete suggestion',
         variant: 'destructive',
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setSuggestionToDelete(null);
     }
   };
 
@@ -169,6 +184,17 @@ const SuggestionManagement = () => {
     approved: suggestions?.filter(s => s.status === 'approved').length || 0,
     rejected: suggestions?.filter(s => s.status === 'rejected').length || 0,
   };
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(suggestions.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSuggestions = suggestions.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, gradeFilter]);
 
   return (
     <AdminLayout>
@@ -310,21 +336,22 @@ const SuggestionManagement = () => {
                 <p className="text-muted-foreground">No suggestions found</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Topic</TableHead>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Grade</TableHead>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {suggestions.map((suggestion) => (
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Topic</TableHead>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Grade</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedSuggestions.map((suggestion) => (
                       <TableRow key={suggestion._id}>
                         <TableCell className="font-medium max-w-xs">
                           <div className="line-clamp-2">{suggestion.topic}</div>
@@ -367,6 +394,53 @@ const SuggestionManagement = () => {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination */}
+              {suggestions.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(endIndex, suggestions.length)} of {suggestions.length} suggestions
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5 / page</SelectItem>
+                        <SelectItem value="10">10 / page</SelectItem>
+                        <SelectItem value="20">20 / page</SelectItem>
+                        <SelectItem value="50">50 / page</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -464,6 +538,16 @@ const SuggestionManagement = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={confirmDelete}
+        title="Delete Suggestion"
+        description="Are you sure you want to delete this suggestion? This action cannot be undone."
+        confirmText="Delete Suggestion"
+      />
     </AdminLayout>
   );
 };

@@ -5,18 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { formatUserName } from "@/lib/stringUtils";
 import { 
   getAllReferrals, 
   getReferralStats, 
   updateReferral, 
   deleteReferral,
+  adminProcessPayout,
   type Referral,
-  type ReferralStats
+  type ReferralStats,
+  type ReferralTransactionItem
 } from "@/api/referrals";
+import { api } from "@/lib/apiClient";
 import { 
   Users, 
   TrendingUp, 
@@ -28,16 +34,24 @@ import {
   Trash2,
   Search,
   Award,
-  UserPlus
+  UserPlus,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  Loader2,
+  CreditCard
 } from "lucide-react";
 
 const ReferralManagement = () => {
   const { toast } = useToast();
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [stats, setStats] = useState<ReferralStats | null>(null);
+  const [transactions, setTransactions] = useState<ReferralTransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState("all");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingReferral, setEditingReferral] = useState<Referral | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -49,21 +63,33 @@ const ReferralManagement = () => {
     rewardAmount: 0,
     rewardClaimed: false,
   });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [referralToDelete, setReferralToDelete] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [payingOut, setPayingOut] = useState<string | null>(null);
 
   // Fetch data
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, searchQuery, activeTab]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [referralsData, statsData] = await Promise.all([
+      const [referralsData, statsData, transactionsData] = await Promise.all([
         getAllReferrals(),
         getReferralStats(),
+        api.get('/referrals/admin/transactions').catch(() => []),
       ]);
       setReferrals(referralsData);
       setStats(statsData);
+      setTransactions(transactionsData || []);
     } catch (error) {
       toast({
         title: "Error",
@@ -72,6 +98,26 @@ const ReferralManagement = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickPayout = async (referrerId: string, referrerName: string) => {
+    setPayingOut(referrerId);
+    try {
+      const result = await adminProcessPayout(referrerId, 'Processed from transactions panel');
+      toast({
+        title: 'Payout Processed',
+        description: `Commission paid to ${referrerName}`,
+      });
+      await fetchData();
+    } catch (e: any) {
+      toast({
+        title: 'Payout Failed',
+        description: e?.response?.data?.message || e?.message || 'Failed to process payout',
+        variant: 'destructive',
+      });
+    } finally {
+      setPayingOut(null);
     }
   };
 
@@ -108,13 +154,11 @@ const ReferralManagement = () => {
   };
 
   // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this referral?")) {
-      return;
-    }
+  const handleDelete = async () => {
+    if (!referralToDelete) return;
 
     try {
-      await deleteReferral(id);
+      await deleteReferral(referralToDelete);
       toast({
         title: "Success",
         description: "Referral deleted successfully",
@@ -126,7 +170,14 @@ const ReferralManagement = () => {
         description: "Failed to delete referral",
         variant: "destructive",
       });
+    } finally {
+      setReferralToDelete(null);
     }
+  };
+
+  const confirmDelete = (id: string) => {
+    setReferralToDelete(id);
+    setDeleteConfirmOpen(true);
   };
 
   // Filter referrals
@@ -141,6 +192,12 @@ const ReferralManagement = () => {
 
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredReferrals.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedReferrals = filteredReferrals.slice(startIndex, endIndex);
 
   // Get status badge
   const getStatusBadge = (status: string) => {
@@ -231,9 +288,9 @@ const ReferralManagement = () => {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${stats.totalRewards.toFixed(2)}</div>
+                <div className="text-2xl font-bold">₦{stats.totalRewards.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  ${stats.claimedRewards.toFixed(2)} claimed
+                  ₦{stats.claimedRewards.toLocaleString()} claimed
                 </p>
               </CardContent>
             </Card>
@@ -276,7 +333,7 @@ const ReferralManagement = () => {
                         <p className="text-muted-foreground">Completed</p>
                       </div>
                       <div className="text-center">
-                        <p className="font-bold">${referrer.totalRewards.toFixed(2)}</p>
+                        <p className="font-bold">₦{referrer.totalRewards.toLocaleString()}</p>
                         <p className="text-muted-foreground">Rewards</p>
                       </div>
                     </div>
@@ -287,6 +344,24 @@ const ReferralManagement = () => {
           </Card>
         )}
 
+        {/* Referrals Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="all">
+              <Users className="w-4 h-4 mr-2" />
+              All Referrals
+            </TabsTrigger>
+            <TabsTrigger value="paid">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Paid Referrals
+            </TabsTrigger>
+            <TabsTrigger value="transactions">
+              <Receipt className="w-4 h-4 mr-2" />
+              Recent Transactions
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="space-y-4">
         {/* Search and Filters */}
         <Card>
           <CardHeader>
@@ -341,42 +416,63 @@ const ReferralManagement = () => {
                       <TableHead>Referrer</TableHead>
                       <TableHead>Referred Email</TableHead>
                       <TableHead>Referred User</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Referral Status</TableHead>
+                      <TableHead>User Status</TableHead>
                       <TableHead>Reward</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead>Date Created</TableHead>
+                      <TableHead>Last Updated</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredReferrals.map((referral) => (
+                    {paginatedReferrals.map((referral) => (
                       <TableRow key={referral.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{referral.referrerName || "Unknown"}</p>
+                            <p className="font-medium">{formatUserName(referral.referrerName) || "Unknown"}</p>
                             <p className="text-sm text-muted-foreground">
                               {referral.referrerEmail || "N/A"}
                             </p>
+                            {referral.referrerType && (
+                              <Badge variant="secondary" className="mt-1 text-xs">
+                                {referral.referrerType}
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
-                        <TableCell>{referral.referredEmail}</TableCell>
+                        <TableCell>
+                          <p className="font-medium">{referral.referredEmail}</p>
+                        </TableCell>
                         <TableCell>
                           {referral.referredUserId ? (
                             <div>
-                              <p className="font-medium">{referral.referredUserName}</p>
+                              <p className="font-medium">{formatUserName(referral.referredUserName) || "N/A"}</p>
                               <Badge variant="outline" className="mt-1">
-                                {referral.referredUserType}
+                                {referral.referredUserType || "N/A"}
                               </Badge>
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">Not registered</span>
+                            <span className="text-muted-foreground">Not registered yet</span>
                           )}
                         </TableCell>
                         <TableCell>{getStatusBadge(referral.status)}</TableCell>
                         <TableCell>
+                          {referral.referredUserStatus ? (
+                            <Badge 
+                              variant={referral.referredUserStatus === 'active' ? 'default' : 'secondary'}
+                              className="capitalize"
+                            >
+                              {referral.referredUserStatus}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <div>
-                            <p className="font-medium">${referral.rewardAmount.toFixed(2)}</p>
+                            <p className="font-medium">₦{referral.rewardAmount.toLocaleString()}</p>
                             {referral.rewardClaimed ? (
-                              <Badge variant="outline" className="mt-1 text-xs">
+                              <Badge variant="outline" className="mt-1 text-xs bg-green-50 text-green-700 border-green-300">
                                 Claimed
                               </Badge>
                             ) : (
@@ -387,7 +483,30 @@ const ReferralManagement = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {new Date(referral.createdAt).toLocaleDateString()}
+                          <div className="text-sm">
+                            <p>{new Date(referral.createdAt).toLocaleDateString()}</p>
+                            <p className="text-muted-foreground text-xs">
+                              {new Date(referral.createdAt).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {referral.updatedAt ? (
+                            <div className="text-sm">
+                              <p>{new Date(referral.updatedAt).toLocaleDateString()}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {new Date(referral.updatedAt).toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -401,7 +520,7 @@ const ReferralManagement = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(referral.id)}
+                              onClick={() => confirmDelete(referral.id)}
                             >
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </Button>
@@ -413,8 +532,224 @@ const ReferralManagement = () => {
                 </Table>
               </div>
             )}
+            
+            {/* Pagination Controls */}
+            {!loading && filteredReferrals.length > 0 && (
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(endIndex, filteredReferrals.length)} of {filteredReferrals.length} referrals
+                  </span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 / page</SelectItem>
+                      <SelectItem value="10">10 / page</SelectItem>
+                      <SelectItem value="20">20 / page</SelectItem>
+                      <SelectItem value="50">50 / page</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* Paid Referrals Tab */}
+          <TabsContent value="paid" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Paid Referrals</CardTitle>
+                <CardDescription>Referrals who have completed courses and received commissions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {filteredReferrals.filter(r => r.rewardClaimed).length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No paid referrals yet</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Referrer</TableHead>
+                        <TableHead>Referred User</TableHead>
+                        <TableHead>Reward Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredReferrals.filter(r => r.rewardClaimed).map((referral) => (
+                        <TableRow key={referral.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{referral.referrerName}</p>
+                              <p className="text-sm text-muted-foreground">{referral.referrerEmail}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{referral.referredUserName || 'Not signed up'}</p>
+                              <p className="text-sm text-muted-foreground">{referral.referredEmail}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            ₦{referral.rewardAmount.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-green-500">Paid</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(referral.createdAt).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions" className="space-y-4">
+            {/* Pending payout alert banner */}
+            {transactions.filter((tx: any) => tx.status === 'pending').length > 0 && (
+              <div className="flex items-start gap-3 p-4 rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/30">
+                <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-orange-700 dark:text-orange-400">
+                    {transactions.filter((tx: any) => tx.status === 'pending').length} Pending Payout{transactions.filter((tx: any) => tx.status === 'pending').length !== 1 ? 's' : ''}
+                  </p>
+                  <p className="text-sm text-orange-600 dark:text-orange-300">
+                    Students have made purchases and commissions are awaiting payment. Use the Pay button on each row to process.
+                  </p>
+                </div>
+              </div>
+            )}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+                <CardDescription>Commission transactions from course purchases</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {transactions.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No transactions yet</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Referrer</TableHead>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Purchase Amount</TableHead>
+                        <TableHead>Commission</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.map((tx: any) => (
+                        <TableRow
+                          key={tx._id}
+                          className={tx.status === 'pending' ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''}
+                        >
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{tx.referrerName || 'Unknown'}</p>
+                              <p className="text-sm text-muted-foreground">{tx.referrerEmail || tx.referrerId}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{tx.studentName || 'Unknown'}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            ₦{(tx.purchaseAmount || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="font-medium text-green-600">
+                            ₦{(tx.commissionAmount || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={tx.status === 'paid' ? 'default' : 'secondary'}
+                              className={tx.status === 'pending' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border-orange-300 dark:border-orange-700' : ''}>
+                              {tx.status === 'paid' ? (
+                                <><CheckCircle className="w-3 h-3 mr-1" />Paid</>
+                              ) : (
+                                <><Clock className="w-3 h-3 mr-1" />Pending</>
+                              )}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            <div>
+                              <p>{new Date(tx.createdAt).toLocaleDateString()}</p>
+                              {tx.paidAt && (
+                                <p className="text-xs text-green-600">Paid: {new Date(tx.paidAt).toLocaleDateString()}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {tx.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                                onClick={() => handleQuickPayout(tx.referrerId, tx.referrerName || 'Referrer')}
+                                disabled={payingOut === tx.referrerId}
+                              >
+                                {payingOut === tx.referrerId ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <CreditCard className="w-3 h-3 mr-1" />
+                                )}
+                                {payingOut === tx.referrerId ? 'Paying…' : 'Pay'}
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -444,7 +779,7 @@ const ReferralManagement = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Reward Amount ($)</Label>
+                <Label>Reward Amount (₦)</Label>
                 <Input
                   type="number"
                   value={editForm.rewardAmount}
@@ -483,6 +818,17 @@ const ReferralManagement = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          onConfirm={handleDelete}
+          title="Delete Referral"
+          description="Are you sure you want to delete this referral? This action cannot be undone."
+          confirmText="Delete"
+          destructive
+        />
       </div>
     </AdminLayout>
   );

@@ -272,8 +272,8 @@ export default function TopicManagement() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Topic Management</h1>
-            <p className="text-gray-600 mt-1">Create and manage learning topics</p>
+            <h1 className="text-3xl font-bold text-foreground">Topic Management</h1>
+            <p className="text-muted-foreground mt-1">Create and manage learning topics</p>
           </div>
           <Button onClick={() => setShowDialog(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -291,7 +291,7 @@ export default function TopicManagement() {
               <div>
                 <Label>Search</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Search topics..."
                     value={searchQuery}
@@ -625,7 +625,7 @@ export default function TopicManagement() {
                 return (
                   <div
                     key={lessonId}
-                    className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50"
+                    className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <input
                       type="checkbox"
@@ -635,14 +635,14 @@ export default function TopicManagement() {
                     />
                     <div className="flex-1">
                       <div className="font-medium">{lesson.title}</div>
-                      <div className="text-sm text-gray-600">{lesson.description}</div>
+                      <div className="text-sm text-muted-foreground">{lesson.description}</div>
                     </div>
                   </div>
                 );
               })}
               
               {(availableLessons || []).length === 0 && (
-                <div className="text-center py-8 text-gray-600">
+                <div className="text-center py-8 text-muted-foreground">
                   No lessons found for this topic's criteria
                 </div>
               )}
