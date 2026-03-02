@@ -55,7 +55,7 @@ import {
 dotenv.config();
 
 // Validate critical environment variables
-const requiredEnvVars = ['MONGODB_URI', 'VITE_JWT_SECRET'];
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar] && !process.env[`VITE_${envVar}`]);
 if (missingEnvVars.length > 0) {
   console.error(` Missing required environment variables: ${missingEnvVars.join(', ')}`);
