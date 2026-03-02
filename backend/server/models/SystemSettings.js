@@ -8,6 +8,19 @@ const GeneralSchema = new mongoose.Schema({
   timezone: { type: String, default: 'UTC' },
 }, { _id: false });
 
+const ContactSchema = new mongoose.Schema({
+  companyEmail: { type: String, default: 'info@mindsta.com' },
+  supportEmail: { type: String, default: 'support@mindsta.com' },
+  privacyEmail: { type: String, default: 'privacy@mindsta.com' },
+  adminEmail: { type: String, default: 'admin@mindsta.com' },
+  phone: { type: String, default: '+234 815 244 8471' },
+  whatsappNumber: { type: String, default: '2348152448471' },
+  whatsappMessage: { type: String, default: 'Hello! I have a question about Mindsta.' },
+  address: { type: String, default: '' },
+  city: { type: String, default: 'Lagos' },
+  country: { type: String, default: 'Nigeria' },
+}, { _id: false });
+
 const NotificationSchema = new mongoose.Schema({
   emailNotifications: { type: Boolean, default: true },
   newUserAlerts: { type: Boolean, default: true },
@@ -34,8 +47,20 @@ const AppearanceSchema = new mongoose.Schema({
 const AdvancedSchema = new mongoose.Schema({
   backupFrequency: { type: String, enum: ['hourly', 'daily', 'weekly'], default: 'daily' },
   coursesPerPage: { type: Number, default: 12, min: 6, max: 48 },
+  leaderboardPerPage: { type: Number, default: 10, min: 5, max: 50 },
+  myLearningPerPage: { type: Number, default: 9, min: 3, max: 48 },
   paystackPublicKey: { type: String, default: '' },
   paystackSecretKey: { type: String, default: '' },
+}, { _id: false });
+
+const QuoteItemSchema = new mongoose.Schema({
+  quote: { type: String, required: true },
+  author: { type: String, default: 'Unknown' },
+}, { _id: false });
+
+const QuotesSchema = new mongoose.Schema({
+  customQuotesEnabled: { type: Boolean, default: false },
+  dailyQuotes: { type: [QuoteItemSchema], default: [] },
 }, { _id: false });
 
 const SalesStatsSchema = new mongoose.Schema({
@@ -50,11 +75,13 @@ const SalesStatsSchema = new mongoose.Schema({
 
 const SystemSettingsSchema = new mongoose.Schema({
   general: { type: GeneralSchema, default: () => ({}) },
+  contact: { type: ContactSchema, default: () => ({}) },
   notifications: { type: NotificationSchema, default: () => ({}) },
   security: { type: SecuritySchema, default: () => ({}) },
   appearance: { type: AppearanceSchema, default: () => ({}) },
   advanced: { type: AdvancedSchema, default: () => ({}) },
   salesStats: { type: SalesStatsSchema, default: () => ({}) },
+  quotes: { type: QuotesSchema, default: () => ({}) },
 }, { timestamps: true });
 
 // Singleton constraint: ensure only one settings document

@@ -24,6 +24,14 @@ const UserProgressSchema = new Schema(
       type: Number,
       default: 0,
     },
+    videoPosition: {
+      type: Number,
+      default: 0,
+    },
+    videoWatchPercent: {
+      type: Number,
+      default: 0,
+    },
     lastAccessedAt: {
       type: Date,
       default: Date.now,

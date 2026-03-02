@@ -19,6 +19,8 @@ import Topic from './Topic.js';
 import SearchHistory from './SearchHistory.js';
 import { CourseReview } from './CourseReview.js';
 import { CourseQuestion } from './CourseQuestion.js';
+import Newsletter from './Newsletter.js';
+import AdminAlert from './AdminAlert.js';
 
 export {
   User,
@@ -42,4 +44,6 @@ export {
   SearchHistory,
   CourseReview,
   CourseQuestion,
+  Newsletter,
+  AdminAlert,
 };

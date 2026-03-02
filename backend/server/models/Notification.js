@@ -57,6 +57,10 @@ const notificationSchema = new mongoose.Schema({
       default: Date.now,
     },
   }],
+  dismissedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  }],
   metadata: {
     type: mongoose.Schema.Types.Mixed,
     default: {}
@@ -70,6 +74,7 @@ notificationSchema.index({ isActive: 1, createdAt: -1 });
 notificationSchema.index({ targetAudience: 1 });
 notificationSchema.index({ expiresAt: 1 });
 notificationSchema.index({ 'readBy.userId': 1 });
+notificationSchema.index({ dismissedBy: 1 });
 
 // Virtual to check if notification is expired
 notificationSchema.virtual('isExpired').get(function() {
@@ -88,21 +93,34 @@ notificationSchema.statics.getActiveForUser = async function(userId, userGrade =
   
   const query = {
     isActive: true,
-    $or: [
-      { expiresAt: null },
-      { expiresAt: { $gt: now } }
-    ],
-    $or: [
-      { targetAudience: 'all' },
-      { targetAudience: 'grade-specific', targetGrades: userGrade },
-      { targetAudience: 'individual', targetUsers: userId }
+    dismissedBy: { $ne: userId }, // Exclude notifications dismissed by this user
+    $and: [
+      // Expiry check: not expired (no expiry date, or expiry is in the future)
+      { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+      // Audience check: all users, this specific grade, or this individual user
+      {
+        $or: [
+          { targetAudience: 'all' },
+          { targetAudience: 'grade-specific', targetGrades: userGrade },
+          { targetAudience: 'individual', targetUsers: userId }
+        ]
+      }
     ]
   };
 
   return this.find(query)
-    .populate('createdBy', 'username role')
+    .populate('createdBy', 'fullName userType')
     .sort({ priority: -1, createdAt: -1 })
     .lean();
+};
+
+// Static method to dismiss a notification for a user
+notificationSchema.statics.dismissForUser = async function(notificationId, userId) {
+  return this.findByIdAndUpdate(
+    notificationId,
+    { $addToSet: { dismissedBy: userId } },
+    { new: true }
+  );
 };
 
 // Static method to get unread notifications for a user
