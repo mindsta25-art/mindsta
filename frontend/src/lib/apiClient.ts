@@ -91,17 +91,23 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
                           currentPath.includes('/help') ||
                           currentPath.includes('/support');
       
-      // Only clear token and redirect if on a protected page
-      if (!isPublicPage) {
-        console.log('🔄 Clearing expired token and redirecting to login');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('currentUser');
-        
-        // Small delay to avoid immediate redirect during page load
-        setTimeout(() => {
-          window.location.href = '/auth?mode=login&reason=session-expired';
-        }, 100);
+      // On public/auth pages, read the real server error and throw it (don't override with "session expired")
+      if (isPublicPage) {
+        const errorData = await response.json().catch(() => ({ error: 'Invalid credentials' }));
+        const error: any = new Error(errorData.error || errorData.message || 'Invalid email or password');
+        error.response = { status: 401, data: errorData };
+        throw error;
       }
+
+      // Only clear token and redirect if on a protected page
+      console.log('🔄 Clearing expired token and redirecting to login');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUser');
+      
+      // Small delay to avoid immediate redirect during page load
+      setTimeout(() => {
+        window.location.href = '/auth?mode=login&reason=session-expired';
+      }, 100);
     }
     
     // Handle 304 Not Modified - return empty array or cached data
@@ -118,17 +124,6 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
       console.error('❌ API Error:', errorData);
-      
-      // Handle 401 specifically with better error message
-      if (response.status === 401) {
-        const error: any = new Error('Your session has expired. Please log in again.');
-        error.response = {
-          status: response.status,
-          statusText: response.statusText,
-          data: errorData
-        };
-        throw error;
-      }
       
       // Create error object with response data attached
       const error: any = new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`);
