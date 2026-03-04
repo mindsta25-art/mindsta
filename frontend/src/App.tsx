@@ -22,6 +22,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const GoogleCallback = lazy(() => import("./pages/GoogleCallback"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
+const VerifySuccess = lazy(() => import("./pages/VerifySuccess"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const StudentHome = lazy(() => import("./pages/StudentHome"));
@@ -164,6 +165,14 @@ const App = () => (
                   element={
                     <ProtectedRoute requireAuth={false}>
                       <VerifyEmail />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/verify-success" 
+                  element={
+                    <ProtectedRoute requireAuth={false}>
+                      <VerifySuccess />
                     </ProtectedRoute>
                   } 
                 />

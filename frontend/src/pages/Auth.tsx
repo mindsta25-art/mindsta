@@ -97,7 +97,10 @@ const Auth = () => {
 
         // Redirect to verification page
         navigate('/verify-email', { 
-          state: { email: result.email || data.email } 
+          state: { 
+            email: result.email || data.email,
+            resent: result.resent || false
+          } 
         });
       } else {
         // Admin or other users who don't need verification
@@ -173,7 +176,10 @@ const Auth = () => {
         
         // Redirect to verification page
         navigate('/verify-email', { 
-          state: { email: error.email || data.email } 
+          state: { 
+            email: error.email || data.email,
+            resent: false
+          } 
         });
         return;
       }
