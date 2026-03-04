@@ -35,27 +35,17 @@ const EMAIL_CONFIG = {
 const createTransporter = () => {
   // Validate email configuration
   if (!EMAIL_CONFIG.auth.user || !EMAIL_CONFIG.auth.pass) {
-    console.warn('[Email] ⚠️  Email credentials not configured. Emails will be logged to console only.');
-    console.warn('[Email] Set EMAIL_USER and EMAIL_PASSWORD in .env file');
+    console.error('[Email] ❌ CRITICAL: EMAIL_USER and EMAIL_PASSWORD environment variables are not set!');
+    console.error('[Email] ❌ OTP emails WILL NOT be sent. Set these in your Render dashboard.');
     return null;
   }
 
   try {
     const config = {
-      ...(EMAIL_CONFIG.service ? { service: EMAIL_CONFIG.service } : {
-        host: EMAIL_CONFIG.host,
-        port: EMAIL_CONFIG.port,
-        secure: EMAIL_CONFIG.secure,
-      }),
+      service: 'gmail',
       auth: EMAIL_CONFIG.auth,
-      pool: EMAIL_CONFIG.pool,
-      maxConnections: EMAIL_CONFIG.maxConnections,
-      maxMessages: EMAIL_CONFIG.maxMessages,
-      rateDelta: EMAIL_CONFIG.rateDelta,
-      rateLimit: EMAIL_CONFIG.rateLimit,
-      // Security options
       tls: {
-        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        rejectUnauthorized: false,
       },
     };
 
@@ -88,13 +78,8 @@ const transporter = createTransporter();
  */
 const sendMailWithRetry = async (mailOptions, retries = 3) => {
   if (!transporter) {
-    console.log(`[Email] Email not sent (service not configured)`);
-    console.log(`[Email] To: ${mailOptions.to} | Subject: ${mailOptions.subject}`);
-    return Promise.resolve({ 
-      success: false, 
-      message: 'Email service not configured',
-      simulated: true 
-    });
+    console.error(`[Email] ❌ Cannot send email to ${mailOptions.to} - EMAIL_USER/EMAIL_PASSWORD not configured on server.`);
+    throw new Error('Email service is not configured. Please set EMAIL_USER and EMAIL_PASSWORD environment variables.');
   }
 
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -563,12 +548,33 @@ Need help? Our support team is here for you!
  * @param {number} amount - Payout amount
  */
 export const sendPayoutRequestEmail = async (referrerEmail, referrerName, amount) => {
-  console.log(`[Email] Payout request email would be sent for ${referrerName} (${referrerEmail})`);
-  console.log(`[Email] Requested amount: ${amount}`);
-  
-  return Promise.resolve({
-    success: true,
-    message: 'Email logged (not sent - email service not configured)'
+  const formattedAmount = Number(amount).toLocaleString();
+  const htmlContent = `
+    <!DOCTYPE html><html><head><style>
+      body { font-family: Arial, sans-serif; color: #333; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+      .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+      .amount { font-size: 28px; font-weight: bold; color: #667eea; text-align: center; padding: 20px; background: white; border-radius: 8px; margin: 20px 0; }
+    </style></head><body>
+      <div class="container">
+        <div class="header"><h2>Payout Request Received</h2></div>
+        <div class="content">
+          <p>Hi <strong>${referrerName}</strong>,</p>
+          <p>We have received your payout request. Our team will review and process it within 2–5 business days.</p>
+          <div class="amount">₦${formattedAmount}</div>
+          <p>You will receive a confirmation email once the payment has been processed.</p>
+          <p>Thank you for being a valued Mindsta partner!</p>
+          <p>– The Mindsta Team</p>
+        </div>
+      </div>
+    </body></html>
+  `;
+  return sendMailWithRetry({
+    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com>',
+    to: referrerEmail,
+    subject: 'Payout Request Received – Mindsta',
+    html: htmlContent,
   });
 };
 
@@ -579,12 +585,33 @@ export const sendPayoutRequestEmail = async (referrerEmail, referrerName, amount
  * @param {number} amount - Payout amount
  */
 export const sendPayoutProcessedEmail = async (referrerEmail, referrerName, amount) => {
-  console.log(`[Email] Payout processed email would be sent to ${referrerEmail}`);
-  console.log(`[Email] Amount processed: ${amount}`);
-  
-  return Promise.resolve({
-    success: true,
-    message: 'Email logged (not sent - email service not configured)'
+  const formattedAmount = Number(amount).toLocaleString();
+  const htmlContent = `
+    <!DOCTYPE html><html><head><style>
+      body { font-family: Arial, sans-serif; color: #333; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+      .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+      .amount { font-size: 28px; font-weight: bold; color: #10b981; text-align: center; padding: 20px; background: white; border-radius: 8px; margin: 20px 0; }
+    </style></head><body>
+      <div class="container">
+        <div class="header"><h2>✅ Payout Processed!</h2></div>
+        <div class="content">
+          <p>Hi <strong>${referrerName}</strong>,</p>
+          <p>Great news! Your payout has been successfully processed and sent to your registered bank account.</p>
+          <div class="amount">₦${formattedAmount}</div>
+          <p>Please allow 1–3 business days for the funds to reflect in your account.</p>
+          <p>Keep referring and earning with Mindsta!</p>
+          <p>– The Mindsta Team</p>
+        </div>
+      </div>
+    </body></html>
+  `;
+  return sendMailWithRetry({
+    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com>',
+    to: referrerEmail,
+    subject: '✅ Your Payout Has Been Processed – Mindsta',
+    html: htmlContent,
   });
 };
 

@@ -23,6 +23,38 @@ const generateOTP = () => {
 };
 
 /**
+ * GET /api/auth/email-status
+ * Check if email service is configured (admin diagnostic only)
+ */
+router.get('/email-status', (req, res) => {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASSWORD;
+  res.json({
+    configured: !!(emailUser && emailPass),
+    user: emailUser ? `${emailUser.slice(0, 4)}***@${emailUser.split('@')[1]}` : 'NOT SET',
+    password: emailPass ? '*** (set)' : 'NOT SET',
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: process.env.EMAIL_PORT || 587,
+  });
+});
+
+/**
+ * POST /api/auth/test-email
+ * Send a test OTP email to verify the email service works
+ */
+router.post('/test-email', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email is required' });
+  try {
+    const testOtp = generateOTP();
+    await sendVerificationOTP(email, 'Test User', testOtp);
+    res.json({ success: true, message: `Test OTP sent to ${email}`, otp: testOtp });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * POST /api/auth/signup
  * Sign up a new user
  */
@@ -49,7 +81,24 @@ router.post('/signup', async (req, res) => {
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: 'User with this email already exists' });
+      // If user exists but is unverified, resend OTP instead of blocking them
+      if (!existingUser.isVerified && (existingUser.userType === 'student' || existingUser.userType === 'referral')) {
+        const otp = generateOTP();
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await User.findByIdAndUpdate(existingUser._id, { verificationOTP: otp, otpExpires });
+        try {
+          await sendVerificationOTP(email, existingUser.fullName, otp);
+        } catch (emailError) {
+          return res.status(500).json({ error: 'Could not send verification email. Please try again.' });
+        }
+        return res.status(200).json({
+          message: 'A new verification code has been sent to your email.',
+          email: existingUser.email,
+          requiresVerification: true,
+          resent: true,
+        });
+      }
+      return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
     }
 
     // Hash password
@@ -86,7 +135,12 @@ router.post('/signup', async (req, res) => {
         await sendVerificationOTP(email, fullName, otp);
       } catch (emailError) {
         console.error('[Signup] Error sending verification email:', emailError);
-        // Continue signup even if email fails
+        // Delete the user we just created so they can retry registration
+        await User.findByIdAndDelete(user._id);
+        return res.status(500).json({
+          error: 'Registration failed: could not send verification email. Please try again.',
+          details: emailError.message
+        });
       }
     }
 

@@ -168,7 +168,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(passport.initialize());
 
 // MongoDB Connection with production settings
-const MONGODB_URI = process.env.MONGODB_URI || process.env.VITE_MONGODB_URI || 'mongodb+srv://mindsta:dbmindsta123456@mindsta.vxy6aly.mongodb.net/mindsta?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.error('❌ MONGODB_URI environment variable is not set! Cannot connect to database.');
+  process.exit(1);
+}
 
 console.log('[ServerBoot] Connecting to MongoDB...');
 mongoose.connect(MONGODB_URI, {
