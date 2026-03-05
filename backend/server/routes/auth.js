@@ -27,14 +27,20 @@ const generateOTP = () => {
  * Check if email service is configured (admin diagnostic only)
  */
 router.get('/email-status', (req, res) => {
-  const emailUser = process.env.EMAIL_USER;
-  const emailPass = process.env.EMAIL_PASSWORD;
+  const resendKey = process.env.RESEND_API_KEY;
+  const resendFrom = process.env.RESEND_FROM;
+  const smtpUser = process.env.EMAIL_USER;
   res.json({
-    configured: !!(emailUser && emailPass),
-    user: emailUser ? `${emailUser.slice(0, 4)}***@${emailUser.split('@')[1]}` : 'NOT SET',
-    password: emailPass ? '*** (set)' : 'NOT SET',
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
+    provider: resendKey ? 'Resend (HTTP)' : smtpUser ? 'Nodemailer SMTP (local only)' : 'NOT CONFIGURED',
+    configured: !!(resendKey || smtpUser),
+    resend: {
+      apiKey: resendKey ? `re_***${resendKey.slice(-4)}` : '❌ NOT SET — add RESEND_API_KEY in Render env vars',
+      from: resendFrom || '⚠️ RESEND_FROM not set (will use default)',
+    },
+    smtp: {
+      user: smtpUser ? `${smtpUser.slice(0, 4)}***@${smtpUser.split('@')[1]}` : 'NOT SET',
+      note: 'SMTP is blocked on Render free tier — only used for local dev',
+    },
   });
 });
 
@@ -56,44 +62,35 @@ router.post('/test-email', async (req, res) => {
 
 /**
  * GET /api/auth/email-debug
- * Full SMTP diagnostic — returns connection test result + env var status
+ * Resend + SMTP diagnostic
  */
 router.get('/email-debug', async (req, res) => {
-  const emailUser = process.env.EMAIL_USER;
-  const emailPass = process.env.EMAIL_PASSWORD;
+  const resendKey = process.env.RESEND_API_KEY;
   const status = {
     env: {
-      EMAIL_USER: emailUser ? `${emailUser.slice(0, 4)}***@${emailUser.split('@')[1]}` : '❌ NOT SET',
-      EMAIL_PASSWORD: emailPass ? `✅ set (${emailPass.length} chars)` : '❌ NOT SET',
+      RESEND_API_KEY: resendKey ? `✅ set (re_***${resendKey.slice(-4)})` : '❌ NOT SET',
+      RESEND_FROM: process.env.RESEND_FROM || '⚠️ not set',
+      EMAIL_USER: process.env.EMAIL_USER ? `${process.env.EMAIL_USER.slice(0, 4)}***` : 'not set',
     },
-    smtp: null,
+    resend: null,
   };
-  if (!emailUser || !emailPass) {
-    return res.json({ ...status, smtp: '❌ Skipped — env vars missing' });
-  }
-  try {
-    const nodemailer = await import('nodemailer');
-    const t = nodemailer.createTransport({
-      host: 'smtp.gmail.com', port: 465, secure: true,
-      auth: { user: emailUser, pass: emailPass },
-      tls: { rejectUnauthorized: false },
-    });
-    await t.verify();
-    status.smtp = '✅ Port 465 verified — Gmail accepted the credentials';
-  } catch (err465) {
+
+  if (resendKey) {
     try {
-      const nodemailer2 = await import('nodemailer');
-      const t2 = nodemailer2.createTransport({
-        host: 'smtp.gmail.com', port: 587, secure: false,
-        auth: { user: emailUser, pass: emailPass },
-        tls: { rejectUnauthorized: false },
-      });
-      await t2.verify();
-      status.smtp = `⚠️ Port 465 failed (${err465.message}) but ✅ Port 587 works!`;
-    } catch (err587) {
-      status.smtp = `❌ Both ports failed. 465: ${err465.message} | 587: ${err587.message}`;
+      const { Resend } = await import('resend');
+      const r = new Resend(resendKey);
+      // Ping the Resend API by listing domains (lightweight)
+      const domains = await r.domains.list();
+      status.resend = domains.error
+        ? `❌ API error: ${domains.error.message}`
+        : `✅ Resend API key valid. Domains: ${domains.data?.data?.map(d => d.name).join(', ') || 'none verified yet'}`;
+    } catch (err) {
+      status.resend = `❌ Resend check failed: ${err.message}`;
     }
+  } else {
+    status.resend = '❌ RESEND_API_KEY not set — add it in Render environment variables';
   }
+
   res.json(status);
 });
 

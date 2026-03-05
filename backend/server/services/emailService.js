@@ -1,97 +1,93 @@
 /**
- * Email Service — Nodemailer + Gmail
+ * Email Service — Resend (HTTP/443) primary, Nodemailer SMTP local-dev fallback
+ *
+ * Why Resend?  Render free tier blocks all outbound SMTP (ports 465 & 587).
+ * Resend sends over HTTPS (port 443) — never blocked by any cloud provider.
+ *
+ * Setup (one-time):
+ *  1. Create free account at https://resend.com
+ *  2. Add & verify your domain (mindsta.com) — takes ~5 min
+ *  3. Create an API key
+ *  4. Add to Render env vars:
+ *       RESEND_API_KEY=re_xxxxxxxxxxxx
+ *       RESEND_FROM=Mindsta <noreply@mindsta.com>
  */
 
+import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const FROM_ADDRESS = process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`;
+// ── Resend client (production / staging) ──────────────────────────────────
+const resendApiKey = process.env.RESEND_API_KEY;
+const resendClient = resendApiKey ? new Resend(resendApiKey) : null;
 
-const createTransporters = () => {
+if (resendClient) {
+  console.log('[Email] ✅ Resend client ready (HTTP-based — works on Render)');
+} else {
+  console.warn('[Email] ⚠️  RESEND_API_KEY not set — falling back to Nodemailer SMTP (local dev only)');
+}
+
+// FROM address: prefer RESEND_FROM, then EMAIL_FROM, then construct from EMAIL_USER
+const FROM_ADDRESS =
+  process.env.RESEND_FROM ||
+  process.env.EMAIL_FROM ||
+  (process.env.EMAIL_USER ? `Mindsta <${process.env.EMAIL_USER}>` : 'Mindsta <noreply@mindsta.com>');
+
+// ── Nodemailer (local dev fallback only) ──────────────────────────────────
+const createLocalTransporter = () => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASSWORD;
-
-  if (!user || !pass) {
-    console.error('[Email] ❌ EMAIL_USER or EMAIL_PASSWORD is not set in Render environment variables');
-    return { primary: null, fallback: null };
-  }
-
-  // Primary: port 465 with implicit SSL
-  const primary = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
-  });
-
-  // Fallback: port 587 with STARTTLS (less likely to be blocked by hosting providers)
-  const fallback = nodemailer.createTransport({
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
+    connectionTimeout: 10000,
+    socketTimeout: 15000,
   });
-
-  primary.verify((error) => {
-    if (error) {
-      console.error('[Email] ⚠️ Gmail SMTP port 465 check failed:', error.message, '— will try port 587 as fallback');
-    } else {
-      console.log('[Email] ✅ Gmail SMTP port 465 ready');
-      console.log(`[Email] 📧 Sending from: ${FROM_ADDRESS}`);
-    }
-  });
-
-  return { primary, fallback };
 };
 
-const transporters = createTransporters();
+const localTransporter = !resendClient ? createLocalTransporter() : null;
 
-const sendMail = async (mailOptions) => {
-  if (!transporters.primary && !transporters.fallback) {
-    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASSWORD in Render environment variables.');
-  }
+// ── Core send function ─────────────────────────────────────────────────────
+const sendMail = async ({ to, subject, html, text, from }) => {
+  const fromAddr = from || FROM_ADDRESS;
 
-  const fullOptions = { from: mailOptions.from || FROM_ADDRESS, ...mailOptions };
-
-  // Try primary transport (port 465)
-  if (transporters.primary) {
-    try {
-      const info = await transporters.primary.sendMail(fullOptions);
-      return info;
-    } catch (err) {
-      console.error('[Email] ⚠️ Port 465 failed:', err.message, '— retrying on port 587...');
+  // 1️⃣  Resend — HTTP API (works on any platform)
+  if (resendClient) {
+    const result = await resendClient.emails.send({
+      from: fromAddr,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+      text,
+    });
+    if (result.error) {
+      throw new Error(`Resend error: ${result.error.message || JSON.stringify(result.error)}`);
     }
+    return { messageId: result.data?.id || 'resend-ok' };
   }
 
-  // Fallback to port 587 (STARTTLS)
-  if (transporters.fallback) {
-    const info = await transporters.fallback.sendMail(fullOptions);
-    console.log('[Email] ✅ Sent via port 587 fallback');
+  // 2️⃣  Nodemailer fallback (local dev only — SMTP blocked in production)
+  if (localTransporter) {
+    const info = await localTransporter.sendMail({ from: fromAddr, to, subject, html, text });
     return info;
   }
 
-  throw new Error('All email transport options exhausted');
+  throw new Error(
+    'Email service not configured. Set RESEND_API_KEY in Render environment variables.'
+  );
 };
 
 const sendMailWithRetry = async (mailOptions, retries = 2) => {
-  if (!transporters.primary && !transporters.fallback) {
-    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASSWORD in Render environment variables.');
-  }
-
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const info = await sendMail(mailOptions);
-      console.log(`[Email] ✅ Email sent to ${mailOptions.to} (messageId: ${info.messageId})`);
+      console.log(`[Email] ✅ Email sent to ${mailOptions.to} (id: ${info.messageId})`);
       return { success: true, message: 'Email sent successfully', messageId: info.messageId };
     } catch (error) {
       console.error(`[Email] ❌ Attempt ${attempt}/${retries} failed:`, error.message);
