@@ -1,109 +1,75 @@
 /**
  * Email Service
- * Professional mailing system using Nodemailer
- * Supports Gmail, Outlook, custom SMTP, and other providers
+ * Uses Resend HTTP API — works on Render free tier.
+ * Gmail/SMTP (ports 465/587) is blocked by Render's network policy;
+ * Resend sends over HTTPS (port 443) which is always open.
  */
 
-import pkg from 'nodemailer';
-const { createTransport } = pkg;
+import { Resend } from 'resend';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Email service configuration
-const EMAIL_CONFIG = {
-  // Service provider (gmail, outlook, yahoo, etc.)
-  service: process.env.EMAIL_SERVICE || null,
-  // SMTP configuration
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
-  // Authentication
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-  // Additional options
-  pool: process.env.EMAIL_POOL === 'true', // Use connection pool
-  maxConnections: parseInt(process.env.EMAIL_MAX_CONNECTIONS) || 5,
-  maxMessages: parseInt(process.env.EMAIL_MAX_MESSAGES) || 100,
-  rateDelta: parseInt(process.env.EMAIL_RATE_DELTA) || 1000,
-  rateLimit: parseInt(process.env.EMAIL_RATE_LIMIT) || 5,
-};
+// From address: use verified domain address once domain is set up in Resend dashboard,
+// otherwise the default onboarding@resend.dev works for sending to any address.
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'Mindsta <onboarding@resend.dev>';
 
-// Create reusable transporter with enhanced configuration
-const createTransporter = () => {
-  // Validate email configuration
-  if (!EMAIL_CONFIG.auth.user || !EMAIL_CONFIG.auth.pass) {
-    console.error('[Email] ❌ CRITICAL: EMAIL_USER and EMAIL_PASSWORD environment variables are not set!');
-    console.error('[Email] ❌ OTP emails WILL NOT be sent. Set these in your Render dashboard.');
-    return null;
+// Initialize Resend client
+const resendClient = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+if (!resendClient) {
+  console.error('[Email] ❌ CRITICAL: RESEND_API_KEY is not set!');
+  console.error('[Email] ❌ OTP emails WILL NOT be sent.');
+  console.error('[Email] ❌ Sign up free at https://resend.com → API Keys → add RESEND_API_KEY to Render env vars.');
+} else {
+  console.log('[Email] ✅ Resend email service initialized (HTTPS — no SMTP)');
+  console.log(`[Email] 📧 From: ${FROM_ADDRESS}`);
+}
+
+/**
+ * Core send via Resend HTTP API
+ * @param {object} mailOptions - { from?, to, subject, html, text? }
+ */
+const sendMail = async (mailOptions) => {
+  if (!resendClient) {
+    throw new Error('Email service not configured. Add RESEND_API_KEY to Render environment variables.');
   }
-
-  try {
-    const config = {
-      service: 'gmail',
-      auth: EMAIL_CONFIG.auth,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    };
-
-    const transporter = createTransport(config);
-
-    // Verify connection on startup
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error('[Email] ❌ SMTP connection error:', error.message);
-      } else {
-        console.log('[Email] ✅ SMTP server is ready to send emails');
-        console.log(`[Email] 📧 Using: ${EMAIL_CONFIG.service || EMAIL_CONFIG.host}`);
-      }
-    });
-
-    return transporter;
-  } catch (error) {
-    console.error('[Email] ❌ Failed to create email transporter:', error.message);
-    return null;
-  }
+  const { data, error } = await resendClient.emails.send({
+    from: mailOptions.from || FROM_ADDRESS,
+    to: [mailOptions.to],
+    subject: mailOptions.subject,
+    html: mailOptions.html,
+    text: mailOptions.text,
+  });
+  if (error) throw new Error(error.message);
+  return data;
 };
-
-const transporter = createTransporter();
 
 /**
  * Send email with retry logic and error handling
- * @param {object} mailOptions - Nodemailer mail options
+ * @param {object} mailOptions - mail options
  * @param {number} retries - Number of retry attempts
  * @returns {Promise} - Send result
  */
 const sendMailWithRetry = async (mailOptions, retries = 3) => {
-  if (!transporter) {
-    console.error(`[Email] ❌ Cannot send email to ${mailOptions.to} - EMAIL_USER/EMAIL_PASSWORD not configured on server.`);
-    throw new Error('Email service is not configured. Please set EMAIL_USER and EMAIL_PASSWORD environment variables.');
+  if (!resendClient) {
+    console.error(`[Email] ❌ Cannot send email to ${mailOptions.to} - RESEND_API_KEY not configured.`);
+    throw new Error('Email service is not configured. Please set RESEND_API_KEY environment variable.');
   }
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`[Email] ✅ Email sent successfully to ${mailOptions.to}`);
-      console.log(`[Email] Message ID: ${info.messageId}`);
-      return Promise.resolve({ 
-        success: true, 
-        message: 'Email sent successfully',
-        messageId: info.messageId 
-      });
+      const data = await sendMail(mailOptions);
+      console.log(`[Email] ✅ Email sent successfully to ${mailOptions.to} (id: ${data.id})`);
+      return { success: true, message: 'Email sent successfully', messageId: data.id };
     } catch (error) {
       console.error(`[Email] ❌ Attempt ${attempt}/${retries} failed:`, error.message);
-      
       if (attempt === retries) {
-        return Promise.resolve({ 
-          success: false, 
-          message: 'Email sending failed after retries',
-          error: error.message 
-        });
+        return { success: false, message: 'Email sending failed after retries', error: error.message };
       }
-      
-      // Wait before retrying (exponential backoff)
+      // Exponential backoff
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
     }
   }
@@ -229,22 +195,15 @@ If you have any questions or need assistance, our support team is always here to
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!transporter) {
-    console.log(`[Email] Email verified congratulations (Email service not configured)`);
-    console.log(`[Email] To: ${email} | Name: ${name}`);
-    return Promise.resolve({ success: true, message: 'Email logged (not sent - email service not configured)' });
-  }
-
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`,
+      from: FROM_ADDRESS,
       to: email,
       subject: '🎉 Congratulations! Your Email is Verified - Mindsta',
       text: textContent,
       html: htmlContent
     };
-
-    await transporter.sendMail(mailOptions);
+    await sendMail(mailOptions);
     console.log(`[Email] ✅ Email verified congratulations sent to ${email}`);
     return Promise.resolve({ success: true, message: 'Email verified congratulations sent successfully' });
   } catch (error) {
@@ -317,22 +276,15 @@ Keep sharing your referral code to earn more rewards.
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!transporter) {
-    console.log(`[Email] Referral signup notification (Email service not configured)`);
-    console.log(`[Email] To: ${referrerEmail} | Referred: ${referredName} | Code: ${referralCode}`);
-    return Promise.resolve({ success: true, message: 'Email logged (not sent - email service not configured)' });
-  }
-
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`,
+      from: FROM_ADDRESS,
       to: referrerEmail,
       subject: '🎉 New Referral Signup - Mindsta',
       text: textContent,
       html: htmlContent
     };
-
-    await transporter.sendMail(mailOptions);
+    await sendMail(mailOptions);
     console.log(`[Email] ✅ Referral signup notification sent to ${referrerEmail}`);
     return Promise.resolve({ success: true, message: 'Referral signup email sent successfully' });
   } catch (error) {
@@ -408,14 +360,13 @@ This link will expire in 1 hour. If you didn't request this password reset, plea
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!transporter) {
-    console.log(`[Email] Password reset email (Email service not configured)`);
-    console.log(`[Email] To: ${email} | Reset URL: ${resetUrl}`);
-    return Promise.resolve({ success: true, message: 'Email logged (not sent - email service not configured)' });
+  if (!resendClient) {
+    console.log(`[Email] Password reset email skipped — RESEND_API_KEY not configured`);
+    return Promise.resolve({ success: false, message: 'Email service not configured' });
   }
 
   const mailOptions = {
-    from: process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`,
+    from: FROM_ADDRESS,
     to: email,
     subject: '🔒 Reset Your Password - Mindsta',
     text: textContent,
@@ -517,22 +468,15 @@ Need help? Our support team is here for you!
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!transporter) {
-    console.log(`[Email] Welcome email (Email service not configured)`);
-    console.log(`[Email] To: ${email} | Name: ${name}`);
-    return Promise.resolve({ success: true, message: 'Email logged (not sent - email service not configured)' });
-  }
-
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`,
+      from: FROM_ADDRESS,
       to: email,
       subject: '🎓 Welcome to Mindsta - Start Your Learning Journey!',
       text: textContent,
       html: htmlContent
     };
-
-    await transporter.sendMail(mailOptions);
+    await sendMail(mailOptions);
     console.log(`[Email] ✅ Welcome email sent to ${email}`);
     return Promise.resolve({ success: true, message: 'Welcome email sent successfully' });
   } catch (error) {
@@ -709,14 +653,8 @@ Happy learning! 🎓
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!transporter) {
-    console.log(`[Email] Payment success email (Email service not configured)`);
-    console.log(`[Email] To: ${email} | Amount: ₦${amount} | Ref: ${reference}`);
-    return Promise.resolve({ success: true, message: 'Email logged (not sent - email service not configured)' });
-  }
-
   const mailOptions = {
-    from: process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`,
+    from: FROM_ADDRESS,
     to: email,
     subject: '✅ Payment Successful - Mindsta',
     text: textContent,
@@ -821,22 +759,15 @@ View your dashboard: https://mindsta33.vercel.app/referral/dashboard
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!transporter) {
-    console.log(`[Email] Commission earned email (Email service not configured)`);
-    console.log(`[Email] To: ${referrerEmail} | Amount: ₦${commission}`);
-    return Promise.resolve({ success: true, message: 'Email logged (not sent - email service not configured)' });
-  }
-
   try {
     const mailOptions = {
-      from: process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`,
+      from: FROM_ADDRESS,
       to: referrerEmail,
       subject: '💰 Commission Earned - Mindsta Referral Program',
       text: textContent,
       html: htmlContent
     };
-
-    await transporter.sendMail(mailOptions);
+    await sendMail(mailOptions);
     console.log(`[Email] ✅ Commission earned email sent to ${referrerEmail}`);
     return Promise.resolve({ success: true, message: 'Commission earned email sent successfully' });
   } catch (error) {
@@ -945,56 +876,24 @@ If you didn't create an account with Mindsta, please ignore this email.
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  // If transporter is not configured, fall back to console logging
-  if (!transporter) {
-    console.log(`[Email] ========================================`);
-    console.log(`[Email] VERIFICATION OTP EMAIL (Email service not configured)`);
-    console.log(`[Email] To: ${email}`);
-    console.log(`[Email] Name: ${name}`);
-    console.log(`[Email] OTP: ${otp}`);
-    console.log(`[Email] ========================================`);
+  // Always log OTP to server console for emergency recovery
+  console.log(`[Email] ========================================`);
+  console.log(`[Email] VERIFICATION OTP`);
+  console.log(`[Email] To: ${email} | OTP: ${otp}`);
+  console.log(`[Email] ========================================`);
 
-    return Promise.resolve({
-      success: true,
-      message: 'OTP logged (not sent - email service not configured)',
-      otp: otp // Only for development
-    });
-  }
+  const mailOptions = {
+    from: FROM_ADDRESS,
+    to: email,
+    subject: 'Verify Your Email - Mindsta',
+    text: textContent,
+    html: htmlContent
+  };
 
-  try {
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Verify Your Email - Mindsta',
-      text: textContent,
-      html: htmlContent
-    };
-
-    await transporter.sendMail(mailOptions);
-    
-    console.log(`[Email] ✅ Verification OTP sent successfully to ${email}`);
-    
-    return Promise.resolve({
-      success: true,
-      message: 'OTP email sent successfully'
-    });
-  } catch (error) {
-    console.error(`[Email] ❌ Failed to send OTP email:`, error.message);
-    
-    // Fall back to console logging if email fails
-    console.log(`[Email] ========================================`);
-    console.log(`[Email] VERIFICATION OTP (Email failed, showing code here)`);
-    console.log(`[Email] To: ${email}`);
-    console.log(`[Email] OTP: ${otp}`);
-    console.log(`[Email] ========================================`);
-    
-    return Promise.resolve({
-      success: false,
-      message: 'Email sending failed, but registration can continue',
-      error: error.message,
-      otp: otp // For development/debugging
-    });
-  }
+  // Throws on failure — caught by signup route which then deletes the pending user
+  await sendMail(mailOptions);
+  console.log(`[Email] ✅ Verification OTP sent successfully to ${email}`);
+  return { success: true, message: 'OTP email sent successfully' };
 };
 
 /**

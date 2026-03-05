@@ -63,6 +63,9 @@ if (missingEnvVars.length > 0) {
 }
 
 const app = express();
+// Trust Render/Vercel reverse proxy so express-rate-limit reads real client IPs
+// (fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR and false 403s)
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const IS_PRODUCTION = NODE_ENV === 'production';
