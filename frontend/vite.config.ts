@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: "dist",
+    target: "es2020", // Modern target for better tree-shaking
     sourcemap: mode !== "production", // Disable sourcemaps in production
     minify: "terser",
     terserOptions: {
@@ -28,25 +29,46 @@ export default defineConfig(({ mode }) => ({
         drop_console: mode === "production", // Remove console.logs in production
         drop_debugger: true,
         pure_funcs: mode === "production" ? ["console.log", "console.debug"] : [],
+        passes: 2,
       },
     },
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React libraries
-          vendor: ["react", "react-dom", "react-router-dom"],
-          // UI component libraries
-          ui: ["@radix-ui/react-dialog", "@radix-ui/react-tabs", "@radix-ui/react-toast", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select"],
-          // Charts and visualization
-          charts: ["recharts"],
-          // Form handling
-          forms: ["react-hook-form", "zod"],
-          // Animation libraries
-          animations: ["framer-motion"],
+        manualChunks: (id) => {
+          // Core React libraries — loaded first
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
+            return 'vendor';
+          }
+          // Heavy PDF/export library — only loaded on admin pages
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/jspdf-autotable')) {
+            return 'pdf';
+          }
+          // Chart libraries
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) {
+            return 'charts';
+          }
+          // Animation library
+          if (id.includes('node_modules/framer-motion')) {
+            return 'animations';
+          }
           // Icons
-          icons: ["lucide-react"],
+          if (id.includes('node_modules/lucide-react')) {
+            return 'icons';
+          }
+          // Radix UI components
+          if (id.includes('node_modules/@radix-ui/')) {
+            return 'ui';
+          }
+          // Form libraries
+          if (id.includes('node_modules/react-hook-form') || id.includes('node_modules/zod') || id.includes('node_modules/@hookform/')) {
+            return 'forms';
+          }
+          // Admin pages — lazy-loaded separately
+          if (id.includes('/pages/admin/')) {
+            return 'admin';
+          }
         },
-        // Better file naming for caching
+        // Better file naming for long-term caching
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',

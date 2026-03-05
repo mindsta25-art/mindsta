@@ -122,11 +122,17 @@ const NewsletterSubscribers = () => {
       setSentNewsletters(data.newsletters || []);
     } catch (error: any) {
       console.error('Error fetching sent newsletters:', error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to fetch sent newsletters",
-        variant: "destructive",
-      });
+      // Only show error toast for real failures (not 404 / empty collection)
+      const status = error?.response?.status;
+      if (status !== 404 && status !== 401) {
+        toast({
+          title: "Error",
+          description: error.response?.data?.error || "Failed to fetch sent newsletters",
+          variant: "destructive",
+        });
+      }
+      // Default to empty list so the tab still renders
+      setSentNewsletters([]);
     }
   };
 

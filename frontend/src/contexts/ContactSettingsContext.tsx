@@ -20,6 +20,11 @@ const defaultContactSettings: ContactSettings = {
   country: 'Nigeria',
 };
 
+// In-memory session cache — avoids re-fetching on every page navigation
+let _settingsCache: ContactSettings | null = null;
+let _cacheTimestamp = 0;
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 const ContactSettingsContext = createContext<ContactSettingsContextType>({
   contactSettings: defaultContactSettings,
   loading: true,
@@ -43,23 +48,29 @@ export const ContactSettingsProvider = ({ children }: ContactSettingsProviderPro
   const [loading, setLoading] = useState(true);
 
   const loadContactSettings = async (bustCache = false) => {
+    // Serve from cache if still fresh and not explicitly busted
+    if (!bustCache && _settingsCache && Date.now() - _cacheTimestamp < CACHE_TTL_MS) {
+      setContactSettings(_settingsCache);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      console.log('[ContactSettings] Loading contact settings...', bustCache ? '(cache busted)' : '');
       
       // Use public endpoint that doesn't require admin auth
-      const url = `/settings/public/contact${bustCache ? `?t=${Date.now()}` : ''}`;
       const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-      const response = await fetch(`${apiBaseUrl}${url}`);
+      const url = `${apiBaseUrl}/settings/public/contact${bustCache ? `?t=${Date.now()}` : ''}`;
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch contact settings: ${response.status}`);
       }
       
       const contactData = await response.json();
-      console.log('[ContactSettings] Received contact data:', contactData);
+      _settingsCache = contactData;
+      _cacheTimestamp = Date.now();
       setContactSettings(contactData);
-      console.log('[ContactSettings] Contact settings updated');
     } catch (error) {
       console.error('[ContactSettings] Failed to load contact settings:', error);
       // Keep using default settings on error
@@ -73,9 +84,7 @@ export const ContactSettingsProvider = ({ children }: ContactSettingsProviderPro
   }, []);
 
   const refreshContactSettings = async () => {
-    console.log('[ContactSettings] Refreshing contact settings...');
     await loadContactSettings(true); // Force cache bust on refresh
-    console.log('[ContactSettings] Refresh complete');
   };
 
   return (

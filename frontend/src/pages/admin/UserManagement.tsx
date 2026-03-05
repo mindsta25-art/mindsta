@@ -97,6 +97,7 @@ const UserManagement = () => {
   const [offlineCount, setOfflineCount] = useState(0);
   const [usersPage, setUsersPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
+  const [silentRefreshing, setSilentRefreshing] = useState(false);
 
   // Reset page when search query or tab changes
   useEffect(() => {
@@ -104,19 +105,23 @@ const UserManagement = () => {
   }, [searchQuery, selectedTab]);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(false);
     
-    // Auto-refresh every 10 seconds to update online/offline status in real-time
+    // Auto-refresh every 30 seconds to update online/offline status silently
     const refreshInterval = setInterval(() => {
-      fetchUsers();
-    }, 10000); // Reduced from 30 seconds to 10 seconds for faster updates
+      fetchUsers(true); // silent = true: don't show loading screen
+    }, 30000);
     
     return () => clearInterval(refreshInterval);
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (silent = false) => {
     try {
-      setLoading(true);
+      if (silent) {
+        setSilentRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       
       // Fetch all profiles from MongoDB
       const profiles = await getAllProfiles();
@@ -149,6 +154,7 @@ const UserManagement = () => {
       });
     } finally {
       setLoading(false);
+      setSilentRefreshing(false);
     }
   };
 
@@ -564,7 +570,18 @@ const UserManagement = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              User Management
+              {silentRefreshing && (
+                <span className="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  syncing
+                </span>
+              )}
+            </h1>
             <p className="text-muted-foreground mt-2">
               Manage students, referrals, and admins
             </p>
