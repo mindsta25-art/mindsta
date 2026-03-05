@@ -87,16 +87,25 @@ const Auth = () => {
 
       // Check if email verification is required
       if (result.requiresVerification) {
-        toast({
-          title: "🎉 Account created!",
-          description: "Please check your email for verification code.",
-        });
+        if (result.emailSent === false) {
+          toast({
+            title: "✅ Account created!",
+            description: "Email delivery failed — tap \"Resend Code\" on the next screen.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "🎉 Account created!",
+            description: "Please check your email for your verification code.",
+          });
+        }
 
         // Redirect to verification page
         navigate('/verify-email', { 
           state: { 
             email: result.email || data.email,
-            resent: result.resent || false
+            resent: result.resent || false,
+            emailSent: result.emailSent !== false,
           } 
         });
       } else {

@@ -1,76 +1,104 @@
 /**
- * Email Service
- * Uses Resend HTTP API — works on Render free tier.
- * Gmail/SMTP (ports 465/587) is blocked by Render's network policy;
- * Resend sends over HTTPS (port 443) which is always open.
+ * Email Service — Nodemailer + Gmail
  */
 
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// From address: use verified domain address once domain is set up in Resend dashboard,
-// otherwise the default onboarding@resend.dev works for sending to any address.
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'Mindsta <onboarding@resend.dev>';
+const FROM_ADDRESS = process.env.EMAIL_FROM || `Mindsta <${process.env.EMAIL_USER}>`;
 
-// Initialize Resend client
-const resendClient = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const createTransporters = () => {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASSWORD;
 
-if (!resendClient) {
-  console.error('[Email] ❌ CRITICAL: RESEND_API_KEY is not set!');
-  console.error('[Email] ❌ OTP emails WILL NOT be sent.');
-  console.error('[Email] ❌ Sign up free at https://resend.com → API Keys → add RESEND_API_KEY to Render env vars.');
-} else {
-  console.log('[Email] ✅ Resend email service initialized (HTTPS — no SMTP)');
-  console.log(`[Email] 📧 From: ${FROM_ADDRESS}`);
-}
-
-/**
- * Core send via Resend HTTP API
- * @param {object} mailOptions - { from?, to, subject, html, text? }
- */
-const sendMail = async (mailOptions) => {
-  if (!resendClient) {
-    throw new Error('Email service not configured. Add RESEND_API_KEY to Render environment variables.');
+  if (!user || !pass) {
+    console.error('[Email] ❌ EMAIL_USER or EMAIL_PASSWORD is not set in Render environment variables');
+    return { primary: null, fallback: null };
   }
-  const { data, error } = await resendClient.emails.send({
-    from: mailOptions.from || FROM_ADDRESS,
-    to: [mailOptions.to],
-    subject: mailOptions.subject,
-    html: mailOptions.html,
-    text: mailOptions.text,
+
+  // Primary: port 465 with implicit SSL
+  const primary = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
-  if (error) throw new Error(error.message);
-  return data;
+
+  // Fallback: port 587 with STARTTLS (less likely to be blocked by hosting providers)
+  const fallback = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
+  });
+
+  primary.verify((error) => {
+    if (error) {
+      console.error('[Email] ⚠️ Gmail SMTP port 465 check failed:', error.message, '— will try port 587 as fallback');
+    } else {
+      console.log('[Email] ✅ Gmail SMTP port 465 ready');
+      console.log(`[Email] 📧 Sending from: ${FROM_ADDRESS}`);
+    }
+  });
+
+  return { primary, fallback };
 };
 
-/**
- * Send email with retry logic and error handling
- * @param {object} mailOptions - mail options
- * @param {number} retries - Number of retry attempts
- * @returns {Promise} - Send result
- */
-const sendMailWithRetry = async (mailOptions, retries = 3) => {
-  if (!resendClient) {
-    console.error(`[Email] ❌ Cannot send email to ${mailOptions.to} - RESEND_API_KEY not configured.`);
-    throw new Error('Email service is not configured. Please set RESEND_API_KEY environment variable.');
+const transporters = createTransporters();
+
+const sendMail = async (mailOptions) => {
+  if (!transporters.primary && !transporters.fallback) {
+    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASSWORD in Render environment variables.');
+  }
+
+  const fullOptions = { from: mailOptions.from || FROM_ADDRESS, ...mailOptions };
+
+  // Try primary transport (port 465)
+  if (transporters.primary) {
+    try {
+      const info = await transporters.primary.sendMail(fullOptions);
+      return info;
+    } catch (err) {
+      console.error('[Email] ⚠️ Port 465 failed:', err.message, '— retrying on port 587...');
+    }
+  }
+
+  // Fallback to port 587 (STARTTLS)
+  if (transporters.fallback) {
+    const info = await transporters.fallback.sendMail(fullOptions);
+    console.log('[Email] ✅ Sent via port 587 fallback');
+    return info;
+  }
+
+  throw new Error('All email transport options exhausted');
+};
+
+const sendMailWithRetry = async (mailOptions, retries = 2) => {
+  if (!transporters.primary && !transporters.fallback) {
+    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASSWORD in Render environment variables.');
   }
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const data = await sendMail(mailOptions);
-      console.log(`[Email] ✅ Email sent successfully to ${mailOptions.to} (id: ${data.id})`);
-      return { success: true, message: 'Email sent successfully', messageId: data.id };
+      const info = await sendMail(mailOptions);
+      console.log(`[Email] ✅ Email sent to ${mailOptions.to} (messageId: ${info.messageId})`);
+      return { success: true, message: 'Email sent successfully', messageId: info.messageId };
     } catch (error) {
       console.error(`[Email] ❌ Attempt ${attempt}/${retries} failed:`, error.message);
       if (attempt === retries) {
         return { success: false, message: 'Email sending failed after retries', error: error.message };
       }
-      // Exponential backoff
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 };
@@ -360,8 +388,8 @@ This link will expire in 1 hour. If you didn't request this password reset, plea
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!resendClient) {
-    console.log(`[Email] Password reset email skipped — RESEND_API_KEY not configured`);
+  if (!transporter) {
+    console.log(`[Email] Password reset email skipped — EMAIL_USER/EMAIL_PASSWORD not configured`);
     return Promise.resolve({ success: false, message: 'Email service not configured' });
   }
 

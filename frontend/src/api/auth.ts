@@ -40,6 +40,8 @@ export interface SignUpResponse {
   email?: string;
   requiresVerification?: boolean;
   userId?: string;
+  emailSent?: boolean;
+  resent?: boolean;
   // OR regular AuthUser if no verification needed
   id?: string;
   fullName?: string;

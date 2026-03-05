@@ -55,9 +55,49 @@ router.post('/test-email', async (req, res) => {
 });
 
 /**
- * POST /api/auth/signup
- * Sign up a new user
+ * GET /api/auth/email-debug
+ * Full SMTP diagnostic — returns connection test result + env var status
  */
+router.get('/email-debug', async (req, res) => {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASSWORD;
+  const status = {
+    env: {
+      EMAIL_USER: emailUser ? `${emailUser.slice(0, 4)}***@${emailUser.split('@')[1]}` : '❌ NOT SET',
+      EMAIL_PASSWORD: emailPass ? `✅ set (${emailPass.length} chars)` : '❌ NOT SET',
+    },
+    smtp: null,
+  };
+  if (!emailUser || !emailPass) {
+    return res.json({ ...status, smtp: '❌ Skipped — env vars missing' });
+  }
+  try {
+    const nodemailer = await import('nodemailer');
+    const t = nodemailer.createTransport({
+      host: 'smtp.gmail.com', port: 465, secure: true,
+      auth: { user: emailUser, pass: emailPass },
+      tls: { rejectUnauthorized: false },
+    });
+    await t.verify();
+    status.smtp = '✅ Port 465 verified — Gmail accepted the credentials';
+  } catch (err465) {
+    try {
+      const nodemailer2 = await import('nodemailer');
+      const t2 = nodemailer2.createTransport({
+        host: 'smtp.gmail.com', port: 587, secure: false,
+        auth: { user: emailUser, pass: emailPass },
+        tls: { rejectUnauthorized: false },
+      });
+      await t2.verify();
+      status.smtp = `⚠️ Port 465 failed (${err465.message}) but ✅ Port 587 works!`;
+    } catch (err587) {
+      status.smtp = `❌ Both ports failed. 465: ${err465.message} | 587: ${err587.message}`;
+    }
+  }
+  res.json(status);
+});
+
+
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, fullName, userType, grade, age, schoolName, referralCode } = req.body;
@@ -86,16 +126,21 @@ router.post('/signup', async (req, res) => {
         const otp = generateOTP();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
         await User.findByIdAndUpdate(existingUser._id, { verificationOTP: otp, otpExpires });
+        let emailResent = false;
         try {
           await sendVerificationOTP(email, existingUser.fullName, otp);
+          emailResent = true;
         } catch (emailError) {
-          return res.status(500).json({ error: 'Could not send verification email. Please try again.' });
+          console.error('[Signup/Resend] ⚠️ Email failed:', emailError.message);
         }
         return res.status(200).json({
-          message: 'A new verification code has been sent to your email.',
+          message: emailResent
+            ? 'A new verification code has been sent to your email.'
+            : 'Account found! Email delivery failed — tap "Resend Code" on the verification screen.',
           email: existingUser.email,
           requiresVerification: true,
           resent: true,
+          emailSent: emailResent,
         });
       }
       return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
@@ -126,6 +171,7 @@ router.post('/signup', async (req, res) => {
     });
 
     // Send verification OTP email
+    let emailSent = false;
     if (requiresVerification && otp) {
       console.log(`\n========================================`);
       console.log(`[OTP - SIGNUP] Email: ${email}`);
@@ -133,14 +179,11 @@ router.post('/signup', async (req, res) => {
       console.log(`========================================\n`);
       try {
         await sendVerificationOTP(email, fullName, otp);
+        emailSent = true;
       } catch (emailError) {
-        console.error('[Signup] Error sending verification email:', emailError);
-        // Delete the user we just created so they can retry registration
-        await User.findByIdAndDelete(user._id);
-        return res.status(500).json({
-          error: 'Registration failed: could not send verification email. Please try again.',
-          details: emailError.message
-        });
+        // Keep the user — they can use "Resend Code" on the verification page
+        console.error('[Signup] ⚠️ Verification email failed (user kept as unverified — OTP logged above):', emailError.message);
+        emailSent = false;
       }
     }
 
@@ -229,10 +272,13 @@ router.post('/signup', async (req, res) => {
     // For students and referrals, don't generate token yet - require verification first
     if (requiresVerification) {
       return res.status(201).json({
-        message: 'Signup successful. Please check your email for verification code.',
+        message: emailSent
+          ? 'Signup successful. Please check your email for your verification code.'
+          : 'Account created! The verification email could not be sent right now — tap "Resend Code" on the next screen to try again.',
         email: user.email,
         requiresVerification: true,
         userId: user._id.toString(),
+        emailSent,
       });
     }
 
@@ -366,14 +412,20 @@ router.post('/resend-otp', async (req, res) => {
     console.log(`[OTP - RESEND] Email: ${email}`);
     console.log(`[OTP - RESEND] Code:  ${otp}`);
     console.log(`========================================\n`);
+    let emailSent = false;
     try {
       await sendVerificationOTP(email, user.fullName, otp);
+      emailSent = true;
     } catch (emailError) {
-      console.error('[Resend OTP] Error sending email:', emailError);
-      return res.status(500).json({ error: 'Failed to send verification email' });
+      console.error('[Resend OTP] ⚠️ Email failed (OTP saved in DB — code logged above):', emailError.message);
     }
 
-    res.json({ message: 'Verification code sent to your email' });
+    res.json({
+      message: emailSent
+        ? 'Verification code sent to your email.'
+        : 'Email delivery failed — please try again in a moment.',
+      emailSent,
+    });
   } catch (error) {
     console.error('Error resending OTP:', error);
     res.status(500).json({ error: 'Failed to resend OTP', message: error.message });

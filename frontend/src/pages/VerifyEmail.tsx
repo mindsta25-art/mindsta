@@ -14,8 +14,9 @@ export function VerifyEmail() {
 
   const email = location.state?.email || '';
   const isResent = location.state?.resent || false;
+  const emailSent = location.state?.emailSent !== false; // defaults true
   const [stage, setStage] = useState<'check-email' | 'enter-otp'>(
-    isResent ? 'enter-otp' : 'check-email'
+    (isResent || !emailSent) ? 'enter-otp' : 'check-email'
   );
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [verifying, setVerifying] = useState(false);
@@ -169,6 +170,15 @@ export function VerifyEmail() {
               </div>
 
               {/* Spam notice */}
+              {!emailSent && (
+                <div className="bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-800 rounded-xl p-4 flex gap-3">
+                  <span className="text-xl">⚠️</span>
+                  <p className="text-sm text-red-700 dark:text-red-300">
+                    <strong>Email delivery failed.</strong> Tap <strong>Resend Code</strong> below to try again.
+                  </p>
+                </div>
+              )}
+              {/* Spam notice */}
               <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex gap-3">
                 <span className="text-xl">📂</span>
                 <p className="text-sm text-amber-700 dark:text-amber-300">
@@ -221,6 +231,13 @@ export function VerifyEmail() {
           </div>
 
           <div className="px-8 py-8 space-y-6">
+            {/* Email-failed warning */}
+            {!emailSent && (
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 rounded-xl p-3 flex gap-2 text-sm text-amber-800 dark:text-amber-300">
+                <span>⚠️</span>
+                <span><strong>Email not received?</strong> Tap <strong>Resend Code</strong> below — your account was created successfully.</span>
+              </div>
+            )}
             <form onSubmit={handleVerify} className="space-y-6">
               {/* Digit boxes */}
               <div className="space-y-2">
