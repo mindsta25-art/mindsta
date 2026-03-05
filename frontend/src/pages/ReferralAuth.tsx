@@ -70,6 +70,17 @@ const ReferralAuth = () => {
         password: loginPassword,
       });
 
+      // Unverified account — redirect to OTP page
+      if (result?.requiresVerification) {
+        toast({
+          title: "Email Not Verified",
+          description: "Please verify your email before logging in.",
+          variant: "destructive",
+        });
+        navigate('/verify-email', { state: { email: loginEmail, resent: false } });
+        return;
+      }
+
       // Block students and admins from referral dashboard
       if (result.userType !== 'referral') {
         toast({
@@ -101,6 +112,16 @@ const ReferralAuth = () => {
       navigate("/referral/dashboard", { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
+      // Account exists but email not verified — redirect to OTP page
+      if (error?.requiresVerification) {
+        toast({
+          title: "Email Not Verified",
+          description: "Please verify your email to continue.",
+          variant: "destructive",
+        });
+        navigate('/verify-email', { state: { email: loginEmail, resent: false } });
+        return;
+      }
       toast({
         title: "Login Failed",
         description: error?.message || "Invalid email or password. Please try again.",
@@ -163,7 +184,7 @@ const ReferralAuth = () => {
     setLoading(true);
 
     try {
-      await signUp({
+      const result = await signUp({
         email,
         password,
         fullName: `${firstName} ${lastName}`,
@@ -175,14 +196,12 @@ const ReferralAuth = () => {
       });
 
       toast({
-        title: "Account created! ",
-        description: referralCode 
-          ? "Please log in to start earning rewards with your referral."
-          : "Please log in to continue.",
+        title: "Account Created! 🎉",
+        description: "Please check your email for a verification code to activate your account.",
       });
 
-      // Redirect to referral login page
-      navigate("/referral-auth?mode=login");
+      // Redirect to OTP verification page
+      navigate('/verify-email', { state: { email, resent: result?.resent || false } });
     } catch (error: any) {
       console.error("Registration error:", error);
       toast({

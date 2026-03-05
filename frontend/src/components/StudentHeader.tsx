@@ -657,173 +657,115 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t py-4 space-y-2 animate-in slide-in-from-top-5 duration-200">
-            {/* Grade Selector - Mobile */}
-            <div className="px-4 pb-2">
-              <label className="text-xs text-muted-foreground mb-1.5 block">Current Grade</label>
-              <Select
-                value={currentGrade}
-                onValueChange={handleGradeChange}
-                disabled={updatingGrade}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select grade..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Grade 1</SelectItem>
-                  <SelectItem value="2">Grade 2</SelectItem>
-                  <SelectItem value="3">Grade 3</SelectItem>
-                  <SelectItem value="4">Grade 4</SelectItem>
-                  <SelectItem value="5">Grade 5</SelectItem>
-                  <SelectItem value="6">Grade 6</SelectItem>
-                  <SelectItem value="Common Entrance">Common Entrance</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="md:hidden border-t border-border animate-in slide-in-from-top-3 duration-200">
+            {/* User Profile Card */}
+            <div className="px-4 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40">
+              <div className="flex items-center gap-3 mb-3">
+                <Avatar className="h-10 w-10 ring-2 ring-indigo-400">
+                  <AvatarFallback className="bg-indigo-600 text-white font-bold text-sm">
+                    {displayName.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">{displayName}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400 mb-1.5 block">Current Grade</label>
+                <Select value={currentGrade} onValueChange={handleGradeChange} disabled={updatingGrade}>
+                  <SelectTrigger className="w-full h-9 bg-white dark:bg-card border-indigo-200 dark:border-indigo-800 text-sm">
+                    <SelectValue placeholder="Select grade..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Grade 1</SelectItem>
+                    <SelectItem value="2">Grade 2</SelectItem>
+                    <SelectItem value="3">Grade 3</SelectItem>
+                    <SelectItem value="4">Grade 4</SelectItem>
+                    <SelectItem value="5">Grade 5</SelectItem>
+                    <SelectItem value="6">Grade 6</SelectItem>
+                    <SelectItem value="Common Entrance">Common Entrance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            
-            <Button
-              variant="ghost"
-              onClick={toggleTheme}
-              className="w-full justify-start"
-            >
-              {theme === 'dark' ? (
-                <><Sun className="w-4 h-4 mr-2" /> Light Mode</>
-              ) : (
-                <><Moon className="w-4 h-4 mr-2" /> Dark Mode</>
-              )}
-            </Button>
 
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/dashboard");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Dashboard
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/wishlist");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start relative"
-            >
-              <Heart className="w-4 h-4 mr-2" />
-              Wishlist
-              {wishlistCount > 0 && (
-                <Badge className={`ml-auto transition-transform duration-200 ${wishBump ? 'scale-110' : 'scale-100'}`} variant="secondary">
-                  {wishlistCount}
-                </Badge>
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/cart");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start relative"
-            >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Cart
-              {cartCount > 0 && (
-                <Badge className={`ml-auto transition-transform duration-200 ${cartBump ? 'scale-110' : 'scale-100'}`} variant="secondary">
-                  {cartCount}
-                </Badge>
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/browse");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <BookOpen className="w-4 h-4 mr-2" />
-              Browse Courses
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/my-learning");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <BookOpen className="w-4 h-4 mr-2" />
-              My Learning
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/leaderboard");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
-              Leaderboard
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/progress");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <TrendingUp className="w-4 h-4 mr-2 text-teal-500" />
-              Progress Milestones
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/progress?tab=achievements");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <Award className="w-4 h-4 mr-2 text-indigo-500" />
-              Achievements
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/profile");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <User className="w-4 h-4 mr-2" />
-              Profile
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                navigate("/settings");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowLogoutDialog(true);
-                setMobileMenuOpen(false);
-              }}
-              className="w-full justify-start text-red-600 dark:text-red-400"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Log Out
-            </Button>
+            {/* Navigation Sections */}
+            <div className="py-2 px-2 space-y-1">
+              {/* ── Learning ── */}
+              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Learning</p>
+              {[
+                { label: "Dashboard",     icon: Home,      path: "/dashboard" },
+                { label: "Browse Courses",icon: BookOpen,  path: "/browse" },
+                { label: "My Learning",   icon: BookOpen,  path: "/my-learning" },
+              ].map(({ label, icon: Icon, path }) => (
+                <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
+                  className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                  <Icon className="w-4 h-4 mr-3 text-indigo-500" />
+                  {label}
+                </Button>
+              ))}
+
+              <div className="flex items-center gap-2 w-full">
+                <Button variant="ghost" onClick={() => { navigate("/wishlist"); setMobileMenuOpen(false); }}
+                  className="flex-1 justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                  <Heart className="w-4 h-4 mr-3 text-rose-500" />
+                  Wishlist
+                  {wishlistCount > 0 && (
+                    <Badge variant="secondary" className={`ml-auto text-xs transition-transform duration-200 ${wishBump ? 'scale-110' : 'scale-100'}`}>{wishlistCount}</Badge>
+                  )}
+                </Button>
+                <Button variant="ghost" onClick={() => { navigate("/cart"); setMobileMenuOpen(false); }}
+                  className="flex-1 justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                  <ShoppingCart className="w-4 h-4 mr-3 text-orange-500" />
+                  Cart
+                  {cartCount > 0 && (
+                    <Badge variant="secondary" className={`ml-auto text-xs transition-transform duration-200 ${cartBump ? 'scale-110' : 'scale-100'}`}>{cartCount}</Badge>
+                  )}
+                </Button>
+              </div>
+
+              {/* ── Progress & Rewards ── */}
+              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Progress &amp; Rewards</p>
+              {[
+                { label: "Leaderboard",        icon: Trophy,    path: "/leaderboard",               iconClass: "text-yellow-500" },
+                { label: "Progress Milestones", icon: TrendingUp,path: "/progress",                  iconClass: "text-teal-500" },
+                { label: "Achievements",        icon: Award,     path: "/progress?tab=achievements", iconClass: "text-indigo-500" },
+              ].map(({ label, icon: Icon, path, iconClass }) => (
+                <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
+                  className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                  <Icon className={`w-4 h-4 mr-3 ${iconClass}`} />
+                  {label}
+                </Button>
+              ))}
+
+              {/* ── Account ── */}
+              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Account</p>
+              <Button variant="ghost" onClick={() => { navigate("/profile"); setMobileMenuOpen(false); }}
+                className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                <User className="w-4 h-4 mr-3 text-gray-500" />
+                Profile
+              </Button>
+              <Button variant="ghost" onClick={() => { navigate("/settings"); setMobileMenuOpen(false); }}
+                className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                <Settings className="w-4 h-4 mr-3 text-gray-500" />
+                Settings
+              </Button>
+              <Button variant="ghost" onClick={toggleTheme}
+                className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
+                {theme === 'dark'
+                  ? <><Sun className="w-4 h-4 mr-3 text-yellow-400" /> Light Mode</>
+                  : <><Moon className="w-4 h-4 mr-3 text-indigo-400" /> Dark Mode</>}
+              </Button>
+
+              <div className="pt-2 pb-2">
+                <Button variant="ghost" onClick={() => { setShowLogoutDialog(true); setMobileMenuOpen(false); }}
+                  className="w-full justify-start text-sm h-10 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-700">
+                  <LogOut className="w-4 h-4 mr-3" />
+                  Log Out
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

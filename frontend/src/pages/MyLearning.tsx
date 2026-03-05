@@ -283,7 +283,7 @@ const MyLearning = () => {
       <main className="pt-24 pb-16 container mx-auto px-4">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Purchased Courses</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Lessons Courses</h1>
           <p className="text-muted-foreground">View all your purchased lessons and track your learning progress</p>
         </div>
 
@@ -432,10 +432,10 @@ const MyLearning = () => {
                 >
                   {/* Course Thumbnail */}
                   <div className="relative h-48 bg-gradient-to-br from-indigo-100 via-blue-100 to-cyan-100 overflow-hidden">
-                    {(course.nextLesson?.thumbnail || course.nextLesson?.imageUrl) ? (
+                    {course.nextLesson?.imageUrl ? (
                       <>
                         <img 
-                          src={course.nextLesson.thumbnail || course.nextLesson.imageUrl} 
+                          src={course.nextLesson.imageUrl} 
                           alt={course.subject}
                           className="w-full h-full object-cover"
                           onError={(e) => {

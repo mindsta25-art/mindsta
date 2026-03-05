@@ -37,7 +37,6 @@ import {
   Target
 } from "lucide-react";
 import { getLessonsBySubjectAndGrade, getUserProgress, getStudentByUserId } from "@/api";
-import { updateLesson } from "@/api/lessons";
 import { recordStudyTime } from "@/api/gamification";
 import { getQuizByLessonId, getQuizzesByFilters, getQuizById } from "@/api/quizzes";
 import { upsertProgress } from "@/api/progress";
