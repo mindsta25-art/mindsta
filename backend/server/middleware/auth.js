@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Extract token from Authorization header
 export const requireAuth = async (req, res, next) => {

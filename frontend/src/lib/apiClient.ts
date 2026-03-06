@@ -5,34 +5,18 @@
 
 // Determine API URL based on environment
 const getApiBaseUrl = () => {
-  // First check for environment variable
-  if (import.meta.env.VITE_API_URL) {
-    const url = import.meta.env.VITE_API_URL;
-    // Log for debugging
-    console.log('Using VITE_API_URL from env:', url);
-    return url;
-  }
-  
-  // In production, use Render backend URL (hardcoded fallback)
-  if (import.meta.env.PROD || import.meta.env.MODE === 'production') {
-    console.log('Production mode: using Render URL');
-    return 'https://mindsta-backend2.onrender.com/api';
-  }
-  
-  // In development, use localhost
-  console.log('Development mode: using localhost');
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (import.meta.env.PROD) return 'https://mindsta-backend2.onrender.com/api';
   return 'http://localhost:3000/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const IS_DEV = import.meta.env.DEV;
 
-console.log('🔧 API Configuration:', {
-  MODE: import.meta.env.MODE,
-  PROD: import.meta.env.PROD,
-  VITE_API_URL: import.meta.env.VITE_API_URL,
-  API_BASE_URL,
-  timestamp: new Date().toISOString()
-});
+// Only log in development
+const log = IS_DEV ? console.log.bind(console) : () => {};
+const warn = IS_DEV ? console.warn.bind(console) : () => {};
+const error = console.error.bind(console); // always log real errors
 
 /**
  * Make an API request with timeout
@@ -40,7 +24,7 @@ console.log('🔧 API Configuration:', {
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+  log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
   
   // Get token from localStorage
   const token = localStorage.getItem('authToken');
@@ -70,11 +54,11 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
       timeout
     ]) as Response;
     
-    console.log(`📡 API Response: ${response.status} ${response.statusText}`);
+    log(`📡 API Response: ${response.status} ${response.statusText}`);
     
     // Handle 401 Unauthorized - clear invalid token
     if (response.status === 401) {
-      console.warn('⚠️ 401 Unauthorized - Token may be invalid or expired');
+      warn('⚠️ 401 Unauthorized - Token may be invalid or expired');
       
       // Get the current path
       const currentPath = window.location.pathname;
@@ -100,7 +84,7 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
       }
 
       // Only clear token and redirect if on a protected page
-      console.log('🔄 Clearing expired token and redirecting to login');
+      log('🔄 Clearing expired token and redirecting to login');
       localStorage.removeItem('authToken');
       localStorage.removeItem('currentUser');
       
@@ -112,7 +96,7 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     
     // Handle 304 Not Modified - return empty array or cached data
     if (response.status === 304) {
-      console.log('⚡ 304 Not Modified - returning empty array');
+      log('⚡ 304 Not Modified');
       return [];
     }
     
@@ -123,7 +107,7 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
-      console.error('❌ API Error:', errorData);
+      error('❌ API Error:', errorData);
       
       // Create error object with response data attached
       const error: any = new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`);
@@ -136,19 +120,17 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     }
     
     const data = await response.json();
-    console.log('✅ API Success:', data);
     return data;
-  } catch (error: any) {
-    console.error('❌ API Request failed:', error.message);
-    // If error doesn't have response (network error), add context
-    if (!error.response) {
-      error.response = {
-        status: 0,
-        statusText: 'Network Error',
-        data: { message: error.message }
-      };
+  } catch (err: any) {
+    if (!err.response) {
+      // network / timeout error — always log
+      error('❌ API Request failed:', err.message);
+      err.response = { status: 0, statusText: 'Network Error', data: { message: err.message } };
+    } else {
+      // HTTP error already logged above
+      log('❌ API Request failed:', err.message);
     }
-    throw error;
+    throw err;
   }
 }
 

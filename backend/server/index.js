@@ -54,11 +54,18 @@ import {
 // Load environment variables
 dotenv.config();
 
-// Validate critical environment variables
+// Validate critical environment variables — hard crash in production if missing
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
-const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar] && !process.env[`VITE_${envVar}`]);
+const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
 if (missingEnvVars.length > 0) {
-  console.error(` Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error(`[FATAL] Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('[FATAL] Set these in your Render environment variables and redeploy.');
+  process.exit(1);
+}
+
+// Crash immediately if JWT_SECRET is still the insecure default
+if (process.env.JWT_SECRET === 'your-secret-key-change-in-production') {
+  console.error('[FATAL] JWT_SECRET is set to the insecure default value. Change it in Render env vars.');
   process.exit(1);
 }
 
@@ -74,10 +81,13 @@ const IS_PRODUCTION = NODE_ENV === 'production';
 const __filenameLocal = fileURLToPath(import.meta.url);
 const __dirnameLocal = path.dirname(__filenameLocal);
 
-// Diagnostic boot logs
-console.log('[ServerBoot] Environment:', NODE_ENV);
-console.log('[ServerBoot] process.cwd():', process.cwd());
-console.log('[ServerBoot] __dirnameLocal:', __dirnameLocal);
+// Boot log — minimal in production
+if (!IS_PRODUCTION) {
+  console.log('[ServerBoot] Environment:', NODE_ENV);
+  console.log('[ServerBoot] process.cwd():', process.cwd());
+} else {
+  console.log('[ServerBoot] Mindsta API starting — NODE_ENV=production');
+}
 
 // ============================================
 // SECURITY MIDDLEWARE (Applied in Order)
@@ -131,7 +141,7 @@ if (IS_PRODUCTION) {
   );
 }
 
-console.log('[CORS] Allowed origins:', allowedOrigins);
+if (!IS_PRODUCTION) console.log('[CORS] Allowed origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -177,23 +187,21 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
-console.log('[ServerBoot] Connecting to MongoDB...');
+console.log('[MongoDB] Connecting...');
 mongoose.connect(MONGODB_URI, {
-  maxPoolSize: 10, // Maintain up to 10 socket connections
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-  socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+  maxPoolSize: IS_PRODUCTION ? 20 : 5,
+  serverSelectionTimeoutMS: IS_PRODUCTION ? 10000 : 5000,
+  socketTimeoutMS: 45000,
+  heartbeatFrequencyMS: 10000,
+  retryWrites: true,
+  w: 'majority',
 })
   .then(() => {
-    console.log(' MongoDB Connected Successfully');
-    if (IS_PRODUCTION) {
-      console.log('[MongoDB] Running in PRODUCTION mode');
-    }
-    
-    // Start activity monitor for online/offline tracking
+    console.log('[MongoDB] Connected successfully');
     startActivityMonitor();
   })
   .catch((error) => {
-    console.error(' MongoDB Connection Error:', error);
+    console.error('[MongoDB] Connection failed:', error.message);
     process.exit(1);
   });
 
@@ -243,7 +251,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // API Routes with Rate Limiting
-console.log('[Security] Applying rate limiters to routes');
 
 // Auth routes with strict rate limiting
 app.use('/api/auth/signin', authLimiter);
@@ -258,13 +265,6 @@ app.use('/api/lessons', apiLimiter, lessonRoutes);
 app.use('/api/quizzes', apiLimiter, quizRoutes);
 app.use('/api/progress', apiLimiter, progressRoutes);
 app.use('/api/referrals', apiLimiter, referralRoutes);
-// Log the mounted referral routes to confirm active route stack
-try {
-  const referralLayers = referralRoutes.stack?.map(l => l.route?.path || l.name);
-  console.log('[ServerBoot] Mounted referralRoutes layers:', referralLayers);
-} catch (e) {
-  console.log('[ServerBoot] Unable to inspect referralRoutes stack:', e.message);
-}
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profiles', profileRoutes);
@@ -296,12 +296,12 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Global error handlers to prevent silent crashes
-process.on('unhandledRejection', (reason, promise) => {
-  console.error(' Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason) => {
+  console.error('[UnhandledRejection]', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error(' Uncaught Exception:', error);
+  console.error('[UncaughtException]', error.message, error.stack);
   process.exit(1);
 });
 
@@ -310,22 +310,35 @@ export default app;
 
 // Only start server if not running in Vercel (serverless environment)
 if (process.env.VERCEL !== '1') {
-  console.log('[ServerBoot] Starting Express server on port', PORT);
   const server = app.listen(PORT, () => {
-    console.log(` Server running on http://localhost:${PORT}`);
-    console.log(` API Health: http://localhost:${PORT}/api/health`);
-    console.log('[ServerBoot] Server is now listening for connections');
+    console.log(`[Server] Listening on port ${PORT} (${NODE_ENV})`);
+    if (!IS_PRODUCTION) {
+      console.log(`[Server] Health: http://localhost:${PORT}/api/health`);
+    }
   });
 
+  // Graceful shutdown — close DB connections and finish in-flight requests
+  const shutdown = (signal) => {
+    console.log(`[Server] ${signal} received — shutting down gracefully...`);
+    server.close(async () => {
+      try {
+        await mongoose.connection.close();
+        console.log('[Server] MongoDB connection closed. Exiting.');
+      } catch (_) {}
+      process.exit(0);
+    });
+    // Force exit after 15 seconds if graceful shutdown hangs
+    setTimeout(() => { console.error('[Server] Forced exit after timeout'); process.exit(1); }, 15000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT',  () => shutdown('SIGINT'));
+
   server.on('error', (error) => {
-    console.error(' Server error:', error);
+    console.error('[Server] Error:', error.message);
     if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${PORT} is already in use. Please free the port or change PORT in .env`);
+      console.error(`[Server] Port ${PORT} already in use.`);
     }
     process.exit(1);
   });
-
-  console.log('[ServerBoot] Server setup complete, keeping process alive...');
-} else {
-  console.log('[ServerBoot] Running in Vercel serverless environment');
 }

@@ -14,7 +14,7 @@ import { createAdminAlert } from './admin-alerts.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
 
 // Generate 6-digit OTP
