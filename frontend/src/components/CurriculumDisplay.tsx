@@ -104,7 +104,7 @@ const CurriculumDisplay: React.FC<CurriculumDisplayProps> = ({
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-2xl mb-2">Course Content</CardTitle>
+            <CardTitle className="text-2xl mb-2">Lesson Content</CardTitle>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span>{stats.totalSections} {stats.totalSections === 1 ? 'section' : 'sections'}</span>
               <span>•</span>

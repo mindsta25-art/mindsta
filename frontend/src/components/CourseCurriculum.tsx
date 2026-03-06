@@ -79,9 +79,9 @@ export const CourseCurriculum = ({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Course Content Header */}
+      {/* Lesson Content Header */}
       <div className="space-y-2">
-        <h2 className="text-xl font-bold">Course Content</h2>
+        <h2 className="text-xl font-bold">Lesson Content</h2>
         <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
           <span>{curriculum.length} sections</span>
           <span>•</span>

@@ -234,7 +234,7 @@ export default function Support() {
                         <SelectItem value="technical">Technical Support</SelectItem>
                         <SelectItem value="billing">Billing & Payment</SelectItem>
                         <SelectItem value="account">Account Help</SelectItem>
-                        <SelectItem value="content">Course Content</SelectItem>
+                        <SelectItem value="content">Lesson Content</SelectItem>
                         <SelectItem value="feedback">Feedback</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>

@@ -20,11 +20,11 @@ export const securityHeaders = {
   // Content Security Policy
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    "connect-src 'self' https://mindsta-backend2.onrender.com",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",

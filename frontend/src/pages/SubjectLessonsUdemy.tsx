@@ -1157,7 +1157,7 @@ const SubjectLessonsUdemy = () => {
                         <div className="text-center py-12">
                           <PlayCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                           <p className="text-muted-foreground mb-2">Choose a lesson from the sidebar to start learning</p>
-                          <p className="text-sm text-muted-foreground">Click on any lesson in the Course Content panel</p>
+                          <p className="text-sm text-muted-foreground">Click on any lesson in the Lesson Content panel</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -1512,7 +1512,7 @@ const SubjectLessonsUdemy = () => {
               >
                 <ScrollArea className="h-full">
                   <div className="p-6">
-                    <h3 className="font-bold text-lg mb-1">Course Content</h3>
+                    <h3 className="font-bold text-lg mb-1">Lesson Content</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       {lessons.length} lessons • {quizzes.length} quizzes • {Math.floor(totalDuration / 60)}h {totalDuration % 60}m
                     </p>

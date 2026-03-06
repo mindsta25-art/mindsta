@@ -290,7 +290,7 @@ export const CoursePreviewDialog = ({
             <div className="space-y-2">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-purple-600" />
-                Course Content
+                Lesson Content
               </h3>
               <p className="text-sm text-muted-foreground">
                 {course.curriculum?.length || 0} sections • {getTotalLectures()} lectures • {formatDuration(getTotalDuration())} total length
