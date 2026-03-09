@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { requireAdmin } from '../middleware/auth.js';
-import { User, SystemSettings } from '../models/index.js';
+import { User, SystemSettings, Student } from '../models/index.js';
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
 // POST /api/admin/admins
 router.post('/admins', requireAdmin, async (req, res) => {
   try {
-    const { email, password, fullName, userType } = req.body || {};
+    const { email, password, fullName, userType, grade, age, schoolName } = req.body || {};
 
     if (!email || !password || !fullName) {
       return res.status(400).json({ error: 'email, password and fullName are required' });
@@ -21,19 +21,35 @@ router.post('/admins', requireAdmin, async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 12);
-    const admin = await User.create({
+    const user = await User.create({
       email,
       password: hashed,
       fullName,
-      userType: userType || 'admin', // Allow custom userType or default to admin
+      userType: userType || 'admin',
+      isVerified: true, // Admin-created accounts are pre-verified — no email OTP needed
     });
 
+    // Create Student record when userType is 'student'
+    if (userType === 'student') {
+      try {
+        await Student.create({
+          userId: user._id,
+          fullName,
+          grade: grade || '1',
+          age: parseInt(age) || 10,
+          schoolName: schoolName || 'Not specified',
+        });
+      } catch (studentError) {
+        console.error('[Admin Create User] Error creating student record:', studentError.message);
+      }
+    }
+
     return res.status(201).json({
-      id: admin._id.toString(),
-      email: admin.email,
-      fullName: admin.fullName,
-      userType: admin.userType,
-      createdAt: admin.createdAt,
+      id: user._id.toString(),
+      email: user.email,
+      fullName: user.fullName,
+      userType: user.userType,
+      createdAt: user.createdAt,
     });
   } catch (err) {
     console.error('Create admin error:', err);

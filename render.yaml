@@ -37,3 +37,7 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: "Mindsta <noreply@mindsta.com>"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        value: "Mindsta <noreply@mindsta.com>"

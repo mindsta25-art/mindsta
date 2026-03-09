@@ -95,6 +95,19 @@ router.get('/email-debug', async (req, res) => {
 });
 
 
+router.get('/check-email', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ error: 'email is required' });
+    const exists = await User.findOne({ email: email.toLowerCase().trim() }).select('_id isVerified').lean();
+    if (!exists) return res.json({ available: true });
+    if (!exists.isVerified) return res.json({ available: false, unverified: true, message: 'An unverified account exists. You can sign up to resend the verification code.' });
+    return res.json({ available: false, message: 'This email is already registered. Please log in.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to check email' });
+  }
+});
+
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, fullName, userType, grade, age, schoolName, referralCode } = req.body;
@@ -168,20 +181,23 @@ router.post('/signup', async (req, res) => {
     });
 
     // Send verification OTP email
+    // Non-blocking: wait at most 5 seconds so the user is never stuck on the
+    // register page waiting for email delivery. If email is still in-flight
+    // after 5 s, it continues in the background and emailSent stays false
+    // (the user can tap "Resend Code" on the verification screen).
     let emailSent = false;
     if (requiresVerification && otp) {
       console.log(`\n========================================`);
       console.log(`[OTP - SIGNUP] Email: ${email}`);
       console.log(`[OTP - SIGNUP] Code:  ${otp}`);
       console.log(`========================================\n`);
-      try {
-        await sendVerificationOTP(email, fullName, otp);
-        emailSent = true;
-      } catch (emailError) {
-        // Keep the user — they can use "Resend Code" on the verification page
-        console.error('[Signup] ⚠️ Verification email failed (user kept as unverified — OTP logged above):', emailError.message);
-        emailSent = false;
-      }
+      const emailPromise = sendVerificationOTP(email, fullName, otp)
+        .then(() => { emailSent = true; })
+        .catch(emailError => {
+          console.error('[Signup] ⚠️ Verification email failed (OTP logged above):', emailError.message);
+        });
+      // Give email up to 5 seconds; respond to client regardless
+      await Promise.race([emailPromise, new Promise(resolve => setTimeout(resolve, 5000))]);
     }
 
     // Create admin alert for new user registration
@@ -404,18 +420,18 @@ router.post('/resend-otp', async (req, res) => {
     user.otpExpires = otpExpires;
     await user.save();
 
-    // Send OTP email
+    // Send OTP email — non-blocking with 5s timeout
     console.log(`\n========================================`);
     console.log(`[OTP - RESEND] Email: ${email}`);
     console.log(`[OTP - RESEND] Code:  ${otp}`);
     console.log(`========================================\n`);
     let emailSent = false;
-    try {
-      await sendVerificationOTP(email, user.fullName, otp);
-      emailSent = true;
-    } catch (emailError) {
-      console.error('[Resend OTP] ⚠️ Email failed (OTP saved in DB — code logged above):', emailError.message);
-    }
+    const resendEmailPromise = sendVerificationOTP(email, user.fullName, otp)
+      .then(() => { emailSent = true; })
+      .catch(emailError => {
+        console.error('[Resend OTP] ⚠️ Email failed (OTP saved in DB — code logged above):', emailError.message);
+      });
+    await Promise.race([resendEmailPromise, new Promise(resolve => setTimeout(resolve, 5000))]);
 
     res.json({
       message: emailSent

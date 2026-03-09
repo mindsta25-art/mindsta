@@ -31,7 +31,8 @@ import {
   WifiOff,
   Circle,
   Eye,
-  EyeOff
+  EyeOff,
+  KeyRound
 } from "lucide-react";
 import { LoadingScreen, Skeleton } from "@/components/ui/loading";
 import { getAllProfiles, createAdmin, updateUser, resetUserPassword, deactivateUser, deleteUser } from "@/api";
@@ -86,6 +87,9 @@ const UserManagement = () => {
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserFullName, setNewUserFullName] = useState("");
   const [newUserType, setNewUserType] = useState("student");
+  const [newUserGrade, setNewUserGrade] = useState("1");
+  const [newUserAge, setNewUserAge] = useState("");
+  const [newUserSchool, setNewUserSchool] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [showNewUserPassword, setShowNewUserPassword] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
@@ -93,6 +97,14 @@ const UserManagement = () => {
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel'>('csv');
   const [showPdfDialog, setShowPdfDialog] = useState(false);
   const [pdfOrientation, setPdfOrientation] = useState<'portrait' | 'landscape'>('portrait');
+
+  // Reset Password modal state
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [newResetPassword, setNewResetPassword] = useState("");
+  const [showResetPasswordField, setShowResetPasswordField] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+
   const [onlineCount, setOnlineCount] = useState(0);
   const [offlineCount, setOfflineCount] = useState(0);
   const [usersPage, setUsersPage] = useState(1);
@@ -326,6 +338,37 @@ const UserManagement = () => {
     }
   };
 
+  const handleResetPassword = (user: User) => {
+    setResetPasswordUser(user);
+    setNewResetPassword("");
+    setShowResetPasswordField(false);
+    setShowResetPasswordModal(true);
+  };
+
+  const confirmResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordUser || !newResetPassword) return;
+    try {
+      setResettingPassword(true);
+      await resetUserPassword(resetPasswordUser.id, newResetPassword);
+      toast({
+        title: 'Password Reset',
+        description: `Password successfully reset for ${resetPasswordUser.email}`,
+      });
+      setShowResetPasswordModal(false);
+      setResetPasswordUser(null);
+      setNewResetPassword("");
+    } catch (err: any) {
+      toast({
+        title: 'Reset Failed',
+        description: err?.message || 'Failed to reset password',
+        variant: 'destructive',
+      });
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserEmail || !newUserPassword || !newUserFullName) {
@@ -344,7 +387,12 @@ const UserManagement = () => {
         email: newUserEmail,
         password: newUserPassword,
         fullName: newUserFullName,
-        userType: newUserType
+        userType: newUserType,
+        ...(newUserType === 'student' && {
+          grade: newUserGrade,
+          age: newUserAge,
+          schoolName: newUserSchool,
+        }),
       });
       
       toast({
@@ -357,6 +405,9 @@ const UserManagement = () => {
       setNewUserPassword('');
       setNewUserFullName('');
       setNewUserType('student');
+      setNewUserGrade('1');
+      setNewUserAge('');
+      setNewUserSchool('');
       setShowAddUserModal(false);
     } catch (err: any) {
       toast({
@@ -802,6 +853,15 @@ const UserManagement = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  onClick={() => handleResetPassword(user)}
+                                  className="gap-2"
+                                >
+                                  <KeyRound className="w-4 h-4" />
+                                  Reset PW
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   onClick={() => handleDeleteUser(user)}
                                   className="gap-2 text-destructive hover:text-destructive"
                                 >
@@ -954,6 +1014,48 @@ const UserManagement = () => {
                 </SelectContent>
               </Select>
             </div>
+            {newUserType === 'student' && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="newUserGrade">Grade</Label>
+                    <Select value={newUserGrade} onValueChange={setNewUserGrade} disabled={creatingUser}>
+                      <SelectTrigger id="newUserGrade">
+                        <SelectValue placeholder="Grade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['1','2','3','4','5','6','Common Entrance'].map(g => (
+                          <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newUserAge">Age</Label>
+                    <Input
+                      id="newUserAge"
+                      type="number"
+                      min={5}
+                      max={20}
+                      value={newUserAge}
+                      onChange={e => setNewUserAge(e.target.value)}
+                      placeholder="e.g. 10"
+                      disabled={creatingUser}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newUserSchool">School Name</Label>
+                  <Input
+                    id="newUserSchool"
+                    value={newUserSchool}
+                    onChange={e => setNewUserSchool(e.target.value)}
+                    placeholder="e.g. Greenfield Academy"
+                    disabled={creatingUser}
+                  />
+                </div>
+              </>
+            )}
             <DialogFooter>
               <Button 
                 type="button" 
@@ -1088,6 +1190,58 @@ const UserManagement = () => {
         description={`Are you sure you want to permanently delete ${userToDelete?.email}? This action cannot be undone and will remove all user data, progress, and enrollments.`}
         confirmText="Delete User"
       />
+
+      {/* Reset Password Dialog */}
+      <Dialog open={showResetPasswordModal} onOpenChange={setShowResetPasswordModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {resetPasswordUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={confirmResetPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="resetNewPassword">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="resetNewPassword"
+                  type={showResetPasswordField ? "text" : "password"}
+                  value={newResetPassword}
+                  onChange={e => setNewResetPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  disabled={resettingPassword}
+                  className="pr-10"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPasswordField(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showResetPasswordField ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowResetPasswordModal(false)}
+                disabled={resettingPassword}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={resettingPassword || !newResetPassword} className="gap-2">
+                <KeyRound className="w-4 h-4" />
+                {resettingPassword ? 'Resetting...' : 'Reset Password'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Export Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>

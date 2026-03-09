@@ -10,6 +10,9 @@ export interface CreateAdminInput {
 	password: string;
 	fullName: string;
 	userType?: string; // Optional, defaults to 'admin' if not specified
+	grade?: string;
+	age?: string | number;
+	schoolName?: string;
 }
 
 export interface AdminUser {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,10 +21,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BookOpen, Eye, EyeOff, Star, Users, Trophy, ArrowLeft, CheckCircle } from "lucide-react";
+import {
+  BookOpen, Eye, EyeOff, Star, Users, Trophy, ArrowLeft,
+  CheckCircle, XCircle, AlertCircle, Loader2, ShieldCheck,
+} from "lucide-react";
 import { signUp, signIn, requestPasswordReset } from "@/api";
+import { api } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { signInSchema, signUpSchema, SignInFormData, SignUpFormData } from "@/lib/validations";
+
+const getPasswordStrength = (pw: string): { score: number; label: string; color: string; bg: string } => {
+  if (!pw) return { score: 0, label: "", color: "", bg: "" };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 2) return { score, label: "Weak", color: "text-red-500", bg: "bg-red-500" };
+  if (score <= 4) return { score, label: "Fair", color: "text-amber-500", bg: "bg-amber-500" };
+  if (score === 5) return { score, label: "Good", color: "text-blue-500", bg: "bg-blue-500" };
+  return { score, label: "Strong", color: "text-green-500", bg: "bg-green-500" };
+};
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -42,36 +61,60 @@ const Auth = () => {
   const { toast } = useToast();
   const { refreshUser } = useAuth();
 
-  // Login form
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken" | "unverified">("idle");
+  const [emailCheckTimeout, setEmailCheckTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+
   const loginForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
-  // Signup form
   const signupForm = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      fullName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      userType: "student",
-      grade: "",
-      age: "",
-      schoolName: "",
+      fullName: "", email: "", password: "", confirmPassword: "",
+      userType: "student", grade: "", age: "", schoolName: "",
       referralCode: referralCode || "",
     },
   });
 
+  const watchedPassword = signupForm.watch("password");
+  const watchedConfirm = signupForm.watch("confirmPassword");
+  const passwordStrength = getPasswordStrength(watchedPassword);
+  const passwordsMatch = watchedPassword && watchedConfirm ? watchedPassword === watchedConfirm : null;
+
+  const checkEmailAvailability = useCallback((email: string) => {
+    if (emailCheckTimeout) clearTimeout(emailCheckTimeout);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      setEmailStatus("idle");
+      return;
+    }
+    setEmailStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const res = await api.get('/auth/check-email', { email });
+        if (res.available) {
+          setEmailStatus("available");
+        } else if (res.unverified) {
+          setEmailStatus("unverified");
+        } else {
+          setEmailStatus("taken");
+        }
+      } catch {
+        setEmailStatus("idle");
+      }
+    }, 500);
+    setEmailCheckTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (!isLogin) setEmailStatus("idle");
+  }, [isLogin]);
+
   const onSignup = async (data: SignUpFormData) => {
     try {
-      console.log('🚀 Starting signup...', data);
       setLoading(true);
-
       const result = await signUp({
         email: data.email,
         password: data.password,
@@ -82,49 +125,23 @@ const Auth = () => {
         schoolName: data.schoolName,
         referralCode: data.referralCode,
       });
-      
-      console.log('✅ Signup successful:', result);
 
-      // Check if email verification is required
       if (result.requiresVerification) {
-        if (result.emailSent === false) {
-          toast({
-            title: "✅ Account created!",
-            description: "Email delivery failed — tap \"Resend Code\" on the next screen.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "🎉 Account created!",
-            description: "Please check your email for your verification code.",
-          });
-        }
-
-        // Redirect to verification page
-        navigate('/verify-email', { 
-          state: { 
-            email: result.email || data.email,
-            resent: result.resent || false,
-            emailSent: result.emailSent !== false,
-          } 
+        toast({
+          title: result.emailSent === false ? "✅ Account Created" : "🎉 Account Created!",
+          description: result.emailSent === false
+            ? "Email delivery failed — tap \"Resend Code\" on the next screen."
+            : "Check your email for your verification code.",
+        });
+        navigate('/verify-email', {
+          state: { email: result.email || data.email, resent: result.resent || false, emailSent: result.emailSent !== false },
         });
       } else {
-        // Admin or other users who don't need verification
-        toast({
-          title: "🎉 Account created!",
-          description: "Please log in to continue.",
-        });
-
-        // Redirect to login page
+        toast({ title: "🎉 Account created!", description: "Please log in to continue." });
         navigate(`/auth?mode=login&type=${userType}`);
       }
     } catch (error: any) {
-      console.error('❌ Signup error:', error);
-      toast({
-        title: "Signup Failed",
-        description: error.message || "An error occurred during signup. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Signup Failed", description: error.message || "An error occurred. Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -132,17 +149,9 @@ const Auth = () => {
 
   const onLogin = async (data: SignInFormData) => {
     try {
-      console.log('🚀 Starting login...', { email: data.email });
       setLoading(true);
+      const result = await signIn({ email: data.email, password: data.password });
 
-      const result = await signIn({
-        email: data.email,
-        password: data.password,
-      });
-      
-      console.log('✅ Login successful:', result);
-
-      // Block admin and referral accounts from student dashboard
       if (result.userType !== 'student') {
         toast({
           title: "Access Denied",
@@ -152,60 +161,26 @@ const Auth = () => {
           variant: "destructive",
         });
         setTimeout(() => {
-          if (result.userType === 'admin') {
-            navigate("/admin-auth");
-          } else if (result.userType === 'referral') {
-            navigate("/referral-auth?mode=login");
-          }
+          if (result.userType === 'admin') navigate("/admin-auth");
+          else if (result.userType === 'referral') navigate("/referral-auth?mode=login");
         }, 2000);
         return;
       }
 
-      toast({
-        title: "Welcome back!",
-        description: "Logged in successfully.",
-      });
-
-      // Immediately sync auth context and navigate to dashboard (students only)
+      toast({ title: "Welcome back!", description: "Logged in successfully." });
       refreshUser();
       navigate('/dashboard');
     } catch (error: any) {
-      console.error('❌ Login error:', error);
-      
-      // Check if user needs email verification
       if (error.requiresVerification || error.message?.includes('verify your email')) {
-        toast({
-          title: "Email Not Verified",
-          description: "Please verify your email before logging in.",
-          variant: "destructive",
-        });
-        
-        // Redirect to verification page
-        navigate('/verify-email', { 
-          state: { 
-            email: error.email || data.email,
-            resent: false
-          } 
-        });
+        toast({ title: "Email Not Verified", description: "Please verify your email before logging in.", variant: "destructive" });
+        navigate('/verify-email', { state: { email: error.email || data.email, resent: false } });
         return;
       }
-      
-      // Check if error is about admin access
       if (error.message?.includes('admin portal') || error.message?.includes('Admin accounts')) {
-        toast({
-          title: "Admin Access Blocked",
-          description: "Please use the admin portal to log in.",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          navigate("/admin-auth");
-        }, 2000);
+        toast({ title: "Admin Access Blocked", description: "Please use the admin portal to log in.", variant: "destructive" });
+        setTimeout(() => navigate("/admin-auth"), 2000);
       } else {
-        toast({
-          title: "Login Failed",
-          description: error.message || "Invalid email or password. Please try again.",
-          variant: "destructive",
-        });
+        toast({ title: "Login Failed", description: error.message || "Invalid email or password.", variant: "destructive" });
       }
     } finally {
       setLoading(false);
@@ -232,31 +207,25 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* ─── Left Panel — Brand Hero (hidden on mobile) ─── */}
-      <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 flex-col relative overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900">
-        {/* Subtle pattern */}
+      {/* Left Panel — Brand Hero */}
+      <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 flex-col relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #3730a3 0%, #4f46e5 40%, #7c3aed 100%)" }}>
         <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}
-        />
-        {/* Glow blobs */}
-        <div className="absolute top-[-80px] left-[-80px] w-72 h-72 bg-purple-500/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-60px] right-[-60px] w-80 h-80 bg-indigo-400/20 rounded-full blur-3xl" />
+          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+        <div className="absolute top-[-80px] left-[-80px] w-72 h-72 rounded-full blur-3xl" style={{ background: "rgba(167,139,250,0.25)" }} />
+        <div className="absolute bottom-[-60px] right-[-60px] w-80 h-80 rounded-full blur-3xl" style={{ background: "rgba(99,102,241,0.2)" }} />
 
         <div className="relative z-10 flex flex-col h-full p-10 xl:p-14">
-          {/* Logo */}
-          <div className="flex items-center gap-3 mb-12">
-            <button onClick={() => navigate("/")} className="flex items-center gap-3 group">
-              <div className="p-2.5 bg-white/15 rounded-xl backdrop-blur-sm group-hover:bg-white/25 transition-colors">
-                <BookOpen className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <span className="text-2xl font-bold text-white tracking-tight">Mindsta</span>
-                <span className="block text-[10px] text-indigo-200 leading-tight">Every Child Can Do Well</span>
-              </div>
-            </button>
-          </div>
+          <button onClick={() => navigate("/")} className="flex items-center gap-3 mb-12 group w-fit">
+            <div className="p-2.5 bg-white/15 rounded-xl backdrop-blur-sm group-hover:bg-white/25 transition-colors">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <span className="text-2xl font-bold text-white tracking-tight">Mindsta</span>
+              <span className="block text-[10px] text-indigo-200 leading-tight">Every Child Can Do Well</span>
+            </div>
+          </button>
 
-          {/* Hero copy */}
           <div className="flex-1 flex flex-col justify-center">
             <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-6">
               {isLogin ? "Welcome\nback!" : "Start your\nlearning journey"}
@@ -266,14 +235,12 @@ const Auth = () => {
                 ? "Log in to continue where you left off. Your lessons, progress and achievements are waiting."
                 : "Join thousands of students mastering core subjects with expert-designed lessons and instant feedback."}
             </p>
-
-            {/* Feature bullets */}
             <ul className="space-y-4">
               {[
                 { icon: BookOpen, text: "Curriculum-aligned lessons for Grades 1–6 & Common Entrance" },
-                { icon: Trophy,   text: "Earn achievements and track progress on the leaderboard" },
-                { icon: Star,     text: "Interactive quizzes with instant explanations" },
-                { icon: Users,    text: "Thousands of students learning every day" },
+                { icon: Trophy, text: "Earn achievements and track progress on the leaderboard" },
+                { icon: Star, text: "Interactive quizzes with instant explanations" },
+                { icon: Users, text: "Thousands of students learning every day" },
               ].map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-start gap-3">
                   <div className="p-1.5 bg-white/15 rounded-lg mt-0.5 shrink-0">
@@ -285,7 +252,6 @@ const Auth = () => {
             </ul>
           </div>
 
-          {/* Stats row */}
           <div className="grid grid-cols-3 gap-4 mt-12 pt-8 border-t border-white/10">
             {[{ value: "5,000+", label: "Students" }, { value: "200+", label: "Lessons" }, { value: "6", label: "Grade Levels" }].map(s => (
               <div key={s.label}>
@@ -297,17 +263,17 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* ─── Right Panel — Form ─── */}
+      {/* Right Panel — Form */}
       <div className="flex-1 flex flex-col bg-white dark:bg-background overflow-y-auto">
         {/* Mobile header */}
         <div className="lg:hidden flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border">
           <button onClick={() => navigate("/")} className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-600 rounded-lg">
+            <div className="p-1.5 rounded-lg" style={{ background: "#4f46e5" }}>
               <BookOpen className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-gray-900 dark:text-white">Mindsta</span>
           </button>
-          <button onClick={() => navigate("/")} className="text-sm text-indigo-600 flex items-center gap-1">
+          <button onClick={() => navigate("/")} className="text-sm flex items-center gap-1" style={{ color: "#4f46e5" }}>
             <ArrowLeft className="w-4 h-4" /> Home
           </button>
         </div>
@@ -317,59 +283,63 @@ const Auth = () => {
 
             {/* Tab Switch */}
             <div className="flex bg-gray-100 dark:bg-muted rounded-xl p-1 mb-8">
-              <button
-                onClick={() => setIsLogin(true)}
-                className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  isLogin
-                    ? 'bg-white dark:bg-card shadow text-indigo-600 dark:text-indigo-400'
-                    : 'text-gray-500 dark:text-muted-foreground hover:text-gray-700'
-                }`}
-              >
-                Log In
-              </button>
-              <button
-                onClick={() => setIsLogin(false)}
-                className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  !isLogin
-                    ? 'bg-white dark:bg-card shadow text-indigo-600 dark:text-indigo-400'
-                    : 'text-gray-500 dark:text-muted-foreground hover:text-gray-700'
-                }`}
-              >
-                Create Account
-              </button>
+              {["Log In", "Create Account"].map((label, i) => {
+                const active = i === 0 ? isLogin : !isLogin;
+                return (
+                  <button key={label} onClick={() => setIsLogin(i === 0)}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                      active
+                        ? 'bg-white dark:bg-card shadow'
+                        : 'text-gray-500 dark:text-muted-foreground hover:text-gray-700'
+                    }`}
+                    style={active ? { color: "#4f46e5" } : {}}>
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Heading */}
             <div className="mb-7">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {isLogin ? "Welcome back" : `Create your account`}
+                {isLogin ? "Welcome back" : "Create your account"}
               </h1>
               <p className="text-gray-500 dark:text-muted-foreground text-sm mt-1">
-                {isLogin
-                  ? "Enter your credentials to access your dashboard."
-                  : `Sign up as a ${userType === "student" ? "student" : userType === "parent" ? "parent" : "educator"} to get started.`}
+                {isLogin ? "Enter your credentials to access your dashboard." : "Sign up as a student to get started."}
               </p>
             </div>
 
-            {/* Google Sign-In Button */}
-            <Button
+            {/* Google Button */}
+            <button
               type="button"
-              variant="outline"
-              className="w-full border border-gray-200 dark:border-border hover:bg-gray-50 dark:hover:bg-muted py-5 mb-5 font-medium"
+              disabled={loading}
               onClick={() => {
                 const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
                 window.location.href = `${backendURL}/api/auth/google`;
               }}
-              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 h-11 mb-5 px-4 rounded-lg border font-medium text-sm transition-all disabled:opacity-50"
+              style={{
+                borderColor: "#e2e8f0",
+                color: "#374151",
+                background: "#ffffff",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#f8fafc";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "#cbd5e1";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#ffffff";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "#e2e8f0";
+              }}
             >
-              <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
-              {isLogin ? "Continue" : "Sign up"} with Google
-            </Button>
+              <span style={{ color: "#374151" }}>{isLogin ? "Continue" : "Sign up"} with Google</span>
+            </button>
 
             {/* Divider */}
             <div className="relative mb-5">
@@ -382,21 +352,27 @@ const Auth = () => {
             </div>
 
             <form onSubmit={isLogin ? loginForm.handleSubmit(onLogin) : signupForm.handleSubmit(onSignup)} className="space-y-4">
+
+              {/* ── SIGNUP-ONLY FIELDS ── */}
               {!isLogin && (
                 <>
+                  {/* Full Name */}
                   <div className="space-y-1.5">
                     <Label htmlFor="fullName" className="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</Label>
                     <Input id="fullName" type="text" {...signupForm.register("fullName")} maxLength={100}
-                      className="h-11 border-gray-200 dark:border-border focus:ring-indigo-500 focus:border-indigo-500" placeholder="Your full name" />
+                      className="h-11 border-gray-200 dark:border-border" placeholder="Your full name" />
                     {signupForm.formState.errors.fullName && (
-                      <p className="text-xs text-red-500">{signupForm.formState.errors.fullName.message}</p>
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <XCircle className="w-3.5 h-3.5" />{signupForm.formState.errors.fullName.message}
+                      </p>
                     )}
                   </div>
 
+                  {/* Grade + Age */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="grade" className="text-sm font-medium text-gray-700 dark:text-gray-300">Grade</Label>
-                      <Select value={signupForm.watch("grade")} onValueChange={(value) => signupForm.setValue("grade", value)}>
+                      <Select value={signupForm.watch("grade")} onValueChange={(v) => signupForm.setValue("grade", v)}>
                         <SelectTrigger id="grade" className="h-11 border-gray-200 dark:border-border">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
@@ -413,7 +389,7 @@ const Auth = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="age" className="text-sm font-medium text-gray-700 dark:text-gray-300">Age</Label>
-                      <Select value={signupForm.watch("age")} onValueChange={(value) => signupForm.setValue("age", value)}>
+                      <Select value={signupForm.watch("age")} onValueChange={(v) => signupForm.setValue("age", v)}>
                         <SelectTrigger id="age" className="h-11 border-gray-200 dark:border-border">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
@@ -429,6 +405,7 @@ const Auth = () => {
                     </div>
                   </div>
 
+                  {/* School Name */}
                   <div className="space-y-1.5">
                     <Label htmlFor="schoolName" className="text-sm font-medium text-gray-700 dark:text-gray-300">School Name</Label>
                     <Input id="schoolName" type="text" {...signupForm.register("schoolName")} maxLength={200}
@@ -440,24 +417,56 @@ const Auth = () => {
                 </>
               )}
 
+              {/* Email */}
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</Label>
-                <Input id="email" type="email"
-                  {...(isLogin ? loginForm.register("email") : signupForm.register("email"))} maxLength={255}
-                  className="h-11 border-gray-200 dark:border-border" placeholder="you@example.com" />
-                {isLogin ? loginForm.formState.errors.email && (
+                <div className="relative">
+                  <Input id="email" type="email" maxLength={255}
+                    {...(isLogin ? loginForm.register("email") : signupForm.register("email", {
+                      onChange: (e) => { if (!isLogin) checkEmailAvailability(e.target.value); },
+                    }))}
+                    className={`h-11 border-gray-200 dark:border-border pr-9 ${
+                      !isLogin && emailStatus === "taken" ? "border-red-400 focus:border-red-400" :
+                      !isLogin && emailStatus === "available" ? "border-green-400 focus:border-green-400" : ""
+                    }`}
+                    placeholder="you@example.com" />
+                  {!isLogin && emailStatus !== "idle" && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {emailStatus === "checking" && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                      {emailStatus === "available" && <CheckCircle className="w-4 h-4 text-green-500" />}
+                      {(emailStatus === "taken" || emailStatus === "unverified") && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                    </div>
+                  )}
+                </div>
+                {!isLogin && emailStatus === "available" && (
+                  <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Email is available</p>
+                )}
+                {!isLogin && emailStatus === "taken" && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <XCircle className="w-3 h-3" />This email is already registered.{" "}
+                    <button type="button" className="underline" style={{ color: "#4f46e5" }} onClick={() => setIsLogin(true)}>Log in instead</button>
+                  </p>
+                )}
+                {!isLogin && emailStatus === "unverified" && (
+                  <p className="text-xs flex items-center gap-1" style={{ color: "#d97706" }}>
+                    <AlertCircle className="w-3 h-3" />Account exists but is unverified. Submit to resend the code.
+                  </p>
+                )}
+                {isLogin && loginForm.formState.errors.email && (
                   <p className="text-xs text-red-500">{loginForm.formState.errors.email.message}</p>
-                ) : signupForm.formState.errors.email && (
+                )}
+                {!isLogin && signupForm.formState.errors.email && (
                   <p className="text-xs text-red-500">{signupForm.formState.errors.email.message}</p>
                 )}
               </div>
 
+              {/* Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</Label>
                   {isLogin && (
                     <button type="button" onClick={() => setShowForgotPasswordDialog(true)}
-                      className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                      className="text-xs hover:underline" style={{ color: "#4f46e5" }}>
                       Forgot password?
                     </button>
                   )}
@@ -471,16 +480,50 @@ const Auth = () => {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {isLogin ? loginForm.formState.errors.password && (
-                  <p className="text-xs text-red-500">{loginForm.formState.errors.password.message}</p>
-                ) : signupForm.formState.errors.password && (
-                  <p className="text-xs text-red-500">{signupForm.formState.errors.password.message}</p>
+
+                {/* Password strength meter (signup only) */}
+                {!isLogin && watchedPassword && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                          passwordStrength.score >= i * 1.5
+                            ? passwordStrength.bg
+                            : "bg-gray-200 dark:bg-gray-700"
+                        }`} />
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-3 text-xs text-gray-400">
+                        <span className={/[A-Z]/.test(watchedPassword) ? "text-green-500" : ""}>
+                          {/[A-Z]/.test(watchedPassword) ? "✓" : "·"} Uppercase
+                        </span>
+                        <span className={/[a-z]/.test(watchedPassword) ? "text-green-500" : ""}>
+                          {/[a-z]/.test(watchedPassword) ? "✓" : "·"} Lowercase
+                        </span>
+                        <span className={/[0-9]/.test(watchedPassword) ? "text-green-500" : ""}>
+                          {/[0-9]/.test(watchedPassword) ? "✓" : "·"} Number
+                        </span>
+                        <span className={watchedPassword.length >= 8 ? "text-green-500" : ""}>
+                          {watchedPassword.length >= 8 ? "✓" : "·"} 8+ chars
+                        </span>
+                      </div>
+                      {passwordStrength.label && (
+                        <span className={`text-xs font-semibold ${passwordStrength.color}`}>{passwordStrength.label}</span>
+                      )}
+                    </div>
+                  </div>
                 )}
-                {!isLogin && (
-                  <p className="text-xs text-gray-400">Min. 8 characters with uppercase, lowercase &amp; number</p>
+
+                {isLogin && loginForm.formState.errors.password && (
+                  <p className="text-xs text-red-500">{loginForm.formState.errors.password.message}</p>
+                )}
+                {!isLogin && signupForm.formState.errors.password && (
+                  <p className="text-xs text-red-500">{signupForm.formState.errors.password.message}</p>
                 )}
               </div>
 
+              {/* Confirm Password + Referral (signup only) */}
               {!isLogin && (
                 <>
                   <div className="space-y-1.5">
@@ -488,12 +531,34 @@ const Auth = () => {
                     <div className="relative">
                       <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"}
                         {...signupForm.register("confirmPassword")} maxLength={100}
-                        className="h-11 border-gray-200 dark:border-border pr-10" placeholder="••••••••" />
-                      <button type="button" onClick={() => setShowConfirmPassword(p => !p)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                        className={`h-11 dark:border-border pr-10 ${
+                          passwordsMatch === true ? "border-green-400 focus:border-green-400" :
+                          passwordsMatch === false ? "border-red-400 focus:border-red-400" :
+                          "border-gray-200"
+                        }`}
+                        placeholder="••••••••" />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        {watchedConfirm && (
+                          passwordsMatch
+                            ? <CheckCircle className="w-4 h-4 text-green-500" />
+                            : <XCircle className="w-4 h-4 text-red-400" />
+                        )}
+                        <button type="button" onClick={() => setShowConfirmPassword(p => !p)}
+                          className="text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
+                    {watchedConfirm && !passwordsMatch && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <XCircle className="w-3 h-3" />Passwords don't match
+                      </p>
+                    )}
+                    {watchedConfirm && passwordsMatch && (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />Passwords match
+                      </p>
+                    )}
                     {signupForm.formState.errors.confirmPassword && (
                       <p className="text-xs text-red-500">{signupForm.formState.errors.confirmPassword.message}</p>
                     )}
@@ -510,18 +575,22 @@ const Auth = () => {
                 </>
               )}
 
+              {/* Submit */}
               <Button type="submit"
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all mt-2"
-                disabled={loading}>
+                className="w-full h-12 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all mt-2"
+                style={{ background: "#4f46e5" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#4338ca")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#4f46e5")}
+                disabled={loading || (!isLogin && emailStatus === "taken")}>
                 {loading
-                  ? <><svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processing...</>
+                  ? <><Loader2 className="animate-spin w-4 h-4 mr-2" />Processing...</>
                   : isLogin ? "Log In to My Account" : "Create Account"}
               </Button>
             </form>
 
             <div className="mt-5 text-center">
               <button onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                className="text-sm hover:underline font-medium" style={{ color: "#4f46e5" }}>
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
               </button>
             </div>
@@ -535,7 +604,7 @@ const Auth = () => {
 
             {/* Trust badges */}
             <div className="mt-8 pt-6 border-t border-gray-100 dark:border-border flex items-center justify-center gap-5 text-xs text-gray-400">
-              <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-green-500" /> Secure & Encrypted</span>
+              <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Secure & Encrypted</span>
               <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-green-500" /> No Spam</span>
               <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-green-500" /> Free to Try</span>
             </div>
@@ -555,7 +624,8 @@ const Auth = () => {
             <Input id="forgot-email" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button onClick={handleForgotPassword} disabled={forgotLoading}>
+            <Button onClick={handleForgotPassword} disabled={forgotLoading}
+              style={{ background: "#4f46e5", color: "#fff" }}>
               {forgotLoading ? "Sending..." : "Send reset link"}
             </Button>
           </DialogFooter>

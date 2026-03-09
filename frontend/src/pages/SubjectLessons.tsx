@@ -1,8 +1,7 @@
-// Udemy-style course viewing page with sidebar, tabs, and modern UI
-import SubjectLessonsUdemy from "./SubjectLessonsUdemy";
+import SubjectLessonsPage from "./SubjectLessonsPage";
 
 const SubjectLessons = () => {
-  return <SubjectLessonsUdemy />;
+  return <SubjectLessonsPage />;
 };
 
 export default SubjectLessons;

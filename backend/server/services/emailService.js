@@ -29,22 +29,27 @@ if (resendClient) {
   console.warn('[Email] ⚠️  RESEND_API_KEY not set — falling back to Nodemailer SMTP (local dev only)');
 }
 
-// FROM address: prefer RESEND_FROM, then EMAIL_FROM, then construct from EMAIL_USER
-const FROM_ADDRESS =
-  process.env.RESEND_FROM ||
-  process.env.EMAIL_FROM ||
-  (process.env.EMAIL_USER ? `Mindsta <${process.env.EMAIL_USER}>` : 'Mindsta <noreply@mindsta.com>');
+// FROM address:
+// - Resend: custom domain (noreply@mindsta.com) is fine
+// - Gmail SMTP: MUST be the authenticated Gmail account address;
+//   using a different domain causes Gmail to reject or silently drop the email.
+const FROM_ADDRESS = resendClient
+  ? (process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com>')
+  : (process.env.EMAIL_USER ? `Mindsta <${process.env.EMAIL_USER}>` : 'Mindsta <noreply@mindsta.com>');
 
 // ── Nodemailer (local dev fallback only) ──────────────────────────────────
 const createLocalTransporter = () => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASSWORD;
   if (!user || !pass) return null;
+  // Google app-specific passwords are displayed with spaces for readability
+  // (e.g. "svwf rdge zvug twsf") but must be sent without spaces to SMTP auth.
+  const cleanPass = pass.replace(/\s+/g, '');
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,
-    auth: { user, pass },
+    auth: { user, pass: cleanPass },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 10000,
     socketTimeout: 15000,

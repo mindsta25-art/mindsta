@@ -5,6 +5,7 @@
 
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { randomBytes } from 'crypto';
 import { User } from '../models/index.js';
 
 // Google OAuth credentials from environment variables
@@ -54,7 +55,7 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               userType: 'student', // Default to student for Google sign-ups
               isVerified: true, // Google accounts are pre-verified
               verifiedAt: new Date(),
-              password: Math.random().toString(36).slice(-12), // Random password (won't be used)
+              password: randomBytes(16).toString('hex'), // Cryptographically random — not used for login
             });
             
             console.log('[Google OAuth] Created new user:', user._id);

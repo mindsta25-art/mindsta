@@ -52,7 +52,8 @@ export const securityHeaders = helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
+      // Note: 'unsafe-eval' removed — do not re-add unless a specific dependency requires it
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'", 'https:', 'http:', 'wss:', 'ws:'],
       fontSrc: ["'self'", 'data:', 'https:'],
@@ -92,7 +93,7 @@ export const corsOptions = {
       // Add your production domains here
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

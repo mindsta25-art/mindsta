@@ -110,7 +110,6 @@ const ContentManagement = () => {
     targetAudience: [] as string[],
   });
 
-  // Curriculum state for Udemy-style structure
   const [curriculum, setCurriculum] = useState<Section[]>([]);
   const [curriculumMode, setCurriculumMode] = useState<"simple" | "advanced">("simple");
   const [thumbnailMode, setThumbnailMode] = useState<"url" | "upload">("url");

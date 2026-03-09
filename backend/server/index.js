@@ -36,7 +36,7 @@ import gamificationRoutes from './routes/gamification.js';
 import newsletterRoutes from './routes/newsletter.js';
 import ticketsRoutes from './routes/tickets.js';
 import adminAlertsRoutes from './routes/admin-alerts.js';
-import { errorHandler as oldErrorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { startActivityMonitor } from './middleware/activityTracker.js';
 import {
   securityHeaders,
@@ -44,11 +44,11 @@ import {
   sanitizeData,
   preventPollution,
   validateInput,
-  errorHandler,
   requestLogger,
   apiLimiter,
   authLimiter,
   otpLimiter,
+  strictLimiter,
 } from './middleware/security.js';
 
 // Load environment variables
@@ -99,8 +99,7 @@ app.use(requestLogger);
 // 2. Security Headers - Helmet configuration
 app.use(securityHeaders);
 
-// 3. CORS - Cross-Origin Resource Sharing
-app.use(cors(corsOptions));
+// 3. CORS - handled below with env-driven origin list
 
 // 4. Data Sanitization - Prevent NoSQL injection
 app.use(sanitizeData);
@@ -198,7 +197,7 @@ mongoose.connect(MONGODB_URI, {
 })
   .then(() => {
     console.log('[MongoDB] Connected successfully');
-    startActivityMonitor();
+    try { startActivityMonitor(); } catch (e) { console.error('[ActivityMonitor] Failed to start:', e.message); }
   })
   .catch((error) => {
     console.error('[MongoDB] Connection failed:', error.message);
@@ -211,11 +210,17 @@ mongoose.connection.on('error', (err) => {
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.warn('  MongoDB disconnected. Attempting to reconnect...');
+  console.warn('[MongoDB] Disconnected. Mongoose will attempt auto-reconnect...');
 });
 
 mongoose.connection.on('reconnected', () => {
-  console.log(' MongoDB reconnected');
+  console.log('[MongoDB] Reconnected successfully');
+});
+
+// If Mongoose cannot reconnect after repeated attempts, exit and let the process manager restart
+mongoose.connection.on('close', () => {
+  console.error('[MongoDB] Connection closed permanently — exiting so the service can restart.');
+  process.exit(1);
 });
 
 // Root API endpoint
@@ -265,29 +270,29 @@ app.use('/api/lessons', apiLimiter, lessonRoutes);
 app.use('/api/quizzes', apiLimiter, quizRoutes);
 app.use('/api/progress', apiLimiter, progressRoutes);
 app.use('/api/referrals', apiLimiter, referralRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/profiles', profileRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/wishlist', wishlistRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/assessment', assessmentRoutes);
-app.use('/api/bundles', bundleRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/enrollments', enrollmentRoutes);
-app.use('/api/subjects', subjectRoutes);
-app.use('/api/topics', topicRoutes);
-app.use('/api/suggestions', suggestionRoutes);
-app.use('/api/search-history', searchHistoryRoutes);
-app.use('/api/course-reviews', courseReviewRoutes);
-app.use('/api/course-questions', courseQuestionRoutes);
-app.use('/api/gamification', gamificationRoutes);
-app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/analytics', apiLimiter, analyticsRoutes);
+app.use('/api/admin', strictLimiter, adminRoutes);
+app.use('/api/profiles', apiLimiter, profileRoutes);
+app.use('/api/payments', apiLimiter, paymentRoutes);
+app.use('/api/reports', apiLimiter, reportsRoutes);
+app.use('/api/settings', apiLimiter, settingsRoutes);
+app.use('/api/cart', apiLimiter, cartRoutes);
+app.use('/api/wishlist', apiLimiter, wishlistRoutes);
+app.use('/api/notifications', apiLimiter, notificationRoutes);
+app.use('/api/assessment', apiLimiter, assessmentRoutes);
+app.use('/api/bundles', apiLimiter, bundleRoutes);
+app.use('/api/reviews', apiLimiter, reviewRoutes);
+app.use('/api/enrollments', apiLimiter, enrollmentRoutes);
+app.use('/api/subjects', apiLimiter, subjectRoutes);
+app.use('/api/topics', apiLimiter, topicRoutes);
+app.use('/api/suggestions', apiLimiter, suggestionRoutes);
+app.use('/api/search-history', apiLimiter, searchHistoryRoutes);
+app.use('/api/course-reviews', apiLimiter, courseReviewRoutes);
+app.use('/api/course-questions', apiLimiter, courseQuestionRoutes);
+app.use('/api/gamification', apiLimiter, gamificationRoutes);
+app.use('/api/newsletter', apiLimiter, newsletterRoutes);
 app.use('/api/tickets', apiLimiter, ticketsRoutes);
-app.use('/api/admin-alerts', adminAlertsRoutes);
+app.use('/api/admin-alerts', strictLimiter, adminAlertsRoutes);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);
@@ -296,8 +301,11 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Global error handlers to prevent silent crashes
-process.on('unhandledRejection', (reason) => {
-  console.error('[UnhandledRejection]', reason);
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UnhandledRejection] Unhandled promise rejection:', reason);
+  console.error('[UnhandledRejection] Promise:', promise);
+  // Exit so Render/PM2 can restart the service cleanly
+  process.exit(1);
 });
 
 process.on('uncaughtException', (error) => {
@@ -315,6 +323,8 @@ if (process.env.VERCEL !== '1') {
     if (!IS_PRODUCTION) {
       console.log(`[Server] Health: http://localhost:${PORT}/api/health`);
     }
+    // Signal PM2 that the app is ready (required when wait_ready: true in ecosystem.config)
+    if (process.send) process.send('ready');
   });
 
   // Graceful shutdown — close DB connections and finish in-flight requests

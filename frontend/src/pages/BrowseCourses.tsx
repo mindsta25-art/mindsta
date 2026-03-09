@@ -2061,7 +2061,7 @@ const BrowseCourses = () => {
           })()}
         </AnimatePresence>
 
-        {/* Students Also Bought — Udemy-style fixed bottom panel (rendered via portal at bottom of page) */}
+        {/* Students Also Bought — fixed bottom panel (rendered via portal at bottom of page) */}
 
         {/* Courses Grid - Redesigned */}
         {loading ? (
@@ -2230,7 +2230,7 @@ const BrowseCourses = () => {
                 whileHover={{ y: -8, scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
-                {/* ── MOBILE: Udemy-style compact horizontal row ── */}
+                {/* ── MOBILE: compact horizontal row ── */}
                 <div
                   className={`sm:hidden rounded-xl overflow-hidden cursor-pointer border shadow-sm active:scale-[0.98] transition-transform ${
                     course.enrolled
@@ -3090,7 +3090,7 @@ const BrowseCourses = () => {
                   />
                 </div>
 
-                {/* ── Dark notification header (Udemy-style) ── */}
+                {/* ── Dark notification header ── */}
                 <div className="bg-gray-900 dark:bg-black px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
                   {/* Left: added-to-cart confirmation */}
                   <div className="flex items-center gap-3 min-w-0">

@@ -126,7 +126,6 @@ const LessonSchema = new Schema(
     },
     keywords: [String],
     learningObjectives: [String],
-    // What students will learn (Udemy-style)
     whatYouWillLearn: [String],
     // Course requirements/prerequisites
     requirements: [String],

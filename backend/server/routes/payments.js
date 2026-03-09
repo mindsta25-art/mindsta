@@ -107,7 +107,7 @@ async function notifyAdminOfPurchase({ userId, amount, items, paymentId }) {
     await createAdminAlert({
       type: 'new_purchase',
       title: 'New Course Purchase',
-      message: `${user?.fullName || 'A student'} (${user?.email}) purchased ${items.length} item(s). Amount: ₦${(amount / 100).toLocaleString()}`,
+      message: `${user?.fullName || 'A student'} (${user?.email}) purchased ${items.length} item(s). Amount: ₦${amount.toLocaleString()}`,
       metadata: { paymentId: paymentId.toString(), amount, userId: userId.toString() },
     });
   } catch (error) {
@@ -353,7 +353,7 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
               user.email,
               user.firstName || 'Student',
               {
-                amount: payment.amount / 100,
+                amount: payment.amount,
                 reference: payment.reference,
                 items: payment.items || [],
                 date: payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : new Date().toLocaleDateString()
@@ -468,7 +468,7 @@ router.post('/webhook', express.json(), async (req, res) => {
                 user.email,
                 user.firstName || 'Student',
                 {
-                  amount: payment.amount / 100,
+                  amount: payment.amount,
                   reference: payment.reference,
                   items: payment.items || [],
                   date: payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : new Date().toLocaleDateString()

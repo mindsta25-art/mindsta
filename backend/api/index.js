@@ -6,12 +6,25 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
+import passport from '../server/config/passport.js';
 
 // Load environment variables
 dotenv.config();
+
+// Import shared security middleware
+import {
+  securityHeaders,
+  sanitizeData,
+  preventPollution,
+  validateInput,
+  requestLogger,
+  apiLimiter,
+  authLimiter,
+  otpLimiter,
+  strictLimiter,
+} from '../server/middleware/security.js';
 
 // Import routes
 import authRoutes from '../server/routes/auth.js';
@@ -36,11 +49,19 @@ import enrollmentRoutes from '../server/routes/enrollments.js';
 import subjectRoutes from '../server/routes/subjects.js';
 import topicRoutes from '../server/routes/topics.js';
 import suggestionsRoutes from '../server/routes/suggestions.js';
+import searchHistoryRoutes from '../server/routes/search-history.js';
+import courseReviewRoutes from '../server/routes/course-reviews.js';
+import courseQuestionRoutes from '../server/routes/course-questions.js';
+import gamificationRoutes from '../server/routes/gamification.js';
+import newsletterRoutes from '../server/routes/newsletter.js';
+import ticketsRoutes from '../server/routes/tickets.js';
+import adminAlertsRoutes from '../server/routes/admin-alerts.js';
 import { errorHandler, notFoundHandler } from '../server/middleware/errorHandler.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
-// MongoDB Connection
+// MongoDB Connection with connection caching for serverless
 let cachedDb = null;
 async function connectToDatabase() {
   if (cachedDb) {
@@ -49,16 +70,13 @@ async function connectToDatabase() {
   
   const connection = await mongoose.connect(process.env.MONGODB_URI);
   cachedDb = connection;
-  console.log(' MongoDB connected (Vercel)');
+  console.log('MongoDB connected (Vercel)');
   return cachedDb;
 }
 
 // Middleware
-app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
-app.use(compression());
-app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(requestLogger);
+app.use(securityHeaders);
 
 // CORS
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
@@ -75,7 +93,7 @@ app.use(cors({
       return false;
     });
     
-    if (isAllowed || allowedOrigins.includes('*')) {
+    if (isAllowed) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -86,34 +104,54 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+app.use(sanitizeData);
+app.use(preventPollution);
+app.use(compression());
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(validateInput);
+app.use(passport.initialize());
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API is running on Vercel' });
 });
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/lessons', lessonRoutes);
-app.use('/api/quizzes', quizRoutes);
-app.use('/api/progress', progressRoutes);
-app.use('/api/referrals', referralRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/profiles', profileRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/wishlist', wishlistRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/assessment', assessmentRoutes);
-app.use('/api/bundles', bundleRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/enrollments', enrollmentRoutes);
-app.use('/api/subjects', subjectRoutes);
-app.use('/api/topics', topicRoutes);
-app.use('/api/suggestions', suggestionsRoutes);
+// Routes — mirroring server/index.js
+app.use('/api/auth/signin', authLimiter);
+app.use('/api/auth/admin-signin', authLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
+app.use('/api/auth/resend-otp', otpLimiter);
+app.use('/api/auth', apiLimiter, authRoutes);
+app.use('/api/students', apiLimiter, studentRoutes);
+app.use('/api/lessons', apiLimiter, lessonRoutes);
+app.use('/api/quizzes', apiLimiter, quizRoutes);
+app.use('/api/progress', apiLimiter, progressRoutes);
+app.use('/api/referrals', apiLimiter, referralRoutes);
+app.use('/api/analytics', apiLimiter, analyticsRoutes);
+app.use('/api/admin', strictLimiter, adminRoutes);
+app.use('/api/profiles', apiLimiter, profileRoutes);
+app.use('/api/payments', apiLimiter, paymentRoutes);
+app.use('/api/reports', apiLimiter, reportsRoutes);
+app.use('/api/settings', apiLimiter, settingsRoutes);
+app.use('/api/cart', apiLimiter, cartRoutes);
+app.use('/api/wishlist', apiLimiter, wishlistRoutes);
+app.use('/api/notifications', apiLimiter, notificationRoutes);
+app.use('/api/assessment', apiLimiter, assessmentRoutes);
+app.use('/api/bundles', apiLimiter, bundleRoutes);
+app.use('/api/reviews', apiLimiter, reviewRoutes);
+app.use('/api/enrollments', apiLimiter, enrollmentRoutes);
+app.use('/api/subjects', apiLimiter, subjectRoutes);
+app.use('/api/topics', apiLimiter, topicRoutes);
+app.use('/api/suggestions', apiLimiter, suggestionsRoutes);
+app.use('/api/search-history', apiLimiter, searchHistoryRoutes);
+app.use('/api/course-reviews', apiLimiter, courseReviewRoutes);
+app.use('/api/course-questions', apiLimiter, courseQuestionRoutes);
+app.use('/api/gamification', apiLimiter, gamificationRoutes);
+app.use('/api/newsletter', apiLimiter, newsletterRoutes);
+app.use('/api/tickets', apiLimiter, ticketsRoutes);
+app.use('/api/admin-alerts', strictLimiter, adminAlertsRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

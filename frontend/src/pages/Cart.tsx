@@ -167,7 +167,7 @@ const Cart = () => {
                   <Card key={item._id} className="overflow-hidden hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex gap-4">
-                        {/* Course Thumbnail - Udemy style */}
+                        {/* Course Thumbnail */}
                         <div className="relative w-28 h-16 sm:w-32 sm:h-18 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded flex-shrink-0 overflow-hidden">
                           <div className="absolute inset-0 flex items-center justify-center">
                             <BookOpen className="w-8 h-8 text-white opacity-90" />
@@ -203,7 +203,7 @@ const Cart = () => {
                           </div>
                         </div>
 
-                        {/* Price - Udemy style on right */}
+                        {/* Price */}
                         <div className="flex flex-col items-end justify-start">
                           <div className="text-lg sm:text-xl font-bold text-purple-600">
                             ₦{item.price.toLocaleString()}
