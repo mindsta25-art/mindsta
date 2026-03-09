@@ -314,8 +314,8 @@ const Auth = () => {
               type="button"
               disabled={loading}
               onClick={() => {
-                const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-                window.location.href = `${backendURL}/api/auth/google`;
+                const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+                window.location.href = `${backendURL}/auth/google`;
               }}
               className="w-full flex items-center justify-center gap-3 h-11 mb-5 px-4 rounded-lg border font-medium text-sm transition-all disabled:opacity-50"
               style={{
