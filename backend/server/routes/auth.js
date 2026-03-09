@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User, Student, Referral } from '../models/index.js';
-import { sendReferralSignupEmail, sendPasswordResetEmail, sendVerificationOTP, sendEmailVerifiedEmail } from '../services/emailService.js';
+import { sendReferralSignupEmail, sendPasswordResetEmail, sendVerificationOTP, sendEmailVerifiedEmail, sendWelcomeEmail } from '../services/emailService.js';
 import passport from '../config/passport.js';
 import { createAdminAlert } from './admin-alerts.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -294,6 +294,11 @@ router.post('/signup', async (req, res) => {
         emailSent,
       });
     }
+
+    // Send welcome email to auto-verified users (admins/non-student types) — non-blocking
+    sendWelcomeEmail(user.email, user.fullName).catch(err => {
+      console.error('[Auth] Welcome email failed:', err.message);
+    });
 
     // For other user types (admins), generate JWT token immediately
     const token = jwt.sign(

@@ -65,7 +65,7 @@ const tourSteps: TourStep[] = [
   },
   {
     title: 'Cart & Wishlist',
-    description: 'Found a great course? Add it to your cart or save it to your wishlist for later. Bundle purchases save you money!',
+    description: 'Found a great course? Add it to your cart or save it to your wishlist for later. Enroll in multiple courses at once and manage your learning journey with ease.',
     icon: <ShoppingCart className="w-14 h-14 text-white" />,
     gradient: 'from-orange-500 to-rose-500',
     features: [

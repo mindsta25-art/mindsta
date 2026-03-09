@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { CompleteProfileModal } from '@/components/CompleteProfileModal';
 import { StudentHeader } from '@/components/StudentHeader';
 import { StudentFooter } from '@/components/StudentFooter';
 import { OnboardingTour } from '@/components/OnboardingTour';
@@ -97,6 +98,7 @@ const StudentHome = () => {
   const [mastery, setMastery] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any>({ leaderboard: [], userPosition: undefined, totalParticipants: 0 });
   const [quoteOfDay, setQuoteOfDay] = useState<any>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -114,6 +116,12 @@ const StudentHome = () => {
         ]);
 
         if (!studentData) {
+          // Google OAuth users have no Student record yet — show profile setup modal
+          if (localStorage.getItem('needsProfileSetup') === 'true') {
+            setLoading(false);
+            setShowProfileModal(true);
+            return;
+          }
           throw new Error('Failed to load student information. Please check your connection and try again.');
         }
 
@@ -460,6 +468,15 @@ const StudentHome = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <StudentHeader studentName={studentInfo?.fullName} />
       <OnboardingTour />
+      {/* Profile setup modal — only shown to Google OAuth users on first login */}
+      <CompleteProfileModal
+        open={showProfileModal}
+        onComplete={() => {
+          setShowProfileModal(false);
+          // Re-fetch now that the student record exists
+          window.location.reload();
+        }}
+      />
       <WhatsAppButton />
       
       <main className="pt-2 sm:pt-6 pb-12 sm:pb-16">

@@ -9,6 +9,51 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// POST /api/students/:userId/profile — create student record (used by Google OAuth users who lack one)
+router.post('/:userId/profile', requireAuth, async (req, res) => {
+  try {
+    if (req.user.id !== req.params.userId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const existing = await Student.findOne({ userId: req.params.userId });
+    if (existing) {
+      return res.status(409).json({ error: 'Student profile already exists' });
+    }
+
+    const { fullName, age, grade, schoolName } = req.body;
+    if (!fullName || !grade) {
+      return res.status(400).json({ error: 'fullName and grade are required' });
+    }
+
+    const student = await Student.create({
+      userId: req.params.userId,
+      fullName,
+      age: age ? Number(age) : undefined,
+      grade,
+      schoolName: schoolName || '',
+    });
+
+    if (fullName) {
+      await User.findByIdAndUpdate(req.params.userId, { fullName });
+    }
+
+    res.status(201).json({
+      id: student._id.toString(),
+      userId: student.userId.toString(),
+      fullName: student.fullName,
+      grade: student.grade,
+      age: student.age,
+      schoolName: student.schoolName,
+      isPaid: student.isPaid || false,
+      createdAt: student.createdAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('Error creating student profile:', error);
+    res.status(500).json({ error: 'Failed to create profile', message: error.message });
+  }
+});
+
 // GET /api/students/:userId
 router.get('/:userId', requireAuth, async (req, res) => {
   try {

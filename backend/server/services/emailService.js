@@ -389,11 +389,6 @@ This link will expire in 1 hour. If you didn't request this password reset, plea
 © 2024 Mindsta. All rights reserved.
   `.trim();
 
-  if (!transporter) {
-    console.log(`[Email] Password reset email skipped — EMAIL_USER/EMAIL_PASSWORD not configured`);
-    return Promise.resolve({ success: false, message: 'Email service not configured' });
-  }
-
   const mailOptions = {
     from: FROM_ADDRESS,
     to: email,
@@ -1008,7 +1003,7 @@ Manage your preferences or unsubscribe at any time.
     `.trim();
 
     const mailOptions = {
-      from: `"Mindsta Newsletter" <${EMAIL_CONFIG.auth.user}>`,
+      from: FROM_ADDRESS,
       to: email,
       subject: subject,
       text: plainText,

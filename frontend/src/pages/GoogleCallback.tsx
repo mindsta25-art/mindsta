@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingScreen } from "@/components/ui/loading";
+import { getStudentByUserId } from "@/api/students";
 
 /**
  * Google OAuth Callback Handler
@@ -78,13 +79,24 @@ const GoogleCallback = () => {
           description: `Logged in successfully with Google as ${fullName}`,
         });
 
-        // Redirect based on user type
+        // Redirect based on user type; for students check if a Student profile record
+        // exists yet — Google OAuth users skip the signup form so grade/age/school are
+        // never captured. Flag them so the dashboard can prompt for completion.
         if (userType === 'admin') {
           navigate('/admin');
         } else if (userType === 'referral') {
           navigate('/referral-dashboard');
         } else {
-          navigate('/home');
+          // Check if student profile exists (best-effort; don't block navigation on failure)
+          try {
+            const studentProfile = await getStudentByUserId(id);
+            if (!studentProfile) {
+              localStorage.setItem('needsProfileSetup', 'true');
+            }
+          } catch {
+            localStorage.setItem('needsProfileSetup', 'true');
+          }
+          navigate('/student-home');
         }
       } catch (error) {
         console.error('Error processing Google callback:', error);

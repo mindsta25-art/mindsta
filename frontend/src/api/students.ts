@@ -76,6 +76,17 @@ export const updateStudentGrade = async (userId: string, grade: string): Promise
 /**
  * Update student profile
  */
+/**
+ * Create a new student profile (used by Google OAuth users who have no Student record)
+ */
+export const createStudentProfile = async (
+  userId: string,
+  data: { fullName: string; grade: string; age?: number; schoolName?: string }
+): Promise<StudentData> => {
+  const result = await api.post(`/students/${userId}/profile`, data);
+  return result;
+};
+
 export const updateStudentProfile = async (
   userId: string, 
   data: { fullName?: string; age?: number; grade?: string; schoolName?: string }
