@@ -960,6 +960,21 @@ router.get('/google/callback',
         return res.redirect(`${frontendURL}/auth?error=authentication_failed`);
       }
 
+      // If user is not yet verified, send OTP and redirect to verification screen
+      if (!user.isVerified) {
+        const otp = generateOTP();
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await User.findByIdAndUpdate(user._id, { verificationOTP: otp, otpExpires });
+        try {
+          await sendVerificationOTP(user.email, user.fullName, otp);
+          console.log('[Google OAuth Callback] OTP sent for unverified user:', user.email);
+        } catch (emailErr) {
+          console.error('[Google OAuth Callback] Failed to send OTP email:', emailErr);
+        }
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendURL}/auth?requiresVerification=true&email=${encodeURIComponent(user.email)}`);
+      }
+
       // Generate a short-lived JWT (5 min) for the handoff URL.
       // Hash fragments are never sent to the server in HTTP requests,
       // so the token won't appear in server access logs or referrer headers.

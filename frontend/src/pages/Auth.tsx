@@ -112,6 +112,17 @@ const Auth = () => {
     if (!isLogin) setEmailStatus("idle");
   }, [isLogin]);
 
+  // Handle redirect from Google OAuth when user needs OTP verification
+  useEffect(() => {
+    const requiresVerification = searchParams.get('requiresVerification');
+    const emailParam = searchParams.get('email');
+    if (requiresVerification === 'true' && emailParam) {
+      navigate('/verify-email', {
+        state: { email: emailParam, resent: false, emailSent: true },
+      });
+    }
+  }, []);
+
   const onSignup = async (data: SignUpFormData) => {
     try {
       setLoading(true);

@@ -47,18 +47,17 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               console.log('[Google OAuth] Updated existing user with Google ID:', user._id);
             }
           } else {
-            // Create new user with Google account
+            // Create new user with Google account — unverified until OTP is confirmed
             user = await User.create({
               email,
               fullName,
               googleId,
-              userType: 'student', // Default to student for Google sign-ups
-              isVerified: true, // Google accounts are pre-verified
-              verifiedAt: new Date(),
+              userType: 'student',
+              isVerified: false,
               password: randomBytes(16).toString('hex'), // Cryptographically random — not used for login
             });
             
-            console.log('[Google OAuth] Created new user:', user._id);
+            console.log('[Google OAuth] Created new user (needs OTP verification):', user._id);
           }
 
           // Update online status and last login
