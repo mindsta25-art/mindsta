@@ -80,22 +80,28 @@ export const securityHeaders = helmet({
  */
 export const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:8080',
       'http://localhost:3000',
+      // Production — all known Vercel deployment URLs
+      'https://mindsta33.vercel.app',
       'https://mindsta.vercel.app',
       'https://mindsta-app.vercel.app',
-      // Add your production domains here
+      // Support any extra origins set via ALLOWED_ORIGINS env var (comma-separated)
+      ...(process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+        : []),
     ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.warn(`[CORS] Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
