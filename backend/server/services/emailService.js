@@ -30,12 +30,14 @@ if (resendClient) {
 }
 
 // FROM address:
-// - Resend: custom domain (noreply@mindsta.com) is fine
-// - Gmail SMTP: MUST be the authenticated Gmail account address;
-//   using a different domain causes Gmail to reject or silently drop the email.
+// - Resend without verified domain: use onboarding@resend.dev (Resend shared sender, no setup needed)
+// - Resend with verified domain: set RESEND_FROM=Mindsta <noreply@yourdomain.com> in env vars
+// - Gmail SMTP: MUST be the authenticated Gmail account address
 const FROM_ADDRESS = resendClient
-  ? (process.env.RESEND_FROM || process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com>')
-  : (process.env.EMAIL_USER ? `Mindsta <${process.env.EMAIL_USER}>` : 'Mindsta <noreply@mindsta.com>');
+  ? (process.env.RESEND_FROM || 'Mindsta <onboarding@resend.dev>')
+  : (process.env.EMAIL_USER ? `Mindsta <${process.env.EMAIL_USER}>` : 'Mindsta <onboarding@resend.dev>');
+
+console.log(`[Email] 📬 Sending from: ${FROM_ADDRESS}`);
 
 // ── Nodemailer (local dev fallback only) ──────────────────────────────────
 const createLocalTransporter = () => {
