@@ -390,9 +390,15 @@ router.post('/verify-otp', async (req, res) => {
       isVerified: true,
     };
 
+    // Google OAuth users who registered via Google have no Student record yet
+    // (grade/age/schoolName are not provided by Google). Signal the frontend
+    // so it can show the complete-profile modal immediately after verification.
+    const needsProfileSetup = !!(user.googleId && user.userType === 'student');
+
     res.json({
       message: 'Email verified successfully',
-      user: authUser
+      user: authUser,
+      needsProfileSetup,
     });
   } catch (error) {
     console.error('Error verifying OTP:', error);

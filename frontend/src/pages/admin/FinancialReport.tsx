@@ -359,7 +359,7 @@ const FinancialReport = () => {
           { align: 'center' }
         );
         doc.text(
-          '© 2024 Mindsta. All rights reserved.',
+          '© 2026 Mindsta. All rights reserved.',
           14,
           pageHeight - 10
         );

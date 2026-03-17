@@ -181,7 +181,7 @@ export const sendEmailVerifiedEmail = async (email, name) => {
           <p style="color: #666;">If you have any questions or need assistance, our support team is always here to help.</p>
           
           <div class="footer">
-            <p>© 2024 Mindsta. All rights reserved.</p>
+            <p>© 2026 Mindsta. All rights reserved.</p>
             <p>This is an automated email, please do not reply.</p>
           </div>
         </div>
@@ -223,7 +223,7 @@ Start learning at: https://mindsta.com.ng
 
 If you have any questions or need assistance, our support team is always here to help.
 
-© 2024 Mindsta. All rights reserved.
+© 2026 Mindsta. All rights reserved.
   `.trim();
 
   try {
@@ -284,7 +284,7 @@ export const sendReferralSignupEmail = async (referrerEmail, referrerName, refer
           <p>Keep sharing your referral code to earn more rewards.</p>
           
           <div class="footer">
-            <p>© 2024 Mindsta. All rights reserved.</p>
+            <p>© 2026 Mindsta. All rights reserved.</p>
             <p>This is an automated email, please do not reply.</p>
           </div>
         </div>
@@ -304,7 +304,7 @@ Used code: ${referralCode}
 You'll earn commission when they make their first purchase!
 Keep sharing your referral code to earn more rewards.
 
-© 2024 Mindsta. All rights reserved.
+© 2026 Mindsta. All rights reserved.
   `.trim();
 
   try {
@@ -368,7 +368,7 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
           </div>
           
           <div class="footer">
-            <p>© 2024 Mindsta. All rights reserved.</p>
+            <p>© 2026 Mindsta. All rights reserved.</p>
             <p>This is an automated email, please do not reply.</p>
           </div>
         </div>
@@ -388,7 +388,7 @@ ${resetUrl}
 ⚠️ Security Notice:
 This link will expire in 1 hour. If you didn't request this password reset, please ignore this email or contact support if you have concerns.
 
-© 2024 Mindsta. All rights reserved.
+© 2026 Mindsta. All rights reserved.
   `.trim();
 
   const mailOptions = {
@@ -465,7 +465,7 @@ export const sendWelcomeEmail = async (email, name) => {
           <p style="margin-top: 30px; color: #666;">Need help? Our support team is here for you!</p>
           
           <div class="footer">
-            <p>© 2024 Mindsta. All rights reserved.</p>
+            <p>© 2026 Mindsta. All rights reserved.</p>
             <p>This is an automated email, please do not reply.</p>
           </div>
         </div>
@@ -491,7 +491,7 @@ Start learning at: https://mindsta.com.ng
 
 Need help? Our support team is here for you!
 
-© 2024 Mindsta. All rights reserved.
+© 2026 Mindsta. All rights reserved.
   `.trim();
 
   try {
@@ -649,7 +649,7 @@ export const sendPaymentSuccessEmail = async (email, name, paymentDetails) => {
           <p>Happy learning! 🎓</p>
           
           <div class="footer">
-            <p>© 2024 Mindsta. All rights reserved.</p>
+            <p>© 2026 Mindsta. All rights reserved.</p>
             <p>This is an automated email, please do not reply.</p>
           </div>
         </div>
@@ -676,7 +676,7 @@ Total Amount Paid: ₦${(amount || 0).toLocaleString()}
 Your course${items.length > 1 ? 's are' : ' is'} now accessible in your dashboard.
 Happy learning! 🎓
 
-© 2024 Mindsta. All rights reserved.
+© 2026 Mindsta. All rights reserved.
   `.trim();
 
   const mailOptions = {
@@ -756,7 +756,7 @@ export const sendCommissionEarnedEmail = async (referrerEmail, referrerName, com
           </div>
           
           <div class="footer">
-            <p>© 2024 Mindsta. All rights reserved.</p>
+            <p>© 2026 Mindsta. All rights reserved.</p>
             <p>This is an automated email, please do not reply.</p>
           </div>
         </div>
@@ -782,7 +782,7 @@ You can request a payout once you reach the minimum threshold.
 
 View your dashboard: https://mindsta.com.ng/referral/dashboard
 
-© 2024 Mindsta. All rights reserved.
+© 2026 Mindsta. All rights reserved.
   `.trim();
 
   try {
@@ -877,7 +877,7 @@ export const sendVerificationOTP = async (email, name, otp) => {
           <p>If you didn't create an account with Mindsta, please ignore this email.</p>
           
           <div class="footer">
-            <p>© 2024 Mindsta. All rights reserved.</p>
+            <p>© 2026 Mindsta. All rights reserved.</p>
             <p>This is an automated email, please do not reply.</p>
           </div>
         </div>
@@ -899,7 +899,7 @@ Enter this code on the verification page to activate your account.
 
 If you didn't create an account with Mindsta, please ignore this email.
 
-© 2024 Mindsta. All rights reserved.
+© 2026 Mindsta. All rights reserved.
   `.trim();
 
   // Always log OTP to server console for emergency recovery

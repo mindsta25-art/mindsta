@@ -90,6 +90,11 @@ export function VerifyEmail() {
         localStorage.setItem('currentUser', JSON.stringify(result.user));
         sessionStorage.setItem('isNewRegistration', 'true');
       }
+      // Google OAuth users have no Student record (grade/age/school never collected).
+      // Set the flag so StudentHome shows the complete-profile modal on first visit.
+      if (result.needsProfileSetup) {
+        localStorage.setItem('needsProfileSetup', 'true');
+      }
       navigate('/verify-success', { state: { user: result.user } });
     } catch (error: any) {
       toast({
