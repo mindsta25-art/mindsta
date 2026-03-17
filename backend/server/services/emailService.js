@@ -924,8 +924,13 @@ If you didn't create an account with Mindsta, please ignore this email.
 
 /**
  * Send newsletter email to subscribers
+ * @param {string} email - Subscriber's email
+ * @param {string} name - Subscriber's name
+ * @param {string} subject - Email subject
+ * @param {string} message - Email body content
  */
-export const sendNewsletterEmail = async (email, subject, message) => {
+export const sendNewsletterEmail = async (email, name, subject, message) => {
+  const firstName = (name || 'Subscriber').split(' ')[0];
   try {
     const htmlContent = `
       <!DOCTYPE html>
@@ -947,6 +952,7 @@ export const sendNewsletterEmail = async (email, subject, message) => {
 
           <!-- Content -->
           <div style="padding: 40px 30px;">
+            <p style="color: #2d3748; font-size: 16px; margin: 0 0 20px 0;">Hi <strong>${firstName}</strong>,</p>
             <div style="color: #2d3748; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">
               ${message}
             </div>
@@ -991,6 +997,8 @@ export const sendNewsletterEmail = async (email, subject, message) => {
     `;
 
     const plainText = `
+Hi ${firstName},
+
 ${subject}
 
 ${message}

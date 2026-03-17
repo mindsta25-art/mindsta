@@ -162,8 +162,17 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
     // Send commission email to referrer
     try {
       const referrer = await User.findById(referral.referrerId);
+      const referredUser = await User.findById(userId);
       if (referrer) {
-        await sendCommissionEarnedEmail(referrer, transaction, { amount });
+        await sendCommissionEarnedEmail(
+          referrer.email,
+          referrer.fullName || referrer.firstName || referrer.email,
+          commission,
+          {
+            referredName: referredUser?.fullName || referredUser?.firstName || 'A student',
+            totalEarnings: profile.totalEarnings,
+          }
+        );
         
         // Create in-app notification for referrer
         await Notification.create({
@@ -351,7 +360,7 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
           if (user?.email) {
             await sendPaymentSuccessEmail(
               user.email,
-              user.firstName || 'Student',
+              user.fullName || user.firstName || 'Student',
               {
                 amount: payment.amount,
                 reference: payment.reference,
@@ -466,7 +475,7 @@ router.post('/webhook', express.json(), async (req, res) => {
             if (user?.email) {
               await sendPaymentSuccessEmail(
                 user.email,
-                user.firstName || 'Student',
+                user.fullName || user.firstName || 'Student',
                 {
                   amount: payment.amount,
                   reference: payment.reference,

@@ -157,8 +157,10 @@ router.post('/send', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Admin user not found' });
     }
 
-    // Get all active subscribers
-    const subscribers = await Newsletter.find({ isActive: true }).select('email');
+    // Get all active subscribers with linked user info for personalization
+    const subscribers = await Newsletter.find({ isActive: true })
+      .select('email userId')
+      .populate('userId', 'fullName firstName');
 
     if (subscribers.length === 0) {
       return res.status(400).json({ error: 'No active subscribers found' });
@@ -170,7 +172,8 @@ router.post('/send', requireAuth, async (req, res) => {
     // Send email to each subscriber
     for (const subscriber of subscribers) {
       try {
-        await sendNewsletterEmail(subscriber.email, subject, message);
+        const subscriberName = subscriber.userId?.fullName || subscriber.userId?.firstName || 'Subscriber';
+        await sendNewsletterEmail(subscriber.email, subscriberName, subject, message);
         sentCount++;
       } catch (emailError) {
         console.error(`Failed to send to ${subscriber.email}:`, emailError.message);
