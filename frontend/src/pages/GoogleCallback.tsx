@@ -85,6 +85,9 @@ const GoogleCallback = () => {
         if (userType === 'admin') {
           navigate('/admin');
         } else if (userType === 'referral') {
+          // Google OAuth referral users skip the signup form, so they may not have
+          // a phone number yet. Flag it so the dashboard shows the completion modal.
+          localStorage.setItem('needsReferralProfileSetup', 'true');
           navigate('/referral-dashboard');
         } else {
           // Check if student profile exists (best-effort; don't block navigation on failure)

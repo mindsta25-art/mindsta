@@ -11,6 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import QRCode from 'react-qr-code';
 import { signOut } from '@/api/auth';
+import { CompleteReferralProfileModal } from '@/components/CompleteReferralProfileModal';
+import { ReferralOnboardingTour } from '@/components/ReferralOnboardingTour';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +76,13 @@ export default function ReferralDashboard() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [requestingPayout, setRequestingPayout] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem('needsReferralProfileSetup') === 'true') {
+      setShowProfileModal(true);
+    }
+  }, []);
 
   useEffect(() => {
     loadDashboard();
@@ -194,6 +203,11 @@ export default function ReferralDashboard() {
 
   return (
     <>
+    <CompleteReferralProfileModal
+      open={showProfileModal}
+      onComplete={() => setShowProfileModal(false)}
+    />
+    <ReferralOnboardingTour />
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-background dark:via-background dark:to-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header & Nav */}

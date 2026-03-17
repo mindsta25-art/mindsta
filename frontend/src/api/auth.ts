@@ -65,7 +65,7 @@ export const signUp = async (data: SignUpData): Promise<SignUpResponse> => {
 /**
  * Verify email with OTP
  */
-export const verifyOTP = async (email: string, otp: string): Promise<{ message: string; user: AuthUser; needsProfileSetup?: boolean }> => {
+export const verifyOTP = async (email: string, otp: string): Promise<{ message: string; user: AuthUser; needsProfileSetup?: boolean; needsReferralProfileSetup?: boolean }> => {
   try {
     const result = await api.post('/auth/verify-otp', { email, otp });
     return result;

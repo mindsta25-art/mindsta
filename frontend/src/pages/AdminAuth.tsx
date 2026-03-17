@@ -255,7 +255,7 @@ const AdminAuth = () => {
       <footer className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-card backdrop-blur-sm border-t border-gray-200 py-3 z-40">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            © 2025 Mindsta Admin Panel. All rights reserved. | Secure Access Only
+            © {new Date().getFullYear()} Mindsta Admin Panel. All rights reserved. | Secure Access Only
           </p>
         </div>
       </footer>

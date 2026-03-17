@@ -497,7 +497,7 @@ const UserManagement = () => {
           { align: 'center' }
         );
         doc.text(
-          '© 2026 Mindsta. All rights reserved.',
+          `© ${new Date().getFullYear()} Mindsta. All rights reserved.`,
           14,
           pageHeight - 10
         );

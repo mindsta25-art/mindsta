@@ -394,11 +394,14 @@ router.post('/verify-otp', async (req, res) => {
     // (grade/age/schoolName are not provided by Google). Signal the frontend
     // so it can show the complete-profile modal immediately after verification.
     const needsProfileSetup = !!(user.googleId && user.userType === 'student');
+    // Likewise, referral users from Google OAuth have no phone number yet.
+    const needsReferralProfileSetup = !!(user.googleId && user.userType === 'referral');
 
     res.json({
       message: 'Email verified successfully',
       user: authUser,
       needsProfileSetup,
+      needsReferralProfileSetup,
     });
   } catch (error) {
     console.error('Error verifying OTP:', error);
@@ -735,6 +738,40 @@ router.post('/reset-password', async (req, res) => {
 });
 
 /**
+ * PATCH /api/auth/profile
+ * Update authenticated user's own profile fields (phone, fullName).
+ * Used by Google OAuth users who complete their profile after first login.
+ */
+router.patch('/profile', requireAuth, async (req, res) => {
+  try {
+    const { phoneNumber, fullName } = req.body;
+    const allowedUpdates = {};
+    if (phoneNumber !== undefined) allowedUpdates.phoneNumber = phoneNumber;
+    if (fullName !== undefined) allowedUpdates.fullName = fullName;
+
+    if (Object.keys(allowedUpdates).length === 0) {
+      return res.status(400).json({ error: 'No updatable fields provided' });
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: allowedUpdates },
+      { new: true, runValidators: true }
+    ).select('-password -verificationOTP');
+
+    if (!updated) return res.status(404).json({ error: 'User not found' });
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: { id: updated._id, fullName: updated.fullName, phoneNumber: updated.phoneNumber },
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile', message: error.message });
+  }
+});
+
+/**
  * PUT /api/auth/notification-preferences
  * Update user notification preferences
  */
@@ -946,11 +983,17 @@ router.post('/logout', async (req, res) => {
 /**
  * GET /api/auth/google
  * Initiate Google OAuth flow
+ * Accepts optional ?userType=referral to create referral accounts
  */
-router.get('/google', passport.authenticate('google', {
-  scope: ['profile', 'email'],
-  session: false
-}));
+router.get('/google', (req, res, next) => {
+  const userType = req.query.userType === 'referral' ? 'referral' : 'student';
+  const state = Buffer.from(JSON.stringify({ userType })).toString('base64');
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+    state,
+  })(req, res, next);
+});
 
 /**
  * GET /api/auth/google/callback

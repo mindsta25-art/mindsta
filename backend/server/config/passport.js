@@ -22,11 +22,20 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
         clientSecret: GOOGLE_CLIENT_SECRET,
         callbackURL: GOOGLE_CALLBACK_URL,
         scope: ['profile', 'email'],
+        passReqToCallback: true, // so we can read state from req
       },
-      async (accessToken, refreshToken, profile, done) => {
+      async (req, accessToken, refreshToken, profile, done) => {
         try {
           console.log('[Google OAuth] Authentication successful:', profile.id);
           
+          // Decode userType from the JSON state param (set in GET /auth/google)
+          let targetUserType = 'student';
+          try {
+            const stateRaw = req.query.state || '';
+            const decoded = JSON.parse(Buffer.from(stateRaw, 'base64').toString('utf8'));
+            if (decoded.userType === 'referral') targetUserType = 'referral';
+          } catch { /* ignore — defaults to student */ }
+
           // Extract user info from Google profile
           const email = profile.emails?.[0]?.value;
           const fullName = profile.displayName;
@@ -52,12 +61,12 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
               email,
               fullName,
               googleId,
-              userType: 'student',
+              userType: targetUserType,
               isVerified: false,
               password: randomBytes(16).toString('hex'), // Cryptographically random — not used for login
             });
             
-            console.log('[Google OAuth] Created new user (needs OTP verification):', user._id);
+            console.log('[Google OAuth] Created new user (needs OTP verification):', user._id, 'userType:', targetUserType);
           }
 
           // Update online status and last login

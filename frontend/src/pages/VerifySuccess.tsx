@@ -8,12 +8,14 @@ export function VerifySuccess() {
   const location = useLocation();
   const user = location.state?.user;
   const firstName = user?.fullName?.split(' ')[0] || 'there';
+  const isReferral = user?.userType === 'referral';
+  const destination = isReferral ? '/referral-dashboard' : '/student-home';
 
   useEffect(() => {
     // Auto-redirect to dashboard after 5 seconds
-    const timer = setTimeout(() => navigate('/student-home'), 5000);
+    const timer = setTimeout(() => navigate(destination), 5000);
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate, destination]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
@@ -64,7 +66,7 @@ export function VerifySuccess() {
 
             <Button
               className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 gap-2"
-              onClick={() => navigate('/student-home')}
+              onClick={() => navigate(destination)}
             >
               <BookOpen className="w-5 h-5" />
               Go to My Dashboard

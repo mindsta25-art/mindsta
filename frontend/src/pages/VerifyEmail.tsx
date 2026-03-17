@@ -95,6 +95,10 @@ export function VerifyEmail() {
       if (result.needsProfileSetup) {
         localStorage.setItem('needsProfileSetup', 'true');
       }
+      // Google OAuth referral users have no phone number yet.
+      if (result.needsReferralProfileSetup) {
+        localStorage.setItem('needsReferralProfileSetup', 'true');
+      }
       navigate('/verify-success', { state: { user: result.user } });
     } catch (error: any) {
       toast({
