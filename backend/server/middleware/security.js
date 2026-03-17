@@ -91,7 +91,6 @@ export const corsOptions = {
       // Production — official domain and known Vercel deployment URLs
       'https://mindsta.com.ng',
       'https://www.mindsta.com.ng',
-      'https://mindsta33.vercel.app',
       'https://mindsta.vercel.app',
       'https://mindsta-app.vercel.app',
       // Support any extra origins set via ALLOWED_ORIGINS env var (comma-separated)

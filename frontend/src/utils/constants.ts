@@ -5,7 +5,7 @@
 export const APP_CONFIG = {
   name: "Mindsta",
   version: "1.0.0",
-  description: "Educational Learning Platform for Grades 1-6",
+  description: "Curriculum-aligned Learning Platform for Grades 1-6",
   defaultLanguage: "en",
   supportedGrades: [1, 2, 3, 4, 5, 6],
 } as const;

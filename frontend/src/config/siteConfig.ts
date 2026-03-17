@@ -11,8 +11,8 @@ export const siteConfig = {
   // Company Information (editable via Admin Panel > Settings > General)
   company: {
     name: "Mindsta",
-    tagline: "Learn • Grow • Excel",
-    description: "A safe and engaging learning platform for everyone",
+    tagline: "Every Child Can Do Well",
+    description: "Curriculum-aligned learning platform for Grades 1-6",
   },
 
   // Social Media Links

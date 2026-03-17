@@ -46,7 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
@@ -91,22 +91,22 @@ const getIndividualTemplates = (entry?: LeaderboardEntry) => [
   },
   {
     label: "🌟 Personal Message",
-    text: `Hi ${entry?.name || ""}! We noticed your impressive performance on MindSta. Keep pushing yourself and remember — every lesson brings you closer to your goals!`,
+    text: `Hi ${entry?.name || ""}! We noticed your impressive performance on Mindsta. Keep pushing yourself and remember — every lesson brings you closer to your goals!`,
   },
 ];
 
 const getBroadcastTemplates = () => [
   {
     label: "🚀 Challenge Everyone",
-    text: "The competition is heating up on the MindSta leaderboard! 🚀 Who will reach the top? Log in, complete lessons, and earn coins to climb the ranks. Your effort today shapes your future tomorrow!",
+    text: "The competition is heating up on the Mindsta leaderboard! 🚀 Who will reach the top? Log in, complete lessons, and earn coins to climb the ranks. Your effort today shapes your future tomorrow!",
   },
   {
     label: "📚 Weekly Motivation",
-    text: "Great week, MindSta learners! 📚 The leaderboard is closer than you think — just a few more lessons could move you up several spots. Every coin counts, every lesson matters!",
+    text: "Great week, Mindsta learners! 📚 The leaderboard is closer than you think — just a few more lessons could move you up several spots. Every coin counts, every lesson matters!",
   },
   {
     label: "🎯 Push for the Top",
-    text: "Did you know the top students on MindSta earn coins for every lesson and quiz? 🎯 Check the leaderboard and challenge yourself to climb higher. You have what it takes!",
+    text: "Did you know the top students on Mindsta earn coins for every lesson and quiz? 🎯 Check the leaderboard and challenge yourself to climb higher. You have what it takes!",
   },
   {
     label: "🌟 Monthly Challenge",
@@ -635,7 +635,7 @@ export default function LeaderboardManagement() {
               <p className="text-sm">No students found</p>
             </div>
           ) : (
-            <ScrollArea className="h-[520px]">
+            <div>
               {/* Table header */}
               <div className="grid grid-cols-[56px_1fr_80px_120px_120px_100px_100px] gap-2 px-4 py-2 bg-muted/50 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 <button
@@ -769,7 +769,7 @@ export default function LeaderboardManagement() {
                   )}
                 </div>
               ))}
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -801,7 +801,7 @@ export default function LeaderboardManagement() {
             </DialogTitle>
             <DialogDescription>
               {msgDialog.mode === "broadcast"
-                ? "Send an encouraging notification to every student on MindSta."
+                ? "Send an encouraging notification to every student on Mindsta."
                 : `Send a personal notification directly to ${msgDialog.target?.name}'s inbox.`}
             </DialogDescription>
           </DialogHeader>
