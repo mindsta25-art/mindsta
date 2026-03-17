@@ -26,7 +26,8 @@ const generateOTP = () => {
  * GET /api/auth/email-status
  * Check if email service is configured (admin diagnostic only)
  */
-router.get('/email-status', (req, res) => {
+router.get('/email-status', requireAuth, async (req, res) => {
+  if (req.user?.userType !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   const resendKey = process.env.RESEND_API_KEY;
   const resendFrom = process.env.RESEND_FROM;
   const smtpUser = process.env.EMAIL_USER;
@@ -46,15 +47,16 @@ router.get('/email-status', (req, res) => {
 
 /**
  * POST /api/auth/test-email
- * Send a test OTP email to verify the email service works
+ * Send a test OTP email to verify the email service works (admin only)
  */
-router.post('/test-email', async (req, res) => {
+router.post('/test-email', requireAuth, async (req, res) => {
+  if (req.user?.userType !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'email is required' });
   try {
     const testOtp = generateOTP();
     await sendVerificationOTP(email, 'Test User', testOtp);
-    res.json({ success: true, message: `Test OTP sent to ${email}`, otp: testOtp });
+    res.json({ success: true, message: `Test OTP sent to ${email}` });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -62,9 +64,10 @@ router.post('/test-email', async (req, res) => {
 
 /**
  * GET /api/auth/email-debug
- * Resend + SMTP diagnostic
+ * Resend + SMTP diagnostic (admin only)
  */
-router.get('/email-debug', async (req, res) => {
+router.get('/email-debug', requireAuth, async (req, res) => {
+  if (req.user?.userType !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   const resendKey = process.env.RESEND_API_KEY;
   const status = {
     env: {
@@ -232,9 +235,11 @@ router.post('/signup', async (req, res) => {
           // The student referral page generates: `MINDSTA${user.id.substring(0,8).toUpperCase()}`
           if (referralCode.toUpperCase().startsWith('MINDSTA')) {
             const partialId = referralCode.toUpperCase().replace('MINDSTA', '').toLowerCase();
-            // Find a user whose id starts with this partial id
-            const potentialReferrers = await User.find({ userType: 'student' });
-            referrer = potentialReferrers.find(u => u._id.toString().startsWith(partialId)) || null;
+            // Use a regex on the hex ObjectId directly — avoids loading all students into memory
+            referrer = await User.findOne({
+              userType: 'student',
+              $where: `this._id.toString().startsWith("${partialId}")`,
+            }) || null;
           }
         }
 

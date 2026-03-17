@@ -53,6 +53,7 @@ export interface Lesson {
   requirements?: string[];
   targetAudience?: string[];
   curriculum?: Section[];
+  quizCount?: number; // Total quizzes for this course
   price?: number; // Price in Naira
   rating?: number; // Average rating (0-5)
   ratingsCount?: number; // Number of ratings

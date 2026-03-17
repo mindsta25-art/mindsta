@@ -4,9 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StudentHeader } from '@/components/StudentHeader';
 import { StudentFooter } from '@/components/StudentFooter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -17,16 +15,15 @@ import {
   Zap,
   BookOpen,
   Flame,
-  Search,
-  ChevronLeft,
-  ChevronRight,
+  Target,
   Users,
   TrendingUp,
   Star,
+  Rocket,
+  ArrowUp,
 } from 'lucide-react';
 import { getStudentByUserId } from '@/api/students';
 import { getLeaderboard } from '@/api/gamification';
-import { getPublicAdvancedSettings } from '@/api/settings';
 
 interface LeaderboardEntry {
   userId: string;
@@ -39,13 +36,14 @@ interface LeaderboardEntry {
 }
 
 type Timeframe = 'allTime' | 'month' | 'week';
-type Scope = 'global' | 'school';
 
 const TIMEFRAME_LABELS: Record<Timeframe, string> = {
   allTime: 'All Time',
   month: 'This Month',
   week: 'This Week',
 };
+
+const TOP_N = 10;
 
 // ─── Podium Card ─────────────────────────────────────────────────────────────
 
@@ -152,7 +150,7 @@ const LeaderboardRow = ({
       ? 'bg-gray-300 text-gray-800'
       : entry.rank === 3
       ? 'bg-orange-300 text-orange-900'
-      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400';
+      : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300';
 
   const avatarBg =
     entry.rank === 1
@@ -161,16 +159,16 @@ const LeaderboardRow = ({
       ? 'from-gray-300 to-slate-400'
       : entry.rank === 3
       ? 'from-orange-300 to-amber-400'
-      : 'from-indigo-400 to-purple-500';
+      : 'from-purple-500 to-pink-500';
 
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: Math.min(index * 0.03, 0.5) }}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+      transition={{ delay: Math.min(index * 0.05, 0.6) }}
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
         entry.isCurrentUser
-          ? 'bg-indigo-50 dark:bg-indigo-950/30 border-2 border-indigo-300 dark:border-indigo-700'
+          ? 'bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/20 border-2 border-purple-300 dark:border-purple-700 shadow-sm'
           : 'hover:bg-gray-50 dark:hover:bg-gray-800/60'
       }`}
     >
@@ -193,7 +191,7 @@ const LeaderboardRow = ({
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold text-sm truncate">{entry.name}</span>
           {entry.isCurrentUser && (
-            <Badge variant="outline" className="text-xs border-indigo-400 text-indigo-600 dark:text-indigo-400">
+            <Badge className="text-xs bg-purple-600 text-white border-0 px-2 py-0">
               You
             </Badge>
           )}
@@ -210,7 +208,7 @@ const LeaderboardRow = ({
           {entry.streak > 0 && (
             <span className="flex items-center gap-0.5">
               <Flame className="h-3 w-3 text-orange-500" />
-              {entry.streak}d
+              {entry.streak}d streak
             </span>
           )}
         </div>
@@ -229,6 +227,69 @@ const LeaderboardSkeleton = () => (
   </div>
 );
 
+// ─── Not-on-the-list encouragement banner ─────────────────────────────────────
+
+const NotOnListBanner = ({ userPosition }: { userPosition: LeaderboardEntry }) => {
+  const encouragements = [
+    { msg: 'Keep going! Every lesson gets you closer to the Top 10!', icon: <Rocket className="h-5 w-5" /> },
+    { msg: 'Champions are made one lesson at a time. You can do this!', icon: <Target className="h-5 w-5" /> },
+    { msg: 'The top 10 is within reach — complete more lessons and earn coins!', icon: <ArrowUp className="h-5 w-5" /> },
+  ];
+  const tip = encouragements[userPosition.rank % encouragements.length];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-6 rounded-2xl overflow-hidden shadow-md"
+    >
+      {/* Top accent */}
+      <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-b-2xl p-5">
+        <div className="flex items-start gap-4">
+          {/* rank badge */}
+          <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/40 dark:to-pink-900/30 flex flex-col items-center justify-center border border-purple-200 dark:border-purple-800">
+            <span className="text-xs text-purple-500 font-semibold leading-none">Rank</span>
+            <span className="text-2xl font-black text-purple-700 dark:text-purple-300 leading-tight">
+              #{userPosition.rank}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">You're not in the Top 10 yet</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{tip.msg}</p>
+            {/* progress stats */}
+            <div className="flex flex-wrap gap-3">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 px-2.5 py-1 rounded-full border border-yellow-200 dark:border-yellow-800">
+                <Zap className="h-3 w-3" />
+                {userPosition.coins.toLocaleString()} coins
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full border border-green-200 dark:border-green-800">
+                <BookOpen className="h-3 w-3" />
+                {userPosition.completedLessons} lessons done
+              </span>
+              {userPosition.streak > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 px-2.5 py-1 rounded-full border border-orange-200 dark:border-orange-800">
+                  <Flame className="h-3 w-3" />
+                  {userPosition.streak}d streak
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex-shrink-0 text-purple-400 dark:text-purple-500 mt-0.5">{tip.icon}</div>
+        </div>
+        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-purple-500 flex-shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            Complete more lessons and quizzes daily to earn coins and climb the ranks!
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const LeaderboardPage = () => {
@@ -241,10 +302,6 @@ const LeaderboardPage = () => {
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<Timeframe>('allTime');
-  const [scope, setScope] = useState<Scope>('global');
-  const [search, setSearch] = useState('');
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch student name
   useEffect(() => {
@@ -254,19 +311,14 @@ const LeaderboardPage = () => {
       .catch(() => {});
   }, [user]);
 
-  // Fetch leaderboard per page setting
-  useEffect(() => {
-    getPublicAdvancedSettings()
-      .then((s) => setItemsPerPage(s.leaderboardPerPage ?? 10))
-      .catch(() => {});
-  }, []);
-
   // Fetch leaderboard
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getLeaderboard(timeframe, scope);
-      setLeaderboard(data?.leaderboard || []);
+      const data = await getLeaderboard(timeframe, 'global');
+      // Only keep the top 10
+      const top10 = (data?.leaderboard || []).slice(0, TOP_N);
+      setLeaderboard(top10);
       setUserPosition(data?.userPosition);
       setTotalParticipants(data?.totalParticipants || 0);
     } catch {
@@ -274,26 +326,16 @@ const LeaderboardPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [timeframe, scope, toast]);
+  }, [timeframe, toast]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const top3 = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
+  const rest4to10 = leaderboard.slice(3);
 
-  // Reset to page 1 whenever filters or search change
-  useEffect(() => { setCurrentPage(1); }, [timeframe, scope, search]);
-
-  // Paginated slice of rest (after top 3)
-  const totalRestPages = Math.ceil(rest.length / itemsPerPage);
-  const pagedRest = rest.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  // When a search is active, filter the full list but always keep the podium visible
-  const filteredList = search.trim()
-    ? leaderboard.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
-    : null; // null = show full ranked list (no active search)
+  const isUserInTop10 = userPosition ? userPosition.rank <= TOP_N : false;
 
   const topCoins = leaderboard[0]?.coins || 0;
   const avgCoins =
@@ -304,23 +346,24 @@ const LeaderboardPage = () => {
       : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <StudentHeader studentName={studentName} />
 
       <main className="pt-24 pb-16 container mx-auto px-4 max-w-3xl">
+        {/* ── Hero heading ── */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl shadow-lg mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl shadow-lg mb-4">
             <Trophy className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-black text-gray-900 dark:text-white">
-            Leaderboard
+            Top 10 Leaderboard
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            {totalParticipants} students competing · See where you stand!
+            {totalParticipants.toLocaleString()} students competing · Only the best make the list!
           </p>
         </motion.div>
 
@@ -329,10 +372,10 @@ const LeaderboardPage = () => {
           <div className="grid grid-cols-3 gap-3 mb-6">
             {[
               {
-                icon: <Users className="h-4 w-4 text-blue-500" />,
-                label: 'Students',
-                value: totalParticipants,
-                bg: 'bg-blue-50 dark:bg-blue-950/30',
+                icon: <Users className="h-4 w-4 text-purple-500" />,
+                label: 'Competing',
+                value: totalParticipants.toLocaleString(),
+                bg: 'bg-purple-50 dark:bg-purple-950/30',
               },
               {
                 icon: <Zap className="h-4 w-4 text-yellow-500" />,
@@ -341,10 +384,10 @@ const LeaderboardPage = () => {
                 bg: 'bg-yellow-50 dark:bg-yellow-950/30',
               },
               {
-                icon: <Star className="h-4 w-4 text-purple-500" />,
+                icon: <Star className="h-4 w-4 text-pink-500" />,
                 label: 'Avg Coins',
                 value: avgCoins.toLocaleString(),
-                bg: 'bg-purple-50 dark:bg-purple-950/30',
+                bg: 'bg-pink-50 dark:bg-pink-950/30',
               },
             ].map((s) => (
               <Card key={s.label} className="border-0 shadow-sm">
@@ -358,73 +401,20 @@ const LeaderboardPage = () => {
           </div>
         )}
 
-        {/* ── Filters ── */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          {/* Timeframe */}
-          <Tabs
-            value={timeframe}
-            onValueChange={(v) => setTimeframe(v as Timeframe)}
-            className="flex-1"
-          >
-            <TabsList className="w-full bg-white dark:bg-gray-800 shadow-sm border">
-              {(['allTime', 'month', 'week'] as Timeframe[]).map((t) => (
-                <TabsTrigger key={t} value={t} className="flex-1 text-xs sm:text-sm">
-                  {TIMEFRAME_LABELS[t]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-
-          {/* Scope */}
-          <div className="flex gap-2">
-            {(['global', 'school'] as Scope[]).map((s) => (
-              <Button
-                key={s}
-                size="sm"
-                variant={scope === s ? 'default' : 'outline'}
-                className={scope === s ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
-                onClick={() => setScope(s)}
-              >
-                {s === 'global' ? '🌍 Global' : '🏫 My School'}
-              </Button>
+        {/* ── Timeframe filter ── */}
+        <Tabs
+          value={timeframe}
+          onValueChange={(v) => setTimeframe(v as Timeframe)}
+          className="mb-6"
+        >
+          <TabsList className="w-full bg-white dark:bg-gray-800 shadow-sm border">
+            {(['allTime', 'month', 'week'] as Timeframe[]).map((t) => (
+              <TabsTrigger key={t} value={t} className="flex-1 text-xs sm:text-sm">
+                {TIMEFRAME_LABELS[t]}
+              </TabsTrigger>
             ))}
-          </div>
-        </div>
-
-        {/* ── Search ── */}
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search a student by name…"
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* ── My Rank Banner (if outside top 3) ── */}
-        {!loading && userPosition && userPosition.rank > 3 && !search && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mb-6 p-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center font-black text-lg">
-                  {userPosition.rank}
-                </div>
-                <div>
-                  <p className="font-bold text-sm">Your Current Rank</p>
-                  <p className="text-xs text-white/80">
-                    {userPosition.coins.toLocaleString()} coins · {userPosition.completedLessons} lessons
-                  </p>
-                </div>
-              </div>
-              <TrendingUp className="h-6 w-6 text-white/70" />
-            </div>
-          </motion.div>
-        )}
+          </TabsList>
+        </Tabs>
 
         {/* ── Content ── */}
         {loading ? (
@@ -433,20 +423,20 @@ const LeaderboardPage = () => {
           <div className="text-center py-20 text-muted-foreground">
             <Trophy className="h-14 w-14 mx-auto mb-3 opacity-20" />
             <p className="font-semibold">No students yet</p>
-            <p className="text-sm mt-1">Be the first to earn coins!</p>
+            <p className="text-sm mt-1">Be the first to earn coins and top this chart!</p>
           </div>
         ) : (
           <>
-            {/* ── Podium — always visible, even during search ── */}
+            {/* ── Podium for top 3 ── */}
             {top3.length === 3 && (
-              <Card className="border-0 shadow-sm mb-6 overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border-b pb-3">
+              <Card className="border-0 shadow-md mb-5 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/20 border-b pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Crown className="h-5 w-5 text-yellow-500" />
-                    Top 3 Performers
+                    Hall of Fame — Top 3
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="bg-gradient-to-b from-amber-50/40 to-white dark:from-amber-950/10 dark:to-transparent pt-6 pb-4">
+                <CardContent className="bg-gradient-to-b from-pink-50/40 to-white dark:from-pink-950/10 dark:to-transparent pt-6 pb-4">
                   <div className="flex items-end justify-center gap-3 max-w-sm mx-auto">
                     <PodiumEntry entry={top3[1]} position={2} />
                     <PodiumEntry entry={top3[0]} position={1} />
@@ -456,88 +446,46 @@ const LeaderboardPage = () => {
               </Card>
             )}
 
-            {/* ── Search results or full ranked list ── */}
-            {filteredList ? (
-              /* ── Search results ── */
-              <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2 border-b">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Search className="h-4 w-4" />
-                    {filteredList.length} result{filteredList.length !== 1 ? 's' : ''} for "{search}"
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2">
-                  {filteredList.length === 0 ? (
-                    <p className="text-center py-10 text-sm text-muted-foreground">
-                      No student found with that name
-                    </p>
-                  ) : (
-                    <div className="space-y-1">
-                      {filteredList.map((entry, idx) => (
-                        <LeaderboardRow key={entry.userId} entry={entry} index={idx} />
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              /* ── Full rankings ── */
-              <Card className="border-0 shadow-sm">
+            {/* ── Ranks 4-10 ── */}
+            {rest4to10.length > 0 && (
+              <Card className="border-0 shadow-sm mb-5">
                 <CardHeader className="border-b pb-3">
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <Trophy className="h-4 w-4 text-amber-500" />
-                    All Rankings
-                    <Badge variant="secondary" className="font-normal ml-1">
-                      {leaderboard.length}
+                    <Trophy className="h-4 w-4 text-purple-500" />
+                    Ranks 4 – 10
+                    <Badge className="font-normal ml-1 bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-0">
+                      {rest4to10.length} students
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-2">
-                  {/* Top 3 rows */}
-                  <div className="space-y-1 mb-1">
-                    {top3.map((entry, idx) => (
-                      <LeaderboardRow key={entry.userId} entry={entry} index={idx} />
+                  <div className="space-y-1">
+                    {rest4to10.map((entry, idx) => (
+                      <LeaderboardRow key={entry.userId} entry={entry} index={idx + 3} />
                     ))}
                   </div>
-                  {rest.length > 0 && (
-                    <>
-                      <div className="my-2 border-t" />
-                      <div className="space-y-1">
-                        {pagedRest.map((entry, idx) => (
-                          <LeaderboardRow key={entry.userId} entry={entry} index={(currentPage - 1) * itemsPerPage + idx + 3} />
-                        ))}
-                      </div>
-                      {totalRestPages > 1 && (
-                        <div className="flex items-center justify-between pt-3 px-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <span className="text-xs text-muted-foreground">
-                            Page {currentPage} of {totalRestPages}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => setCurrentPage((p) => Math.min(totalRestPages, p + 1))}
-                            disabled={currentPage === totalRestPages}
-                          >
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  )}
                 </CardContent>
               </Card>
+            )}
+
+            {/* ── Not on the list banner ── */}
+            {userPosition && !isUserInTop10 && (
+              <NotOnListBanner userPosition={userPosition} />
+            )}
+
+            {/* ── User IS in top 10 — congratulate ── */}
+            {userPosition && isUserInTop10 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg text-center"
+              >
+                <Trophy className="h-6 w-6 mx-auto mb-1" />
+                <p className="font-bold text-sm">🎉 You're in the Top 10!</p>
+                <p className="text-xs text-white/80 mt-0.5">
+                  Amazing work! Keep earning coins to hold your spot.
+                </p>
+              </motion.div>
             )}
           </>
         )}

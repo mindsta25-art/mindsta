@@ -88,7 +88,9 @@ export const corsOptions = {
       'http://localhost:5174',
       'http://localhost:8080',
       'http://localhost:3000',
-      // Production — all known Vercel deployment URLs
+      // Production — official domain and known Vercel deployment URLs
+      'https://mindsta.com.ng',
+      'https://www.mindsta.com.ng',
       'https://mindsta33.vercel.app',
       'https://mindsta.vercel.app',
       'https://mindsta-app.vercel.app',

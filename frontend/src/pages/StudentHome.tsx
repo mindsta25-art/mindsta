@@ -99,6 +99,7 @@ const StudentHome = () => {
   const [leaderboard, setLeaderboard] = useState<any>({ leaderboard: [], userPosition: undefined, totalParticipants: 0 });
   const [quoteOfDay, setQuoteOfDay] = useState<any>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -249,13 +250,11 @@ const StudentHome = () => {
     };
 
     fetchData();
-  }, [user?.id]);
+  }, [user?.id, fetchTrigger]);
 
   const handleRetry = () => {
     setError(null);
-    setLoading(true);
-    // Trigger re-fetch by updating a dependency or calling fetchData directly
-    window.location.reload();
+    setFetchTrigger(prev => prev + 1);
   };
 
   const completedCount = progress.filter(p => p.completed).length;
@@ -844,13 +843,22 @@ const StudentHome = () => {
                             className="w-full p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-cyan-500 dark:hover:border-cyan-400 transition-all text-left group shadow-lg hover:shadow-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
                           >
                             <div className="flex items-start gap-4">
-                              <motion.div 
-                                className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xl"
-                                whileHover={{ scale: 1.15, rotate: 10 }}
-                                transition={{ type: "spring", stiffness: 400 }}
-                              >
-                                <BookOpen className="w-7 h-7 text-white drop-shadow-lg" />
-                              </motion.div>
+                              {lesson.imageUrl ? (
+                                <img
+                                  src={lesson.imageUrl}
+                                  alt={lesson.title}
+                                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-xl"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                              ) : (
+                                <motion.div 
+                                  className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xl"
+                                  whileHover={{ scale: 1.15, rotate: 10 }}
+                                  transition={{ type: "spring", stiffness: 400 }}
+                                >
+                                  <BookOpen className="w-7 h-7 text-white drop-shadow-lg" />
+                                </motion.div>
+                              )}
                               <div className="flex-1 min-w-0">
                                 <h4 className="font-semibold mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
                                   {lesson.title}

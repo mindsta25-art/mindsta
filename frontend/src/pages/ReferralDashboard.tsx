@@ -583,7 +583,7 @@ export default function ReferralDashboard() {
 
                   <div>
                     <h4 className="font-semibold text-foreground mb-2">12. Contact & Support</h4>
-                    <p>For questions about the referral program, contact us at <a href="mailto:referrals@mindsta.com" className="text-purple-600 hover:underline">referrals@mindsta.com</a></p>
+                    <p>For questions about the referral program, contact us at <a href="mailto:referrals@mindsta.com.ng" className="text-purple-600 hover:underline">referrals@mindsta.com.ng</a></p>
                   </div>
 
                   <div className="pt-4 border-t border-border">
@@ -827,7 +827,7 @@ export default function ReferralDashboard() {
                   </CardHeader>
                   <CardContent className="flex items-center justify-center py-6">
                     <motion.div 
-                      className="bg-white p-4 rounded-lg shadow"
+                      className="bg-white dark:bg-gray-100 p-4 rounded-lg shadow"
                       initial={{ scale: 0, rotate: -180 }}
                       animate={{ scale: 1, rotate: 0 }}
                       transition={{ delay: 0.3, type: "spring", stiffness: 200 }}

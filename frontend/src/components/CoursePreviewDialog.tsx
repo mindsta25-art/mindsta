@@ -227,7 +227,7 @@ export const CoursePreviewDialog = ({
                   <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Sections</p>
+                  <p className="text-xs text-muted-foreground">Lessons</p>
                   <p className="text-lg sm:text-xl font-bold">{course.curriculum?.length || 0}</p>
                 </div>
               </CardContent>
@@ -257,11 +257,11 @@ export const CoursePreviewDialog = ({
             <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900">
               <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 dark:bg-amber-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Award className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Level</p>
-                  <p className="text-sm sm:text-lg font-bold capitalize">{course.difficulty || 'Beginner'}</p>
+                  <p className="text-xs text-muted-foreground">Quizzes</p>
+                  <p className="text-lg sm:text-xl font-bold">{(course as any).quizCount ?? 0}</p>
                 </div>
               </CardContent>
             </Card>
@@ -290,10 +290,10 @@ export const CoursePreviewDialog = ({
             <div className="space-y-2">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-purple-600" />
-                Lesson Content
+                Course Content
               </h3>
               <p className="text-sm text-muted-foreground">
-                {course.curriculum?.length || 0} sections • {getTotalLectures()} lectures • {formatDuration(getTotalDuration())} total length
+                {course.curriculum?.length || 0} lessons • {getTotalLectures()} lectures • {formatDuration(getTotalDuration())} total length
               </p>
             </div>
 
@@ -318,7 +318,7 @@ export const CoursePreviewDialog = ({
                           )}
                           <div className="flex-1 space-y-1">
                             <div className="font-semibold">
-                              Section {sectionIdx + 1}: {section.title}
+                              Lesson {sectionIdx + 1}: {section.title}
                             </div>
                             {section.description && (
                               <div className="text-sm text-muted-foreground font-normal">
@@ -667,7 +667,7 @@ export const CoursePreviewDialog = ({
                   className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                   onClick={() => {
                     onOpenChange(false);
-                    navigate(`/grade/${course.grade}/${course.subject}/lesson/${course.id}`);
+                    navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
                   }}
                 >
                   <BookOpen className="w-5 h-5 mr-2" />

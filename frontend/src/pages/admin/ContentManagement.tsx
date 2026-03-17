@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { motion, AnimatePresence } from "framer-motion";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getAllLessons, createLesson, updateLesson, deleteLesson, type Lesson, type Section } from "@/api/lessons";
 import { getAllQuizzes, createQuiz, updateQuiz, deleteQuiz, type Quiz, type QuizQuestion } from "@/api/quizzes";
 import { getAllSubjects, type Subject } from "@/api/subjects";
@@ -84,6 +85,12 @@ const ContentManagement = () => {
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [draftInfo, setDraftInfo] = useState<{timestamp: string} | null>(null);
+  // Single-item delete dialog
+  const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
+  const [singleDeleteType, setSingleDeleteType] = useState<'lesson' | 'quiz'>('lesson');
+  const [showSingleDeleteConfirm, setShowSingleDeleteConfirm] = useState(false);
+  // Draft delete dialog
+  const [showDraftDeleteConfirm, setShowDraftDeleteConfirm] = useState(false);
 
   // LocalStorage keys for saving progress
   const DRAFT_KEY = 'mindsta_lesson_draft';
@@ -570,30 +577,33 @@ const ContentManagement = () => {
   };
 
   // Handle delete
-  const handleDelete = async (id: string, type: "lesson" | "quiz") => {
-    if (!confirm(`Are you sure you want to delete this ${type}?`)) {
-      return;
-    }
+  const handleDelete = (id: string, type: "lesson" | "quiz") => {
+    setSingleDeleteId(id);
+    setSingleDeleteType(type);
+    setShowSingleDeleteConfirm(true);
+  };
 
+  const confirmSingleDelete = async () => {
+    if (!singleDeleteId) return;
     try {
-      if (type === "lesson") {
-        await deleteLesson(id);
+      if (singleDeleteType === "lesson") {
+        await deleteLesson(singleDeleteId);
       } else {
-        await deleteQuiz(id);
+        await deleteQuiz(singleDeleteId);
       }
-
       toast({
         title: "Success",
-        description: `${type === "lesson" ? "Lesson" : "Quiz"} deleted successfully`,
+        description: `${singleDeleteType === "lesson" ? "Lesson" : "Quiz"} deleted successfully`,
       });
-
       await fetchContent();
     } catch (error) {
       toast({
         title: "Error",
-        description: `Failed to delete ${type}`,
+        description: `Failed to delete ${singleDeleteType}`,
         variant: "destructive",
       });
+    } finally {
+      setSingleDeleteId(null);
     }
   };
 
@@ -1936,16 +1946,7 @@ const ContentManagement = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                      if (window.confirm("Are you sure you want to delete this draft? This action cannot be undone.")) {
-                                        clearDraft();
-                                        toast({
-                                          title: "Draft Deleted",
-                                          description: "The saved draft has been removed.",
-                                        });
-                                        setSelectedTab("all");
-                                      }
-                                    }}
+                                    onClick={() => setShowDraftDeleteConfirm(true)}
                                     className="gap-2 text-destructive hover:text-destructive"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -2889,6 +2890,32 @@ const ContentManagement = () => {
         </Dialog>
       </div>
       )}
+
+      {/* Single-item Delete Confirmation */}
+      <ConfirmDialog
+        open={showSingleDeleteConfirm}
+        onOpenChange={setShowSingleDeleteConfirm}
+        onConfirm={confirmSingleDelete}
+        title={`Delete ${singleDeleteType === 'lesson' ? 'Lesson' : 'Quiz'}`}
+        description={`Are you sure you want to delete this ${singleDeleteType}? This action cannot be undone.`}
+        confirmText={`Delete ${singleDeleteType === 'lesson' ? 'Lesson' : 'Quiz'}`}
+        destructive
+      />
+
+      {/* Draft Delete Confirmation */}
+      <ConfirmDialog
+        open={showDraftDeleteConfirm}
+        onOpenChange={setShowDraftDeleteConfirm}
+        onConfirm={() => {
+          clearDraft();
+          toast({ title: "Draft Deleted", description: "The saved draft has been removed." });
+          setSelectedTab("all");
+        }}
+        title="Delete Draft"
+        description="Are you sure you want to delete this draft? This action cannot be undone."
+        confirmText="Delete Draft"
+        destructive
+      />
     </AdminLayout>
   );
 };

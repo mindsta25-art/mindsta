@@ -16,17 +16,17 @@ services:
       - key: PAYSTACK_SECRET_KEY
         sync: false
       - key: PAYSTACK_CALLBACK_URL
-        value: https://mindsta33.vercel.app/payment/callback
+        value: https://mindsta.com.ng/payment/callback
       - key: ALLOWED_ORIGINS
-        value: https://mindsta33.vercel.app
+        value: https://mindsta.com.ng,https://www.mindsta.com.ng
       - key: FRONTEND_URL
-        value: https://mindsta33.vercel.app
+        value: https://mindsta.com.ng
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
-        value: https://mindsta-backend2.onrender.com/api/auth/google/callback
+        value: https://api.mindsta.com.ng/api/auth/google/callback
       - key: EMAIL_HOST
         value: smtp.gmail.com
       - key: EMAIL_PORT
@@ -36,8 +36,8 @@ services:
       - key: EMAIL_PASSWORD
         sync: false
       - key: EMAIL_FROM
-        value: "Mindsta <noreply@mindsta.com>"
+        value: "Mindsta <noreply@mindsta.com.ng>"
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM
-        value: "Mindsta <noreply@mindsta.com>"
+        value: "Mindsta <noreply@mindsta.com.ng>"

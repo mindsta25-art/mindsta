@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserTypeCard } from "@/components/UserTypeCard";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -46,6 +46,8 @@ const Index = () => {
   const [activeFeature, setActiveFeature] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
+  const logoClickCountRef = useRef(0);
+  const logoClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!loading && user) {
@@ -64,15 +66,23 @@ const Index = () => {
 
   // Hidden admin access: Click logo 5 times quickly
   const handleLogoClick = () => {
-    setLogoClickCount(prev => prev + 1);
-    
-    if (logoClickCount === 4) {
+    logoClickCountRef.current += 1;
+    setLogoClickCount(logoClickCountRef.current);
+
+    if (logoClickCountRef.current >= 5) {
       navigate('/admin-auth');
+      logoClickCountRef.current = 0;
       setLogoClickCount(0);
+      if (logoClickTimerRef.current) clearTimeout(logoClickTimerRef.current);
+      return;
     }
-    
-    // Reset counter after 2 seconds
-    setTimeout(() => setLogoClickCount(0), 2000);
+
+    // Reset counter after 2 seconds of inactivity
+    if (logoClickTimerRef.current) clearTimeout(logoClickTimerRef.current);
+    logoClickTimerRef.current = setTimeout(() => {
+      logoClickCountRef.current = 0;
+      setLogoClickCount(0);
+    }, 2000);
   };
 
   const userTypes = [

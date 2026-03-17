@@ -6,7 +6,7 @@ const getBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
   if (import.meta.env.PROD) {
-    return 'https://mindsta-backend2.onrender.com/api';
+    return 'https://api.mindsta.com.ng/api';
   }
   return 'http://localhost:3000/api';
 };

@@ -82,3 +82,15 @@ export const getSalesStats = async (): Promise<SalesStats> => {
 		};
 	}
 };
+
+export interface SidebarCounts {
+	questions: number;
+	suggestions: number;
+	tickets: number;
+	users: number;
+	referralPayouts: number;
+	newsletter: number;
+}
+
+export const getSidebarCounts = (): Promise<SidebarCounts> =>
+	api.get('/admin/sidebar-counts') as Promise<SidebarCounts>;

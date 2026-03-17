@@ -282,12 +282,11 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               onClick={() => navigate("/dashboard")}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
                 <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
-                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-500 bg-clip-text text-transparent">
-                  
+                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Mindsta</span>
                 <span className="text-[10px] block text-muted-foreground leading-tight">... Every Child Can Do Well</span>
               </div>

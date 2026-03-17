@@ -164,7 +164,7 @@ const Referral = () => {
   };
 
   const copyReferralCode = () => {
-    const referralLink = `https://mindsta.com/signup?ref=${referralCode}`;
+    const referralLink = `https://mindsta.com.ng/signup?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     toast({
@@ -176,13 +176,13 @@ const Referral = () => {
 
   const shareViaEmail = () => {
     const subject = "Join me on Mindsta! 🎓";
-    const body = `Hey! I've been learning on Mindsta and it's super fun! \n\nUse my referral code: ${referralCode}\nOr click here: https://mindsta.com/signup?ref=${referralCode}\n\nLet's learn together! 🌟`;
+    const body = `Hey! I've been learning on Mindsta and it's super fun! \n\nUse my referral code: ${referralCode}\nOr click here: https://mindsta.com.ng/signup?ref=${referralCode}\n\nLet's learn together! 🌟`;
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
   const shareViaSocial = () => {
     const text = `Join me on Mindsta! Use my code: ${referralCode} `;
-    const url = `https://mindsta.com/signup?ref=${referralCode}`;
+    const url = `https://mindsta.com.ng/signup?ref=${referralCode}`;
     if (navigator.share) {
       navigator.share({
         title: "Join Mindsta",
@@ -265,7 +265,7 @@ const Referral = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-background dark:via-muted dark:to-background flex items-center justify-center">
         <div className="text-4xl animate-bounce">🎁</div>
       </div>
     );
@@ -613,7 +613,7 @@ const Referral = () => {
             <CardContent className="space-y-6">
               <div className="flex gap-2">
                 <Input 
-                  value={`https://mindsta.com/signup?ref=${referralCode}`}
+                  value={`https://mindsta.com.ng/signup?ref=${referralCode}`}
                   readOnly
                   className="text-center text-lg font-bold border-4 border-purple-300"
                 />

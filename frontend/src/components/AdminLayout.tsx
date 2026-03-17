@@ -43,6 +43,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingScreen } from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentUser, signOut, isAdmin as checkIsAdmin } from "@/api";
+import { getSidebarCounts, SidebarCounts } from "@/api/admin";
 import { AdminHeader } from "@/components/AdminHeader";
 
 interface AdminLayoutProps {
@@ -61,10 +62,22 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [contentMenuExpanded, setContentMenuExpanded] = useState(false);
   const [referralMenuExpanded, setReferralMenuExpanded] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [sidebarCounts, setSidebarCounts] = useState<SidebarCounts>({
+    questions: 0, suggestions: 0, tickets: 0, users: 0, referralPayouts: 0, newsletter: 0,
+  });
 
   useEffect(() => {
     checkAdminAccess();
   }, []);
+
+  // Fetch sidebar counts once admin is confirmed, then poll every 60s
+  useEffect(() => {
+    if (!isAdmin) return;
+    const load = () => getSidebarCounts().then(setSidebarCounts).catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+  }, [isAdmin]);
 
   // Auto-expand Content Management dropdown when on related pages
   useEffect(() => {
@@ -205,11 +218,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           icon: MessageSquare,
           label: "Q&A Management",
           path: "/admin/questions",
+          countKey: 'questions' as const,
         },
         {
           icon: Lightbulb,
           label: "Suggestions",
           path: "/admin/suggestions",
+          countKey: 'suggestions' as const,
         },
       ]
     },
@@ -221,16 +236,19 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           icon: Users,
           label: "User Management",
           path: "/admin/users",
+          countKey: 'users' as const,
         },
         {
           icon: MessageSquare,
           label: "Tickets & Support",
           path: "/admin/tickets",
+          countKey: 'tickets' as const,
         },
         {
           icon: Mail,
           label: "Newsletter",
           path: "/admin/newsletter",
+          countKey: 'newsletter' as const,
         },
         {
           icon: Bell,
@@ -258,6 +276,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           label: "Referral Program",
           path: "/admin/referrals",
           hasDropdown: true,
+          countKey: 'referralPayouts' as const,
         },
       ]
     },
@@ -280,6 +299,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     }
     return location.pathname.startsWith(path);
   };
+
+  const clearCount = (key: keyof SidebarCounts) =>
+    setSidebarCounts(prev => ({ ...prev, [key]: 0 }));
 
   return (
     <>
@@ -449,6 +471,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                               if (sidebarCollapsed) {
                                 navigate(item.path);
                                 setMobileMenuOpen(false);
+                                clearCount('referralPayouts');
                               } else {
                                 setReferralMenuExpanded(!referralMenuExpanded);
                               }
@@ -462,14 +485,29 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                             `}
                             title={sidebarCollapsed ? item.label : undefined}
                           >
-                            <div className="flex items-center gap-3">
-                              <Icon className="w-5 h-5 flex-shrink-0" />
-                              {!sidebarCollapsed && <span>{item.label}</span>}
-                            </div>
-                            {!sidebarCollapsed && (
-                              referralMenuExpanded ? 
-                                <ChevronDown className="w-4 h-4 flex-shrink-0" /> : 
-                                <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                            {sidebarCollapsed ? (
+                              <span className="relative">
+                                <Icon className="w-5 h-5 flex-shrink-0" />
+                                {!!sidebarCounts.referralPayouts && (
+                                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                                )}
+                              </span>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <Icon className="w-5 h-5 flex-shrink-0" />
+                                  <span className="flex-1">{item.label}</span>
+                                  {!!sidebarCounts.referralPayouts && (
+                                    <span className="min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold leading-none">
+                                      {sidebarCounts.referralPayouts > 99 ? '99+' : sidebarCounts.referralPayouts}
+                                    </span>
+                                  )}
+                                </div>
+                                {referralMenuExpanded ? 
+                                  <ChevronDown className="w-4 h-4 flex-shrink-0 ml-1" /> : 
+                                  <ChevronRight className="w-4 h-4 flex-shrink-0 ml-1" />
+                                }
+                              </>
                             )}
                           </button>
                           
@@ -490,7 +528,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                               </Link>
                               <Link
                                 to="/admin/referral-payouts"
-                                onClick={() => setMobileMenuOpen(false)}
+                                onClick={() => { setMobileMenuOpen(false); clearCount('referralPayouts'); }}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                                   location.pathname === '/admin/referral-payouts'
                                     ? 'bg-primary/10 text-primary'
@@ -498,7 +536,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                                 }`}
                               >
                                 <Wallet className="w-4 h-4 flex-shrink-0" />
-                                <span>Payouts</span>
+                                <span className="flex-1">Payouts</span>
+                                {!!sidebarCounts.referralPayouts && (
+                                  <span className="min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold leading-none">
+                                    {sidebarCounts.referralPayouts > 99 ? '99+' : sidebarCounts.referralPayouts}
+                                  </span>
+                                )}
                               </Link>
                             </div>
                           )}
@@ -511,7 +554,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      onClick={() => setMobileMenuOpen(false)}
+                      onClick={() => { setMobileMenuOpen(false); if (item.countKey) clearCount(item.countKey); }}
                       className={`
                         flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm font-medium transition-all
                         ${active 
@@ -521,8 +564,24 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                       `}
                       title={sidebarCollapsed ? item.label : undefined}
                     >
-                      <Icon className="w-5 h-5 flex-shrink-0" />
-                      {!sidebarCollapsed && <span>{item.label}</span>}
+                      {sidebarCollapsed ? (
+                        <span className="relative">
+                          <Icon className="w-5 h-5 flex-shrink-0" />
+                          {item.countKey && !!sidebarCounts[item.countKey] && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                          )}
+                        </span>
+                      ) : (
+                        <>
+                          <Icon className="w-5 h-5 flex-shrink-0" />
+                          <span className="flex-1">{item.label}</span>
+                          {item.countKey && !!sidebarCounts[item.countKey] && (
+                            <span className="min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold leading-none">
+                              {sidebarCounts[item.countKey] > 99 ? '99+' : sidebarCounts[item.countKey]}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </Link>
                   );
                 })}

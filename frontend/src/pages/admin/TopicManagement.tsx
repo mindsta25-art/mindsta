@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from '@/components/AdminLayout';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -89,6 +90,8 @@ export default function TopicManagement() {
   const [availableLessons, setAvailableLessons] = useState<any[]>([]);
   const [selectedLessons, setSelectedLessons] = useState<string[]>([]);
   const [currentTopicForLessons, setCurrentTopicForLessons] = useState<Topic | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null);
 
   useEffect(() => {
     loadTopics();
@@ -179,16 +182,22 @@ export default function TopicManagement() {
     setShowDialog(true);
   };
 
-  const handleDelete = async (topic: Topic) => {
-    if (!confirm(`Are you sure you want to delete "${topic.title}"?`)) return;
-    
+  const handleDelete = (topic: Topic) => {
+    setTopicToDelete(topic);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!topicToDelete) return;
     try {
-      await deleteTopic(topic.id || topic._id!);
+      await deleteTopic(topicToDelete.id || topicToDelete._id!);
       toast.success('Topic deleted successfully');
       loadTopics();
     } catch (error: any) {
       console.error('Error deleting topic:', error);
       toast.error(error.response?.data?.error || 'Failed to delete topic');
+    } finally {
+      setTopicToDelete(null);
     }
   };
 
@@ -659,6 +668,16 @@ export default function TopicManagement() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Delete Topic"
+        description={`Are you sure you want to delete "${topicToDelete?.title}"? This action cannot be undone.`}
+        confirmText="Delete Topic"
+        destructive
+      />
     </AdminLayout>
   );
 }

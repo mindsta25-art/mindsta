@@ -10,7 +10,7 @@ const ReferralTransactionSchema = new Schema(
     paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
     amountPaid: { type: Number, required: true }, // Naira
     commissionAmount: { type: Number, required: true },
-    status: { type: String, enum: ['pending','paid'], default: 'pending', index: true },
+    status: { type: String, enum: ['pending', 'requested', 'paid'], default: 'pending', index: true },
     paidAt: { type: Date },
     payoutBatchId: { type: String },
     notes: { type: String },

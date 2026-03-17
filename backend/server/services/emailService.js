@@ -6,11 +6,11 @@
  *
  * Setup (one-time):
  *  1. Create free account at https://resend.com
- *  2. Add & verify your domain (mindsta.com) — takes ~5 min
+ *  2. Add & verify your domain (mindsta.com.ng) — takes ~5 min
  *  3. Create an API key
  *  4. Add to Render env vars:
  *       RESEND_API_KEY=re_xxxxxxxxxxxx
- *       RESEND_FROM=Mindsta <noreply@mindsta.com>
+ *       RESEND_FROM=Mindsta <noreply@mindsta.com.ng>
  */
 
 import { Resend } from 'resend';
@@ -31,7 +31,7 @@ if (resendClient) {
 
 // FROM address:
 // - Resend without verified domain: use onboarding@resend.dev (Resend shared sender, no setup needed)
-// - Resend with verified domain: set RESEND_FROM=Mindsta <noreply@yourdomain.com> in env vars
+// - Resend with verified domain: set RESEND_FROM=Mindsta <noreply@mindsta.com.ng> in env vars
 // - Gmail SMTP: MUST be the authenticated Gmail account address
 const FROM_ADDRESS = resendClient
   ? (process.env.RESEND_FROM || 'Mindsta <onboarding@resend.dev>')
@@ -171,7 +171,7 @@ export const sendEmailVerifiedEmail = async (email, name) => {
           </div>
           
           <div style="text-align: center;">
-            <a href="https://mindsta33.vercel.app" class="btn">Start Learning Now</a>
+            <a href="https://mindsta.com.ng" class="btn">Start Learning Now</a>
           </div>
           
           <p style="margin-top: 30px; padding: 20px; background: #fef3c7; border-left: 4px solid #fbbf24; border-radius: 5px;">
@@ -217,7 +217,7 @@ What You Can Do:
 🏆 Earn Rewards
    Complete challenges and climb the leaderboard
 
-Start learning at: https://mindsta33.vercel.app
+Start learning at: https://mindsta.com.ng
 
 💡 Pro Tip: Complete your profile to get personalized course recommendations and track your progress more effectively!
 
@@ -459,7 +459,7 @@ export const sendWelcomeEmail = async (email, name) => {
           </div>
           
           <div style="text-align: center;">
-            <a href="https://mindsta33.vercel.app" class="btn">Start Learning</a>
+            <a href="https://mindsta.com.ng" class="btn">Start Learning</a>
           </div>
           
           <p style="margin-top: 30px; color: #666;">Need help? Our support team is here for you!</p>
@@ -487,7 +487,7 @@ Get Started:
 💰 Refer & Earn - Share your referral code and earn commissions
 ✅ Get Certified - Complete courses and earn certificates
 
-Start learning at: https://mindsta33.vercel.app
+Start learning at: https://mindsta.com.ng
 
 Need help? Our support team is here for you!
 
@@ -541,7 +541,7 @@ export const sendPayoutRequestEmail = async (referrerEmail, referrerName, amount
     </body></html>
   `;
   return sendMailWithRetry({
-    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com>',
+    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com.ng>',
     to: referrerEmail,
     subject: 'Payout Request Received – Mindsta',
     html: htmlContent,
@@ -578,7 +578,7 @@ export const sendPayoutProcessedEmail = async (referrerEmail, referrerName, amou
     </body></html>
   `;
   return sendMailWithRetry({
-    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com>',
+    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com.ng>',
     to: referrerEmail,
     subject: '✅ Your Payout Has Been Processed – Mindsta',
     html: htmlContent,
@@ -752,7 +752,7 @@ export const sendCommissionEarnedEmail = async (referrerEmail, referrerName, com
           <p>You can request a payout once you reach the minimum threshold.</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://mindsta33.vercel.app/referral/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Dashboard</a>
+            <a href="https://mindsta.com.ng/referral/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Dashboard</a>
           </div>
           
           <div class="footer">
@@ -780,7 +780,7 @@ Details:
 Keep sharing your referral code to earn more commissions!
 You can request a payout once you reach the minimum threshold.
 
-View your dashboard: https://mindsta33.vercel.app/referral/dashboard
+View your dashboard: https://mindsta.com.ng/referral/dashboard
 
 © 2024 Mindsta. All rights reserved.
   `.trim();

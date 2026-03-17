@@ -32,7 +32,7 @@ export const generatePDFReport = (
   const company = companyInfo || {
     name: siteConfig.company.name,
     tagline: siteConfig.company.tagline,
-    email: 'info@mindsta.com',
+    email: 'info@mindsta.com.ng',
     phone: '+234 815 244 8471'
   };
   
@@ -183,7 +183,7 @@ export const generatePDFPreview = (
   const company = companyInfo || {
     name: siteConfig.company.name,
     tagline: siteConfig.company.tagline,
-    email: 'info@mindsta.com',
+    email: 'info@mindsta.com.ng',
     phone: '+234 815 244 8471'
   };
   const doc = new jsPDF({
@@ -333,7 +333,7 @@ export const generateCSVReport = (
   const company = companyInfo || {
     name: siteConfig.company.name,
     tagline: siteConfig.company.tagline,
-    email: 'info@mindsta.com',
+    email: 'info@mindsta.com.ng',
     phone: '+234 815 244 8471'
   };
   const rows: string[] = [];
@@ -442,7 +442,7 @@ export const generateExcelReport = (
   const company = companyInfo || {
     name: siteConfig.company.name,
     tagline: siteConfig.company.tagline,
-    email: 'info@mindsta.com',
+    email: 'info@mindsta.com.ng',
     phone: '+234 815 244 8471'
   };
   

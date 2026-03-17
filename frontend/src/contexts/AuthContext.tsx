@@ -29,20 +29,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = useCallback(() => {
     const currentUser = getCurrentUser();
-    console.log('🔄 AuthContext: Refreshing user', currentUser);
     setUser(currentUser);
   }, []);
 
   useEffect(() => {
     // Check for existing user on mount
     const currentUser = getCurrentUser();
-    console.log('🚀 AuthContext: Initial user load', currentUser);
     setUser(currentUser);
     setLoading(false);
 
     // Listen for storage changes (multi-tab support)
     const handleStorageChange = (e: StorageEvent) => {
-      console.log('📦 AuthContext: Storage changed', { key: e.key, newValue: e.newValue ? 'exists' : 'null' });
       if (e.key === 'authToken' || e.key === 'currentUser') {
         // Only refresh if the values actually changed
         if (e.newValue !== e.oldValue) {

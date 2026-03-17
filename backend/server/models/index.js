@@ -21,6 +21,8 @@ import { CourseReview } from './CourseReview.js';
 import { CourseQuestion } from './CourseQuestion.js';
 import Newsletter from './Newsletter.js';
 import AdminAlert from './AdminAlert.js';
+import Ticket from './Ticket.js';
+import Suggestion from './Suggestion.js';
 
 export {
   User,
@@ -46,4 +48,6 @@ export {
   CourseQuestion,
   Newsletter,
   AdminAlert,
+  Ticket,
+  Suggestion,
 };

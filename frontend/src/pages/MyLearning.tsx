@@ -54,6 +54,7 @@ interface EnrolledCourse {
   progress: number;
   lastAccessed?: Date;
   nextLesson?: Lesson;
+  thumbnailUrl?: string;
   averageScore?: number;
   enrollmentDate?: Date;
 }
@@ -163,6 +164,11 @@ const MyLearning = () => {
           } else if (!course.nextLesson) {
             // First unstarted lesson
             course.nextLesson = lesson;
+          }
+
+          // Capture first available thumbnail from any lesson
+          if (!course.thumbnailUrl && lesson.imageUrl) {
+            course.thumbnailUrl = lesson.imageUrl;
           }
 
           // Calculate average score
@@ -432,10 +438,10 @@ const MyLearning = () => {
                 >
                   {/* Course Thumbnail */}
                   <div className="relative h-48 bg-gradient-to-br from-indigo-100 via-blue-100 to-cyan-100 overflow-hidden">
-                    {course.nextLesson?.imageUrl ? (
+                    {(course.thumbnailUrl || course.nextLesson?.imageUrl) ? (
                       <>
                         <img 
-                          src={course.nextLesson.imageUrl} 
+                          src={course.thumbnailUrl || course.nextLesson!.imageUrl!} 
                           alt={course.subject}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -529,19 +535,17 @@ const MyLearning = () => {
                     </div>
 
                     {/* Action Button */}
-                    {course.nextLesson && (
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
-                        }}
-                        className="w-full gap-2"
-                        size="sm"
-                      >
-                        <PlayCircle className="w-4 h-4" />
-                        {course.progress > 0 ? "Continue Learning" : "Start Course"}
-                      </Button>
-                    )}
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+                      }}
+                      className={`w-full gap-2 ${course.progress === 100 ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' : ''}`}
+                      size="sm"
+                    >
+                      <PlayCircle className="w-4 h-4" />
+                      {course.progress === 100 ? "Review Course" : course.progress > 0 ? "Continue Learning" : "Start Course"}
+                    </Button>
                   </CardContent>
                 </Card>
               ))}

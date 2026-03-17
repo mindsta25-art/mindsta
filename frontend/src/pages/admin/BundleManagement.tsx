@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { api } from "@/lib/apiClient";
 import { siteConfig, formatCurrency } from "@/config/siteConfig";
 import { 
@@ -53,6 +54,8 @@ const BundleManagement = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBundle, setEditingBundle] = useState<Bundle | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bundleToDelete, setBundleToDelete] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -244,11 +247,15 @@ const BundleManagement = () => {
     }
   };
 
-  const handleDelete = async (bundleId: string) => {
-    if (!confirm("Are you sure you want to delete this bundle?")) return;
+  const handleDelete = (bundleId: string) => {
+    setBundleToDelete(bundleId);
+    setDeleteDialogOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!bundleToDelete) return;
     try {
-      await api.delete(`/bundles/${bundleId}`);
+      await api.delete(`/bundles/${bundleToDelete}`);
       toast({
         title: "Success",
         description: "Bundle deleted successfully",
@@ -261,6 +268,8 @@ const BundleManagement = () => {
         description: "Failed to delete bundle",
         variant: "destructive",
       });
+    } finally {
+      setBundleToDelete(null);
     }
   };
 
@@ -388,6 +397,17 @@ const BundleManagement = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={confirmDelete}
+          title="Delete Bundle"
+          description="Are you sure you want to delete this bundle? This action cannot be undone."
+          confirmText="Delete Bundle"
+          destructive
+        />
 
         {/* Create/Edit Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -187,7 +187,7 @@ const BrowseCourses = () => {
   // Preview dialog state
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [selectedCourseForPreview, setSelectedCourseForPreview] = useState<Lesson | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   
   // Pagination state
   const [itemsPerPage, setItemsPerPage] = useState(12);
@@ -585,16 +585,6 @@ const BrowseCourses = () => {
         getEnrollments()
       ]);
       
-      console.log('[BrowseCourses] 📚 Fresh enrollments fetched:', {
-        count: enrollmentsData.length,
-        enrollments: enrollmentsData.map(e => ({
-          subject: e.subject,
-          grade: e.grade,
-          term: e.term,
-          isActive: e.isActive
-        }))
-      });
-      
       // Cache enrollments to localStorage for faster subsequent loads
       localStorage.setItem('user_enrollments', JSON.stringify(enrollmentsData));
       // Keep enrollmentsRef in sync immediately so any in-flight fetchCoursesForGrade
@@ -660,14 +650,12 @@ const BrowseCourses = () => {
 
     const handleVisibilityChange = () => {
       if (!document.hidden && user?.id && shouldRefetch()) {
-        console.log('[BrowseCourses] Page became visible, refetching enrollments');
         fetchStudentInfo();
       }
     };
     
     const handleWindowFocus = () => {
       if (user?.id && shouldRefetch()) {
-        console.log('[BrowseCourses] Window focused, refetching enrollments');
         fetchStudentInfo();
       }
     };
@@ -893,10 +881,6 @@ const BrowseCourses = () => {
             isEnrolledUtil(e, subject.name, gradeValue, term)
           );
           
-          if (enrolled) {
-            console.log(`[BrowseCourses] ✅ Found PURCHASED course: ${subject.name} (${gradeValue}-${term})`);
-          }
-          
           const courseProgress = userProgress.filter(p => 
             lessons.some(l => l.id === p.lessonId)
           );
@@ -1090,7 +1074,7 @@ const BrowseCourses = () => {
   };
 
   const handlePreviewCourse = async (course: Course) => {
-    setLoadingPreview(true);
+    setLoadingPreviewId(course.id);
     
     // Track this preview for recommendations
     setPreviewedCourses(prev => {
@@ -1100,23 +1084,50 @@ const BrowseCourses = () => {
     });
     
     try {
-      // Fetch the first lesson of the course to get full details
+      // Fetch all lessons for this course
       const lessons = await getLessonsBySubjectAndGrade(course.subject, course.grade, course.term);
       
       if (lessons.length > 0) {
-        // Fetch detailed lesson info with curriculum
-        const lessonDetails = await getLessonById(lessons[0].id);
-        
-        if (lessonDetails) {
-          setSelectedCourseForPreview(lessonDetails);
-          setPreviewDialogOpen(true);
-        } else {
-          toast({
-            title: "Preview Unavailable",
-            description: "Could not load course preview. Please try again.",
-            variant: "destructive"
-          });
-        }
+        // Build a composite "course" object: each lesson becomes one curriculum section
+        const compositeCourse: Lesson = {
+          id: lessons[0].id,
+          title: course.subject, // Use subject name as the course title
+          subtitle: `Grade ${course.grade}${course.term ? ` • ${course.term}` : ''}`,
+          description: lessons[0].description || course.description,
+          subject: course.subject,
+          grade: course.grade,
+          term: lessons[0].term,
+          difficulty: (lessons[0].difficulty || course.difficulty) as Lesson['difficulty'],
+          duration: lessons.reduce((sum, l) => sum + (l.duration || 0), 0),
+          imageUrl: course.imageUrl || lessons[0].imageUrl,
+          whatYouWillLearn: lessons[0].whatYouWillLearn,
+          requirements: lessons[0].requirements,
+          targetAudience: lessons[0].targetAudience,
+          learningObjectives: lessons[0].learningObjectives,
+          price: course.price,
+          rating: course.rating,
+          ratingsCount: course.reviewCount || 0,
+          enrolledStudents: course.studentCount,
+          createdAt: lessons[0].createdAt,
+          quizCount: course.quizCount,
+          // Each lesson becomes a section; expose its existing curriculum lectures, or a single placeholder entry
+          curriculum: lessons.map((lesson, idx) => ({
+            title: lesson.title,
+            description: lesson.description,
+            order: idx,
+            lectures: lesson.curriculum && lesson.curriculum.length > 0
+              ? lesson.curriculum.flatMap(section => section.lectures)
+              : [{
+                  title: lesson.title,
+                  type: 'video' as const,
+                  duration: lesson.duration || 30,
+                  order: 0,
+                  isPreview: idx === 0,
+                }],
+          })),
+        };
+        setSelectedCourseForPreview(compositeCourse);
+        setPreviewDialogOpen(true);
       } else {
         toast({
           title: "No Content",
@@ -1132,7 +1143,7 @@ const BrowseCourses = () => {
         variant: "destructive"
       });
     } finally {
-      setLoadingPreview(false);
+      setLoadingPreviewId(null);
     }
   };
 
@@ -2555,9 +2566,9 @@ const BrowseCourses = () => {
                             variant="outline"
                             className="flex-1 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:text-purple-900 dark:hover:text-purple-100"
                             onClick={() => handlePreviewCourse(course)}
-                            disabled={loadingPreview}
+                            disabled={loadingPreviewId === course.id}
                           >
-                            {loadingPreview ? (
+                            {loadingPreviewId === course.id ? (
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             ) : (
                               <Eye className="w-4 h-4 mr-2" />

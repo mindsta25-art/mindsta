@@ -1,5 +1,5 @@
 import express from 'express';
-import { CourseQuestion } from '../models/index.js';
+import { CourseQuestion, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -89,9 +89,12 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const userDoc = await User.findById(userId).select('fullName').lean();
+    const studentName = userDoc?.fullName || req.user.email;
+
     const newQuestion = new CourseQuestion({
       userId,
-      studentName: req.user.fullName || req.user.email,
+      studentName,
       subject,
       grade,
       term,

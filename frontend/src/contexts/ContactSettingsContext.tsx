@@ -8,10 +8,10 @@ interface ContactSettingsContextType {
 }
 
 const defaultContactSettings: ContactSettings = {
-  companyEmail: 'info@mindsta.com',
-  supportEmail: 'support@mindsta.com',
-  privacyEmail: 'privacy@mindsta.com',
-  adminEmail: 'admin@mindsta.com',
+  companyEmail: 'info@mindsta.com.ng',
+  supportEmail: 'support@mindsta.com.ng',
+  privacyEmail: 'privacy@mindsta.com.ng',
+  adminEmail: 'admin@mindsta.com.ng',
   phone: '+234 815 244 8471',
   whatsappNumber: '2348152448471',
   whatsappMessage: "Hello! I have a question about Mindsta.",

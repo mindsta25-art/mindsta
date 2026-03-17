@@ -61,7 +61,7 @@ export interface ReferralTransactionItem {
   paymentId?: string;
   amountPaid: number;
   commissionAmount: number;
-  status: 'pending' | 'paid';
+  status: 'pending' | 'requested' | 'paid';
   paidAt?: string;
   createdAt: string;
 }

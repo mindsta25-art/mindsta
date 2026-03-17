@@ -58,6 +58,7 @@ interface Lesson {
   targetAudience?: string[];
   duration?: number;
   videoUrl?: string;
+  imageUrl?: string;
 }
 
 interface Progress {
@@ -160,9 +161,6 @@ const SubjectLessonsPage = () => {
         setCheckingAccess(true);
         
         const termName = termParam ? termParam.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : undefined;
-        console.log('[SubjectLessons] URL params:', { subject, grade, termParam });
-        console.log('[SubjectLessons] Converted values:', { subjectName, gradeParam, termName });
-        console.log('[SubjectLessons] Checking access for:', { subjectName, gradeParam, termName });
         // Dual check: API-level check + frontend fallback using all enrollments
         const [accessCheck, allEnrollments] = await Promise.allSettled([
           checkAccess(subjectName, gradeParam, termName),
@@ -174,7 +172,6 @@ const SubjectLessonsPage = () => {
         const frontendHasAccess = enrollmentList.some(e =>
           isEnrolledUtil(e, subjectName, gradeParam, termName)
         );
-        console.log('[SubjectLessons] API access:', apiHasAccess, '| Frontend check:', frontendHasAccess);
         setHasAccess(apiHasAccess || frontendHasAccess);
 
         const studentData = await getStudentByUserId(user.id);
@@ -191,9 +188,7 @@ const SubjectLessonsPage = () => {
         const progressData = await getUserProgress(user.id);
 
         // Fetch quizzes for the subject
-        console.log('[SubjectLessons] Fetching quizzes with:', { subjectName, gradeParam, termName });
         const quizzesData = await getQuizzesByFilters(subjectName, gradeParam, termName);
-        console.log('[SubjectLessons] Fetched quizzes:', quizzesData);
 
         setLessons(lessonsData.map(l => ({
           id: l.id,
@@ -206,6 +201,7 @@ const SubjectLessonsPage = () => {
           targetAudience: l.targetAudience,
           duration: l.duration || 30,
           videoUrl: l.videoUrl,
+          imageUrl: l.imageUrl,
         })));
         setQuizzes(quizzesData);
         setProgress(progressData.map(p => ({
@@ -222,6 +218,7 @@ const SubjectLessonsPage = () => {
             content: lessonsData[0].content || '',
             duration: lessonsData[0].duration || 30,
             videoUrl: lessonsData[0].videoUrl,
+            imageUrl: lessonsData[0].imageUrl,
           });
           try {
             const firstLessonQuiz = await getQuizByLessonId(lessonsData[0].id);
@@ -812,6 +809,14 @@ const SubjectLessonsPage = () => {
                     ) : (
                       <Card className="overflow-hidden">
                         <div className="relative aspect-video bg-gradient-to-br from-purple-900 to-blue-900">
+                          {selectedLesson.imageUrl && (
+                            <img
+                              src={selectedLesson.imageUrl}
+                              alt={selectedLesson.title}
+                              className="absolute inset-0 w-full h-full object-cover opacity-50"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="text-center">
                               <PlayCircle className="w-20 h-20 text-white/80 mx-auto mb-4" />
@@ -1316,83 +1321,112 @@ const SubjectLessonsPage = () => {
                       </Dialog>
                     </CardHeader>
                     <CardContent>
-                      {/* Lessons Section */}
-                      {lessons.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
-                            <BookOpen className="w-4 h-4" />
-                            Lessons ({lessons.length})
-                          </h4>
-                          <div className="space-y-2">
-                            {lessons.map((lesson, index) => {
-                              const completed = isLessonCompleted(lesson.id);
-                              return (
-                                <div
-                                  key={lesson.id}
-                                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                                    selectedLesson?.id === lesson.id
-                                      ? 'bg-primary/10 border-primary'
-                                      : completed
-                                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
-                                      : 'hover:bg-muted'
-                                  }`}
-                                  onClick={() => handleLessonClick(lesson)}
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${completed ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
-                                      {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="font-medium text-sm leading-tight mb-1">
-                                        {lesson.title}
-                                      </h4>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Clock className="w-3 h-3" />
-                                        <span>{lesson.duration} min</span>
-                                        {completed && (
-                                          <>
-                                            <span>•</span>
-                                            <CheckCircle className="w-3 h-3 text-green-600" />
-                                            <span className="text-green-600">Completed</span>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
+                      {loadingReviews ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                        </div>
+                      ) : reviews.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Star className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground font-medium">No reviews yet</p>
+                          <p className="text-sm text-muted-foreground mt-1">Be the first to review this course!</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {reviews.map((review) => (
+                            <div key={review._id} className="border rounded-lg p-4">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <p className="font-medium text-sm">{review.studentName || review.userName || 'Student'}</p>
+                                  <div className="flex items-center gap-1 mt-1">
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                      <Star
+                                        key={star}
+                                        className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
+                                      />
+                                    ))}
+                                    <span className="text-xs text-muted-foreground ml-2">
+                                      {new Date(review.createdAt).toLocaleDateString()}
+                                    </span>
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
+                              </div>
+                              {review.review && (
+                                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{review.review}</p>
+                              )}
+                              <div className="flex gap-3 mt-3 pt-3 border-t">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-1.5 h-7 text-xs"
+                                  onClick={() => handleMarkHelpful(review._id, true)}
+                                >
+                                  <ThumbsUp className="w-3 h-3" />
+                                  Helpful ({review.helpful || 0})
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-1.5 h-7 text-xs"
+                                  onClick={() => handleMarkHelpful(review._id, false)}
+                                >
+                                  <ThumbsDown className="w-3 h-3" />
+                                  Not Helpful ({review.notHelpful || 0})
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
-                      {/* Q&A Ask Form */}
-                      <div className="mt-8">
-                        <label className="text-sm font-medium mb-2 block">Your Question</label>
-                        <Textarea
-                          placeholder="What would you like to know about this course?"
-                          value={newQuestionText}
-                          onChange={(e) => setNewQuestionText(e.target.value)}
-                          rows={4}
-                        />
-                        <Button 
-                          onClick={handleSubmitQuestion} 
-                          disabled={submittingQuestion || !newQuestionText.trim()}
-                          className="w-full mt-4"
-                        >
-                          {submittingQuestion ? 'Posting...' : 'Post Question'}
-                        </Button>
-                      </div>
                     </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="discussion" className="space-y-6">
+                  {/* Ask a Question */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5" />
+                        Ask a Question
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <Textarea
+                        placeholder="What would you like to know about this course?"
+                        value={newQuestionText}
+                        onChange={(e) => setNewQuestionText(e.target.value)}
+                        rows={3}
+                      />
+                      <Button
+                        onClick={handleSubmitQuestion}
+                        disabled={submittingQuestion || !newQuestionText.trim()}
+                        className="gap-2"
+                      >
+                        <Send className="w-4 h-4" />
+                        {submittingQuestion ? 'Posting...' : 'Post Question'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Questions List */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5" />
+                        Questions {questions.length > 0 && `(${questions.length})`}
+                      </CardTitle>
+                    </CardHeader>
                     <CardContent>
                       {loadingQuestions ? (
                         <div className="text-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
                         </div>
                       ) : questions.length === 0 ? (
                         <div className="text-center py-12">
                           <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">No questions yet</p>
-                          <p className="text-sm text-muted-foreground mt-2">
+                          <p className="text-muted-foreground font-medium">No questions yet</p>
+                          <p className="text-sm text-muted-foreground mt-1">
                             Ask a question to get help from instructors and peers
                           </p>
                         </div>
@@ -1540,10 +1574,26 @@ const SubjectLessonsPage = () => {
                                   onClick={() => handleLessonClick(lesson)}
                                 >
                                   <div className="flex items-start gap-2">
-                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${completed ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
-                                      {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
-                                    </div>
-                    <div className="flex-1 min-w-0">
+                                    {lesson.imageUrl ? (
+                                      <div className="flex-shrink-0 relative w-10 h-10 rounded-lg overflow-hidden mt-0.5">
+                                        <img
+                                          src={lesson.imageUrl}
+                                          alt={lesson.title}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                        {completed && (
+                                          <div className="absolute inset-0 bg-green-600/70 flex items-center justify-center">
+                                            <CheckCircle className="w-5 h-5 text-white" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${completed ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
+                                        {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
                                       <h4 className="font-medium text-sm leading-tight mb-1">
                                         {lesson.title}
                                       </h4>

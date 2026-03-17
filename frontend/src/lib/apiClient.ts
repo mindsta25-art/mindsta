@@ -6,7 +6,7 @@
 // Determine API URL based on environment
 const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (import.meta.env.PROD) return 'https://mindsta-backend2.onrender.com/api';
+  if (import.meta.env.PROD) return 'https://api.mindsta.com.ng/api';
   return 'http://localhost:3000/api';
 };
 

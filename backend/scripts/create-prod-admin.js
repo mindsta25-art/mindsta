@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.model('User', UserSchema);
 
 const ADMIN = {
-  email: 'admin@mindsta.com',
+  email: 'admin@mindsta.com.ng',
   password: 'MindstaAdmin2024!',
   fullName: 'Mindsta Administrator',
   userType: 'admin',

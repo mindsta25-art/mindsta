@@ -82,7 +82,7 @@ const FAQPage = () => {
         },
         {
           q: 'How do I contact support?',
-          a: 'You can reach us through the Contact Support page, via WhatsApp using the floating button, or by emailing support@mindsta.com.',
+          a: 'You can reach us through the Contact Support page, via WhatsApp using the floating button, or by emailing support@mindsta.com.ng.',
         },
       ],
     },

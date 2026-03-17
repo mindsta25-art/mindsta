@@ -24,7 +24,7 @@ export const securityHeaders = {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://mindsta-backend2.onrender.com",
+    "connect-src 'self' https://api.mindsta.com.ng",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",

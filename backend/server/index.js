@@ -132,9 +132,11 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}:808\d$/,  // Local network IPs (172.16-31.x.x:8080-8089)
     ];
 
-// In production, also allow Vercel preview and production URLs
+// In production, also allow official domain and Vercel preview URLs
 if (IS_PRODUCTION) {
   allowedOrigins.push(
+    'https://mindsta.com.ng',
+    'https://www.mindsta.com.ng',
     /https:\/\/.*\.vercel\.app$/,  // All Vercel preview deployments
     /https:\/\/mindsta.*\.vercel\.app$/  // Specific mindsta deployments
   );

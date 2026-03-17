@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { requireAdmin } from '../middleware/auth.js';
-import { User, SystemSettings, Student } from '../models/index.js';
+import { User, SystemSettings, Student, CourseQuestion, ReferralTransaction, Newsletter, Ticket, Suggestion } from '../models/index.js';
 
 const router = express.Router();
 
@@ -219,5 +219,25 @@ router.get('/online-users', requireAdmin, async (req, res) => {
   }
 });
 
+
+// GET /api/admin/sidebar-counts — live badge counts for the admin sidebar
+router.get('/sidebar-counts', requireAdmin, async (req, res) => {
+  try {
+    const [questions, suggestions, tickets, users, referralPayouts, newsletter] = await Promise.all([
+      CourseQuestion.countDocuments({ status: 'open' }),
+      Suggestion.countDocuments({ status: 'pending' }),
+      Ticket.countDocuments({ status: 'open' }),
+      User.countDocuments({ isVerified: false, userType: { $ne: 'admin' } }),
+      ReferralTransaction.countDocuments({ status: 'requested' }),
+      Newsletter.countDocuments({
+        isActive: true,
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      }),
+    ]);
+    res.json({ questions, suggestions, tickets, users, referralPayouts, newsletter });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch sidebar counts', message: error.message });
+  }
+});
 
 export default router;

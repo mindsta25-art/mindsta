@@ -44,7 +44,7 @@ const User = mongoose.model('User', UserSchema);
 
 // Custom admin credentials
 const CUSTOM_ADMIN = {
-  email: 'daniel@mindsta.com',
+  email: 'daniel@mindsta.com.ng',
   password: 'Daniel@Mindsta2025!',
   fullName: 'Daniel Enuabanosa',
   userType: 'admin',

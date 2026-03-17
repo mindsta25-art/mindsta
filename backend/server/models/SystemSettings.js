@@ -3,16 +3,16 @@ import mongoose from 'mongoose';
 const GeneralSchema = new mongoose.Schema({
   siteName: { type: String, default: 'Mindsta' },
   siteDescription: { type: String, default: 'A safe and engaging learning platform for grades 1-6' },
-  supportEmail: { type: String, default: 'support@mindsta.com' },
+  supportEmail: { type: String, default: 'support@mindsta.com.ng' },
   language: { type: String, default: 'en' },
   timezone: { type: String, default: 'UTC' },
 }, { _id: false });
 
 const ContactSchema = new mongoose.Schema({
-  companyEmail: { type: String, default: 'info@mindsta.com' },
-  supportEmail: { type: String, default: 'support@mindsta.com' },
-  privacyEmail: { type: String, default: 'privacy@mindsta.com' },
-  adminEmail: { type: String, default: 'admin@mindsta.com' },
+  companyEmail: { type: String, default: 'info@mindsta.com.ng' },
+  supportEmail: { type: String, default: 'support@mindsta.com.ng' },
+  privacyEmail: { type: String, default: 'privacy@mindsta.com.ng' },
+  adminEmail: { type: String, default: 'admin@mindsta.com.ng' },
   phone: { type: String, default: '+234 815 244 8471' },
   whatsappNumber: { type: String, default: '2348152448471' },
   whatsappMessage: { type: String, default: 'Hello! I have a question about Mindsta.' },

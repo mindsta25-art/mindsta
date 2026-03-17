@@ -298,11 +298,11 @@ const HelpCenter = () => {
                   
                   <div className="flex gap-6 text-white">
                     <a 
-                      href="mailto:support@mindsta.com" 
+                      href="mailto:support@mindsta.com.ng" 
                       className="flex items-center gap-2 hover:text-indigo-200 transition-colors"
                     >
                       <Mail className="w-5 h-5" />
-                      <span className="hidden sm:inline">support@mindsta.com</span>
+                      <span className="hidden sm:inline">support@mindsta.com.ng</span>
                     </a>
                     <a 
                       href="tel:+2341234567890" 

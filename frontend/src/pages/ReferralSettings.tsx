@@ -216,7 +216,7 @@ const ReferralSettings = () => {
                   <label className="block text-sm font-medium mb-1">Bank Name</label>
                   <input 
                     {...bankForm.register('bankName')}
-                    className="w-full border rounded px-3 py-2" 
+                    className="w-full border rounded px-3 py-2 dark:bg-background dark:border-gray-700 dark:text-foreground" 
                     placeholder="e.g. Access Bank"
                   />
                   {bankForm.formState.errors.bankName && (
@@ -228,7 +228,7 @@ const ReferralSettings = () => {
                   <input 
                     value={settings?.bankCode || ''} 
                     onChange={e => setSettings(s => s ? { ...s, bankCode: e.target.value } : s)} 
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border rounded px-3 py-2 dark:bg-background dark:border-gray-700 dark:text-foreground"
                     placeholder="e.g. 044" 
                   />
                 </div>
@@ -236,7 +236,7 @@ const ReferralSettings = () => {
                   <label className="block text-sm font-medium mb-1">Account Number</label>
                   <input 
                     {...bankForm.register('accountNumber')}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border rounded px-3 py-2 dark:bg-background dark:border-gray-700 dark:text-foreground"
                     placeholder="10-digit account number"
                     maxLength={10}
                   />
@@ -248,7 +248,7 @@ const ReferralSettings = () => {
                   <label className="block text-sm font-medium mb-1">Account Name</label>
                   <input 
                     {...bankForm.register('accountName')}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border rounded px-3 py-2 dark:bg-background dark:border-gray-700 dark:text-foreground"
                     placeholder="Full account name"
                   />
                   {bankForm.formState.errors.accountName && (
@@ -263,13 +263,13 @@ const ReferralSettings = () => {
                     min={0} 
                     max={100}
                     step="0.1"
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border rounded px-3 py-2 dark:bg-background dark:border-gray-700 dark:text-foreground"
                     placeholder="e.g. 10" 
                   />
                   {bankForm.formState.errors.commissionRate && (
                     <p className="text-red-500 text-xs mt-1">{bankForm.formState.errors.commissionRate.message}</p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">Commission you earn per referral payment (0-100%)</p>
+                  <p className="text-xs text-muted-foreground mt-1">Commission you earn per referral payment (0-100%)</p>
                 </div>
                 <div className="flex items-end">
                   <Button type="submit" disabled={saving}>
@@ -320,7 +320,7 @@ const ReferralSettings = () => {
           <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
-                <thead className="bg-gray-100">
+                <thead className="bg-gray-100 dark:bg-gray-800">
                   <tr>
                     <th className="p-2 text-left">Created</th>
                     <th className="p-2 text-left">Amount Paid</th>
@@ -340,7 +340,7 @@ const ReferralSettings = () => {
                     </tr>
                   ))}
                   {transactions.length === 0 && (
-                    <tr><td colSpan={5} className="p-4 text-center text-gray-500">No transactions yet</td></tr>
+                    <tr><td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">No transactions yet</td></tr>
                   )}
                 </tbody>
               </table>
@@ -371,7 +371,7 @@ const ReferralSettings = () => {
                         type={showCurrentPassword ? "text" : "password"}
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full border rounded px-3 py-2 pr-10"
+                        className="w-full border rounded px-3 py-2 pr-10 dark:bg-background dark:border-gray-700 dark:text-foreground"
                         placeholder="Enter current password"
                         required
                       />
@@ -388,7 +388,7 @@ const ReferralSettings = () => {
                         type={showNewPassword ? "text" : "password"}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full border rounded px-3 py-2 pr-10"
+                        className="w-full border rounded px-3 py-2 pr-10 dark:bg-background dark:border-gray-700 dark:text-foreground"
                         placeholder="Enter new password (min. 8 characters)"
                         required
                       />
@@ -405,7 +405,7 @@ const ReferralSettings = () => {
                         type={showConfirmPassword ? "text" : "password"}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full border rounded px-3 py-2 pr-10"
+                        className="w-full border rounded px-3 py-2 pr-10 dark:bg-background dark:border-gray-700 dark:text-foreground"
                         placeholder="Confirm new password"
                         required
                       />
@@ -481,7 +481,7 @@ const ReferralSettings = () => {
 const Stat = ({ label, value }: { label: string; value: string }) => (
   <Card>
     <CardContent className="p-4">
-      <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
       <div className="text-lg font-semibold">{value}</div>
     </CardContent>
   </Card>

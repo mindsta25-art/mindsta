@@ -7,7 +7,7 @@ dotenv.config();
 
 const MONGODB_URI = process.env.MONGODB_URI || process.env.VITE_MONGODB_URI;
 
-const ADMIN_EMAIL = 'admin@mindsta.com';
+const ADMIN_EMAIL = 'admin@mindsta.com.ng';
 const ADMIN_PASSWORD = 'Admin@123';
 
 async function resetAdminPassword() {

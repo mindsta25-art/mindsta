@@ -3,8 +3,7 @@ import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { Referral, User, ReferralProfile, ReferralTransaction } from '../models/index.js';
 import { sendPayoutRequestEmail, sendPayoutProcessedEmail } from '../services/emailService.js';
 
-// Debug: confirm this referrals routes file is loaded
-console.log('[ReferralsRoutes] Loaded referrals routes module');
+
 
 const router = express.Router();
 
@@ -14,7 +13,7 @@ router.get('/student-stats/:userId', requireAuth, async (req, res) => {
   try {
     const { userId } = req.params;
     // Only allow users to access their own stats
-    if (req.user.userId !== userId && req.user.userType !== 'admin') {
+    if (req.user.id !== userId && req.user.userType !== 'admin') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -45,7 +44,6 @@ router.get('/student-stats/:userId', requireAuth, async (req, res) => {
 // Get referral statistics (Admin only) - MUST come before /user/:userId
 // GET /api/referrals/stats
 router.get('/stats', requireAdmin, async (req, res) => {
-  console.log('[ReferralsRoutes] GET /api/referrals/stats');
   try {
     const totalReferrals = await Referral.countDocuments();
     const pendingReferrals = await Referral.countDocuments({ status: 'pending' });
@@ -112,7 +110,6 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
 // GET /api/referrals/admin/overview - Admin view of all referrers with payment details
 router.get('/admin/overview', requireAdmin, async (req, res) => {
-  console.log('[ReferralsRoutes] GET /api/referrals/admin/overview');
   try {
     // Get all users with referral type
     const referralUsers = await User.find({ userType: 'referral' })
@@ -189,7 +186,6 @@ router.get('/admin/overview', requireAdmin, async (req, res) => {
 
 // POST /api/referrals/admin/payout/:userId - Admin approves payout for a specific referrer
 router.post('/admin/payout/:userId', requireAdmin, async (req, res) => {
-  console.log('[ReferralsRoutes] POST /api/referrals/admin/payout/' + req.params.userId);
   try {
     const { userId } = req.params;
     const { notes } = req.body;
@@ -204,14 +200,14 @@ router.post('/admin/payout/:userId', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Bank details not set for this referrer' });
     }
     
-    // Get pending transactions
+    // Get requested (payout-requested) transactions — only these are eligible for admin payout
     const pendingTransactions = await ReferralTransaction.find({ 
       referrerId: userId, 
-      status: 'pending' 
+      status: 'requested' 
     });
     
     if (pendingTransactions.length === 0) {
-      return res.status(400).json({ error: 'No pending transactions for this referrer' });
+      return res.status(400).json({ error: 'No payout requests found for this referrer' });
     }
     
     // Create batch ID
@@ -239,7 +235,7 @@ router.post('/admin/payout/:userId', requireAdmin, async (req, res) => {
       if (referrer?.email) {
         await sendPayoutProcessedEmail(
           referrer.email,
-          referrer.firstName || referrer.fullName || 'Referrer',
+          referrer.fullName || referrer.email || 'Referrer',
           totalCommission,
           profile.accountNumber,
           profile.bankName,
@@ -269,8 +265,11 @@ router.post('/admin/payout/:userId', requireAdmin, async (req, res) => {
 
 // Get referrals by user ID
 // GET /api/referrals/user/:userId
-router.get('/user/:userId', async (req, res) => {
-  console.log('[ReferralsRoutes] GET /api/referrals/user/' + req.params.userId);
+router.get('/user/:userId', requireAuth, async (req, res) => {
+  // Only allow users to view their own referrals (or admins)
+  if (req.user.id !== req.params.userId && req.user.userType !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   try {
     const { userId } = req.params;
     
@@ -302,7 +301,6 @@ router.get('/user/:userId', async (req, res) => {
 // Get all referrals (Admin only)
 // GET /api/referrals
 router.get('/', requireAdmin, async (req, res) => {
-  console.log('[ReferralsRoutes] GET /api/referrals');
   try {
     const referrals = await Referral.find()
       .populate('referrerId', 'email fullName userType')
@@ -334,10 +332,9 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
-// Create a new referral
+// Create a new referral (Admin only)
 // POST /api/referrals
-router.post('/', async (req, res) => {
-  console.log('[ReferralsRoutes] POST /api/referrals');
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const { referrerId, referredEmail } = req.body;
 
@@ -376,7 +373,6 @@ router.post('/', async (req, res) => {
 // Update referral status (Admin only)
 // PATCH /api/referrals/:id
 router.patch('/:id', requireAdmin, async (req, res) => {
-  console.log('[ReferralsRoutes] PATCH /api/referrals/' + req.params.id);
   try {
     const { id } = req.params;
     const { status, rewardAmount, rewardClaimed, referredUserId } = req.body;
@@ -417,7 +413,6 @@ router.patch('/:id', requireAdmin, async (req, res) => {
 // Delete referral (Admin only)
 // DELETE /api/referrals/:id
 router.delete('/:id', requireAdmin, async (req, res) => {
-  console.log('[ReferralsRoutes] DELETE /api/referrals/' + req.params.id);
   try {
     const { id } = req.params;
     const referral = await Referral.findByIdAndDelete(id);
@@ -622,26 +617,25 @@ router.post('/me/payout', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Bank details required before payout' });
     }
     const pending = await ReferralTransaction.find({ referrerId: req.user.id, status: 'pending' });
-    if (pending.length === 0) return res.status(400).json({ error: 'No pending transactions to payout' });
+    if (pending.length === 0) return res.status(400).json({ error: 'No pending transactions to request payout for' });
     const batchId = `PAYOUT_${Date.now()}_${req.user.id}`;
     let totalCommission = 0;
     for (const tx of pending) {
-      tx.status = 'paid';
-      tx.paidAt = new Date();
+      // Mark as 'requested' (not 'paid') — admin must confirm actual transfer
+      tx.status = 'requested';
       tx.payoutBatchId = batchId;
       await tx.save();
       totalCommission += tx.commissionAmount;
     }
-    profile.pendingEarnings = Math.max(0, profile.pendingEarnings - totalCommission);
-    profile.paidOutEarnings += totalCommission;
-    await profile.save();
+    // Do NOT modify paidOutEarnings here — only move from pending to a notional "requested" bucket
+    // No profile.pendingEarnings change yet; the admin payout endpoint will finalize it
     
     // Send payout request email to admin
     try {
       const user = await User.findById(req.user.id);
       if (user) {
         await sendPayoutRequestEmail(
-          user.firstName || user.fullName || user.email,
+          user.fullName || user.email,
           totalCommission,
           profile.accountNumber,
           profile.bankName,
@@ -670,14 +664,14 @@ router.get('/admin/transactions', requireAuth, requireAdmin, async (req, res) =>
     res.json(transactions.map(t => ({
       _id: t._id.toString(),
       referrerId: t.referrerId?._id.toString(),
-      referrerName: t.referrerId?.fullName || `${t.referrerId?.firstName || ''} ${t.referrerId?.lastName || ''}`.trim() || 'Unknown',
+      referrerName: t.referrerId?.fullName || 'Unknown',
       referrerEmail: t.referrerId?.email,
       studentId: t.studentId?._id.toString(),
-      studentName: t.studentId?.fullName || `${t.studentId?.firstName || ''} ${t.studentId?.lastName || ''}`.trim() || 'Unknown',
+      studentName: t.studentId?.fullName || 'Unknown',
       studentEmail: t.studentId?.email,
       paymentId: t.paymentId?.toString(),
-      purchaseAmount: t.amountPaid || 0, // in kobo
-      commissionAmount: t.commissionAmount || 0, // in kobo
+      purchaseAmount: t.amountPaid || 0, // in Naira
+      commissionAmount: t.commissionAmount || 0, // in Naira
       status: t.status,
       paidAt: t.paidAt,
       createdAt: t.createdAt,

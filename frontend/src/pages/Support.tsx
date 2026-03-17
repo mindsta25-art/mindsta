@@ -154,7 +154,7 @@ export default function Support() {
                     </div>
                     <div>
                       <CardTitle className="text-sm">Email Us</CardTitle>
-                      <CardDescription className="text-xs">support@mindsta.com</CardDescription>
+                      <CardDescription className="text-xs">support@mindsta.com.ng</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
