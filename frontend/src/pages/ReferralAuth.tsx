@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Menu, X, Eye, EyeOff } from "lucide-react";
+import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Menu, X, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { signIn, signUp, requestPasswordReset } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +35,7 @@ const ReferralAuth = () => {
   const [showForgotPasswordDialog, setShowForgotPasswordDialog] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -243,18 +244,16 @@ const ReferralAuth = () => {
       </div> */}
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-white/80 dark:bg-card backdrop-blur-sm shadow-lg border-b-4 border-yellow-300 z-50">
+      <header className="fixed top-0 left-0 right-0 bg-white/80 dark:bg-card backdrop-blur-sm shadow-lg border-b-4 border-purple-300 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-yellow-500 via-orange-500 to-pink-500 animate-pulse">
-                <div className="p-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
-                  <BookOpen className="w-3 h-3 text-white" />
-                </div>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
+                <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">Mindsta Referral</h1>
-                <span className="text-xs text-muted-foreground font-bold">Refer Friends • Earn Rewards! </span>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</h1>
+                <span className="text-xs text-muted-foreground">Referral Portal</span>
               </div>
             </div>
             
@@ -423,22 +422,46 @@ const ReferralAuth = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+                  disabled={googleLoading}
+                  onClick={async () => {
+                    const backendURL = import.meta.env.VITE_API_URL
+                      ? import.meta.env.VITE_API_URL
+                      : import.meta.env.PROD
+                      ? 'https://api.mindsta.com.ng/api'
+                      : 'http://localhost:3000/api';
+                    setGoogleLoading(true);
+                    try {
+                      for (let i = 0; i < 12; i++) {
+                        try {
+                          const res = await fetch(`${backendURL}/health`);
+                          if (res.ok) {
+                            const ct = res.headers.get('content-type') || '';
+                            if (ct.includes('application/json')) break;
+                          }
+                        } catch { /* server not ready */ }
+                        await new Promise(r => setTimeout(r, 2500));
+                      }
+                    } catch { /* ignore */ }
                     window.location.href = `${backendURL}/auth/google?userType=referral`;
                   }}
-                  className="w-full flex items-center justify-center gap-3 h-11 px-4 rounded-lg border font-medium text-sm transition-all"
+                  className="w-full flex items-center justify-center gap-3 h-11 px-4 rounded-lg border font-medium text-sm transition-all disabled:opacity-50"
                   style={{ borderColor: '#e2e8f0', color: '#374151', background: '#ffffff' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                  </svg>
-                  <span style={{ color: '#374151' }}>Continue with Google</span>
+                  {googleLoading ? (
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                      <span style={{ color: '#374151' }}>Continue with Google</span>
+                    </>
+                  )}
                 </button>
 
                 <div className="text-center">
@@ -633,22 +656,46 @@ const ReferralAuth = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    const backendURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+                  disabled={googleLoading}
+                  onClick={async () => {
+                    const backendURL = import.meta.env.VITE_API_URL
+                      ? import.meta.env.VITE_API_URL
+                      : import.meta.env.PROD
+                      ? 'https://api.mindsta.com.ng/api'
+                      : 'http://localhost:3000/api';
+                    setGoogleLoading(true);
+                    try {
+                      for (let i = 0; i < 12; i++) {
+                        try {
+                          const res = await fetch(`${backendURL}/health`);
+                          if (res.ok) {
+                            const ct = res.headers.get('content-type') || '';
+                            if (ct.includes('application/json')) break;
+                          }
+                        } catch { /* server not ready */ }
+                        await new Promise(r => setTimeout(r, 2500));
+                      }
+                    } catch { /* ignore */ }
                     window.location.href = `${backendURL}/auth/google?userType=referral`;
                   }}
-                  className="w-full flex items-center justify-center gap-3 h-11 px-4 rounded-lg border font-medium text-sm transition-all"
+                  className="w-full flex items-center justify-center gap-3 h-11 px-4 rounded-lg border font-medium text-sm transition-all disabled:opacity-50"
                   style={{ borderColor: '#e2e8f0', color: '#374151', background: '#ffffff' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                  </svg>
-                  <span style={{ color: '#374151' }}>Sign up with Google</span>
+                  {googleLoading ? (
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                      <span style={{ color: '#374151' }}>Sign up with Google</span>
+                    </>
+                  )}
                 </button>
 
                 <div className="text-center">

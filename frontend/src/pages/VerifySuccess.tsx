@@ -9,7 +9,7 @@ export function VerifySuccess() {
   const user = location.state?.user;
   const firstName = user?.fullName?.split(' ')[0] || 'there';
   const isReferral = user?.userType === 'referral';
-  const destination = isReferral ? '/referral-dashboard' : '/student-home';
+  const destination = isReferral ? '/referral-dashboard' : '/home';
 
   useEffect(() => {
     // Auto-redirect to dashboard after 5 seconds

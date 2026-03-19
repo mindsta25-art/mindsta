@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -83,6 +83,7 @@ const ContentManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingProgress, setIsSavingProgress] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [draftInfo, setDraftInfo] = useState<{timestamp: string} | null>(null);
   // Single-item delete dialog
@@ -120,6 +121,23 @@ const ContentManagement = () => {
   const [curriculum, setCurriculum] = useState<Section[]>([]);
   const [curriculumMode, setCurriculumMode] = useState<"simple" | "advanced">("simple");
   const [thumbnailMode, setThumbnailMode] = useState<"url" | "upload">("url");
+  const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
+
+  const processThumbnailFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Invalid file type", description: "Please select an image file (PNG, JPG, GIF, WebP)", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Image must be less than 5MB. Please compress or resize it first.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setLessonForm(prev => ({ ...prev, imageUrl: ev.target?.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Quiz form state
   const [quizForm, setQuizForm] = useState({
@@ -344,15 +362,8 @@ const ContentManagement = () => {
     if (type === "lesson") {
       // Check for saved draft
       if (hasSavedDraft()) {
-        const shouldLoad = window.confirm(
-          "You have a saved draft. Do you want to continue from where you left off?"
-        );
-        if (shouldLoad) {
-          loadProgressDraft();
-        } else {
-          resetLessonForm();
-          clearDraft();
-        }
+        setShowDraftModal(true);
+        return; // Draft modal handles opening isDialogOpen
       } else {
         resetLessonForm();
       }
@@ -422,6 +433,7 @@ const ContentManagement = () => {
 
   // Handle lesson submit
   const handleLessonSubmit = async () => {
+    if (isSubmitting) return; // Prevent double submission
     const missingFields = [];
     if (!lessonForm.title) missingFields.push("Title");
     if (!lessonForm.description) missingFields.push("Description");
@@ -474,6 +486,7 @@ const ContentManagement = () => {
       }
     }
 
+    setIsSubmitting(true);
     try {
       const difficultyMap: Record<string, string> = {
         'easy': 'beginner',
@@ -487,8 +500,6 @@ const ContentManagement = () => {
         keywords: [],
         learningObjectives: [],
       };
-
-      console.log('Submitting lesson data:', lessonData);
 
       if (editingId) {
         await updateLesson(editingId, lessonData);
@@ -515,6 +526,8 @@ const ContentManagement = () => {
         description: error?.response?.data?.error || error?.message || "Failed to save lesson",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1126,25 +1139,35 @@ const ContentManagement = () => {
                                 type="url"
                               />
                             ) : (
-                              <div className="flex items-center justify-center w-full">
-                                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/60 transition-colors">
-                                  <div className="flex flex-col items-center justify-center pt-2 pb-2">
-                                    <Upload className="w-6 h-6 mb-1 text-muted-foreground" />
-                                    <p className="text-xs text-muted-foreground">Click to upload image</p>
-                                    <p className="text-[10px] text-muted-foreground/70">PNG, JPG, GIF, WebP</p>
-                                  </div>
+                              <div
+                                onDragOver={(e) => { e.preventDefault(); setIsDraggingThumbnail(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setIsDraggingThumbnail(false); }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setIsDraggingThumbnail(false);
+                                  const file = e.dataTransfer.files?.[0];
+                                  if (file) processThumbnailFile(file);
+                                }}
+                                className={`flex items-center justify-center w-full rounded-lg border-2 border-dashed transition-colors ${
+                                  isDraggingThumbnail
+                                    ? 'border-primary bg-primary/10'
+                                    : 'border-border bg-muted/30 hover:bg-muted/60'
+                                }`}
+                              >
+                                <label className="flex flex-col items-center justify-center w-full h-32 cursor-pointer">
+                                  <Upload className={`w-7 h-7 mb-2 transition-colors ${isDraggingThumbnail ? 'text-primary' : 'text-muted-foreground'}`} />
+                                  <p className="text-sm font-medium text-muted-foreground">
+                                    {isDraggingThumbnail ? 'Drop image here' : 'Click to upload or drag & drop'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground/70 mt-1">PNG, JPG, GIF, WebP · Max 5MB</p>
                                   <input
                                     type="file"
                                     className="hidden"
                                     accept="image/*"
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
-                                      if (!file) return;
-                                      const reader = new FileReader();
-                                      reader.onload = (ev) => {
-                                        setLessonForm({ ...lessonForm, imageUrl: ev.target?.result as string });
-                                      };
-                                      reader.readAsDataURL(file);
+                                      if (file) processThumbnailFile(file);
+                                      e.target.value = '';
                                     }}
                                   />
                                 </label>

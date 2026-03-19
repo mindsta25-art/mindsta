@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { requireAdmin } from '../middleware/auth.js';
 import { User, SystemSettings, Student, CourseQuestion, ReferralTransaction, Newsletter, Ticket, Suggestion } from '../models/index.js';
+import { Lesson, Quiz, UserProgress, Referral, Payment, ReferralProfile, Enrollment, Subject, Topic } from '../models/index.js';
 
 const router = express.Router();
 
@@ -237,6 +238,78 @@ router.get('/sidebar-counts', requireAdmin, async (req, res) => {
     res.json({ questions, suggestions, tickets, users, referralPayouts, newsletter });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch sidebar counts', message: error.message });
+  }
+});
+
+// GET /api/admin/backup — export all data as a JSON backup
+router.get('/backup', requireAdmin, async (req, res) => {
+  try {
+    const [
+      users, students, lessons, quizzes, subjects, topics,
+      enrollments, payments, referrals, referralProfiles,
+      referralTransactions, progress, settings, tickets, suggestions, newsletter,
+    ] = await Promise.all([
+      User.find({}).select('-password').lean(),
+      Student.find({}).lean(),
+      Lesson.find({}).lean(),
+      Quiz.find({}).lean(),
+      Subject.find({}).lean(),
+      Topic.find({}).lean(),
+      Enrollment.find({}).lean(),
+      Payment.find({}).lean(),
+      Referral.find({}).lean(),
+      ReferralProfile.find({}).lean(),
+      ReferralTransaction.find({}).lean(),
+      UserProgress.find({}).lean(),
+      SystemSettings.find({}).lean(),
+      Ticket.find({}).lean(),
+      Suggestion.find({}).lean(),
+      Newsletter.find({}).lean(),
+    ]);
+
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      collections: {
+        users,
+        students,
+        lessons,
+        quizzes,
+        subjects,
+        topics,
+        enrollments,
+        payments,
+        referrals,
+        referralProfiles,
+        referralTransactions,
+        progress,
+        settings,
+        tickets,
+        suggestions,
+        newsletter,
+      },
+      counts: {
+        users: users.length,
+        students: students.length,
+        lessons: lessons.length,
+        quizzes: quizzes.length,
+        subjects: subjects.length,
+        topics: topics.length,
+        enrollments: enrollments.length,
+        payments: payments.length,
+        referrals: referrals.length,
+        referralTransactions: referralTransactions.length,
+        progress: progress.length,
+      },
+    };
+
+    const filename = `mindsta-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.json(backup);
+  } catch (error) {
+    console.error('[Admin Backup] Error:', error);
+    res.status(500).json({ error: 'Failed to generate backup', message: error.message });
   }
 });
 

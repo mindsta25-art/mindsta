@@ -99,7 +99,7 @@ const GoogleCallback = () => {
           } catch {
             localStorage.setItem('needsProfileSetup', 'true');
           }
-          navigate('/student-home');
+          navigate('/home');
         }
       } catch (error) {
         console.error('Error processing Google callback:', error);

@@ -36,7 +36,9 @@ import {
   Plus,
   Trash2,
   Eye,
-  EyeOff
+  EyeOff,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { siteConfig } from "@/config/siteConfig";
 
@@ -47,6 +49,7 @@ const Settings = () => {
   const { refreshContactSettings } = useContactSettings();
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   // Account/Password Settings
   const [currentPassword, setCurrentPassword] = useState('');
@@ -1012,22 +1015,6 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="databaseUrl">Database Connection</Label>
-                  <Input id="databaseUrl" type="text" placeholder="postgresql://..." readOnly />
-                  <p className="text-xs text-muted-foreground">
-                    Database connection string (read-only)
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="apiKey">API Key</Label>
-                  <Input id="apiKey" type="password" value="sk_live_••••••••••••" readOnly />
-                  <p className="text-xs text-muted-foreground">
-                    API key for external integrations
-                  </p>
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="backupFrequency">Backup Frequency</Label>
                   <Select value={advancedSettings.backupFrequency} onValueChange={(v) => setAdvancedSettings({ ...advancedSettings, backupFrequency: v as AdvancedSettings['backupFrequency'] })}>
                     <SelectTrigger id="backupFrequency">
@@ -1039,6 +1026,46 @@ const Settings = () => {
                       <SelectItem value="weekly">Weekly</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Manual Backup</Label>
+                  <p className="text-xs text-muted-foreground">Download a full JSON export of all app data (users, lessons, payments, referrals, etc.).</p>
+                  <Button
+                    variant="outline"
+                    disabled={backupLoading}
+                    onClick={async () => {
+                      setBackupLoading(true);
+                      try {
+                        const token = localStorage.getItem('authToken');
+                        const apiBase = import.meta.env.VITE_API_URL
+                          ? import.meta.env.VITE_API_URL
+                          : import.meta.env.PROD
+                          ? 'https://api.mindsta.com.ng/api'
+                          : 'http://localhost:3000/api';
+                        const res = await fetch(`${apiBase}/admin/backup`, {
+                          headers: { Authorization: `Bearer ${token}` },
+                        });
+                        if (!res.ok) throw new Error('Backup failed');
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `mindsta-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        toast({ title: 'Backup Downloaded', description: 'All app data exported successfully.' });
+                      } catch (err: any) {
+                        toast({ title: 'Backup Failed', description: err.message || 'Could not generate backup.', variant: 'destructive' });
+                      } finally {
+                        setBackupLoading(false);
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    {backupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    {backupLoading ? 'Generating Backup…' : 'Download Backup'}
+                  </Button>
                 </div>
 
                 <div className="space-y-2">

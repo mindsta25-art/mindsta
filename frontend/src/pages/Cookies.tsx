@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Cookie, Shield, Settings, Eye, CheckCircle, Mail } from 'lucide-react';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Cookies() {
   const { user } = useAuth();
   const { contactSettings } = useContactSettings();
+  const { toast } = useToast();
   const Header = user ? StudentHeader : HomeHeader;
   const Footer = user ? StudentFooter : HomeFooter;
   const [preferences, setPreferences] = useState({
@@ -24,7 +26,7 @@ export default function Cookies() {
   const handleSavePreferences = () => {
     // Save cookie preferences to localStorage
     localStorage.setItem('cookiePreferences', JSON.stringify(preferences));
-    alert('Cookie preferences saved successfully!');
+    toast({ title: 'Preferences Saved', description: 'Your cookie preferences have been saved.' });
   };
 
   return (

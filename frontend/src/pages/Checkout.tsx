@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { BookOpen, Star, Users, Clock } from "lucide-react";
 import { getStudentByUserId, initializePayment } from "@/api";
 import { getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
+import { useToast } from "@/hooks/use-toast";
 
 interface EnrichedCartItem {
   _id: string;
@@ -28,6 +29,7 @@ interface EnrichedCartItem {
 
 const Checkout = () => {
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const { cart, cartCount, loading, removeFromCart } = useCart();
   const [studentName, setStudentName] = useState("");
   const [enrichedItems, setEnrichedItems] = useState<EnrichedCartItem[]>([]);
@@ -198,7 +200,7 @@ const Checkout = () => {
                           window.location.href = authorizationUrl;
                         } catch (e: any) {
                           console.error('Failed to start payment:', e);
-                          alert(`Payment initialization failed: ${e.message || 'Please try again'}`);
+                          toast({ title: 'Payment Failed', description: e.message || 'Please try again', variant: 'destructive' });
                         }
                       }}
                       disabled={calculatedTotal <= 0 || enrichedItems.length === 0 || fetchingDetails}

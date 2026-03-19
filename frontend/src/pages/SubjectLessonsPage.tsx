@@ -47,6 +47,20 @@ import { getCourseQuestions, createCourseQuestion, addCourseAnswer, upvoteQuesti
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
+/** Strip HTML tags and return plain text */
+const stripHtml = (html: string): string => {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 interface Lesson {
   id: string;
   title: string;
@@ -749,17 +763,6 @@ const SubjectLessonsPage = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="gap-2"
-            >
-              {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-              <span className="hidden sm:inline">
-                {sidebarOpen ? 'Hide' : 'Show'} Curriculum
-              </span>
-            </Button>
             <div className="hidden lg:flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md">
               <Award className="w-4 h-4 text-yellow-600" />
               <span className="text-sm font-medium">{completedCount}/{lessons.length} Completed</span>
@@ -799,7 +802,7 @@ const SubjectLessonsPage = () => {
                           videoUrl={selectedLesson.videoUrl}
                           title={selectedLesson.title}
                           lessonId={selectedLesson.id}
-                          enableDownload={true}
+                          enableDownload={false}
                           startAt={showResumeBanner ? videoResumePos : 0}
                           onTimeUpdate={handleVideoTimeUpdate}
                           onProgress={handleVideoProgress}
@@ -848,63 +851,6 @@ const SubjectLessonsPage = () => {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={async () => {
-                            const currentIndex = lessons.findIndex(l => l.id === selectedLesson.id);
-                            if (currentIndex > 0) {
-                              const prev = lessons[currentIndex - 1];
-                              setSelectedLesson(prev);
-                              setSelectedQuiz(null); setQuizQuestions([]); setQuizTitle("");
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                              try {
-                                const q = await getQuizByLessonId(prev.id);
-                                if (q && q.questions?.length > 0) {
-                                  setSelectedQuiz(q);
-                                  setQuizQuestions(q.questions.map((ques: any, idx: number) => ({
-                                    id: ques.id || String(idx + 1), question: ques.question,
-                                    options: ques.options, correct_answer: ques.options[ques.correctAnswer] ?? '',
-                                    explanation: ques.explanation || null, order_number: idx + 1,
-                                  })));
-                                  setQuizTitle(q.title);
-                                }
-                              } catch {/* no quiz for this lesson */}
-                            }
-                          }}
-                          disabled={lessons.findIndex(l => l.id === selectedLesson.id) === 0}
-                          className="gap-2"
-                        >
-                          <ArrowLeft className="w-4 h-4" />
-                          <span className="hidden sm:inline">Previous</span>
-                        </Button>
-                        <Button
-                          onClick={async () => {
-                            const currentIndex = lessons.findIndex(l => l.id === selectedLesson.id);
-                            if (currentIndex < lessons.length - 1) {
-                              const next = lessons[currentIndex + 1];
-                              setSelectedLesson(next);
-                              setSelectedQuiz(null); setQuizQuestions([]); setQuizTitle("");
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                              try {
-                                const q = await getQuizByLessonId(next.id);
-                                if (q && q.questions?.length > 0) {
-                                  setSelectedQuiz(q);
-                                  setQuizQuestions(q.questions.map((ques: any, idx: number) => ({
-                                    id: ques.id || String(idx + 1), question: ques.question,
-                                    options: ques.options, correct_answer: ques.options[ques.correctAnswer] ?? '',
-                                    explanation: ques.explanation || null, order_number: idx + 1,
-                                  })));
-                                  setQuizTitle(q.title);
-                                }
-                              } catch {/* no quiz */}
-                            }
-                          }}
-                          disabled={lessons.findIndex(l => l.id === selectedLesson.id) === lessons.length - 1}
-                          className="gap-2"
-                        >
-                          <span className="hidden sm:inline">Next</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
                         <Button
                           onClick={async () => {
                             if (!selectedLesson?.id || !user?.id || isLessonCompleted(selectedLesson.id)) return;
@@ -1011,7 +957,7 @@ const SubjectLessonsPage = () => {
                       {/* Show first lesson's overview if available */}
                       {lessons.length > 0 && lessons[0].overview ? (
                         <div className="prose dark:prose-invert max-w-none">
-                          <p className="text-muted-foreground whitespace-pre-wrap">{lessons[0].overview}</p>
+                          <p className="text-muted-foreground whitespace-pre-wrap">{stripHtml(lessons[0].overview)}</p>
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground italic">
@@ -1075,7 +1021,7 @@ const SubjectLessonsPage = () => {
                       <CardTitle>Course Statistics</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                         <div className="text-center p-4 bg-muted rounded-lg">
                           <div className="text-2xl font-bold text-purple-600">{lessons.length}</div>
                           <div className="text-sm text-muted-foreground">Lessons</div>
@@ -1085,13 +1031,25 @@ const SubjectLessonsPage = () => {
                           <div className="text-sm text-muted-foreground">Completed</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">{Math.floor(totalDuration / 60)}h</div>
-                          <div className="text-sm text-muted-foreground">Total Time</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {totalDuration >= 60
+                              ? `${Math.floor(totalDuration / 60)}h${totalDuration % 60 > 0 ? ` ${totalDuration % 60}m` : ''}`
+                              : `${totalDuration}m`}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Video Time</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
                           <div className="text-2xl font-bold text-yellow-600">{progressPercent}%</div>
                           <div className="text-sm text-muted-foreground">Progress</div>
                         </div>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{completedCount} of {lessons.length} lessons completed</span>
+                          <span>{progressPercent}%</span>
+                        </div>
+                        <Progress value={progressPercent} className="h-2" />
                       </div>
                     </CardContent>
                   </Card>
@@ -1117,7 +1075,7 @@ const SubjectLessonsPage = () => {
 
                       {/* Brief description — skip if it looks like a plain URL */}
                       {(() => {
-                        const raw = (selectedLesson.description || '').replace(/<[^>]*>/g, '').trim();
+                        const raw = stripHtml(selectedLesson.description || '');
                         const isUrl = /^https?:\/\//.test(raw) || /^www\./.test(raw);
                         if (!raw || isUrl) return null;
                         return (
@@ -1126,10 +1084,7 @@ const SubjectLessonsPage = () => {
                               <CardTitle>Description</CardTitle>
                             </CardHeader>
                             <CardContent className="overflow-hidden">
-                              <div
-                                className="prose prose-sm dark:prose-invert max-w-none break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
-                                dangerouslySetInnerHTML={{ __html: selectedLesson.description }}
-                              />
+                              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{raw}</p>
                             </CardContent>
                           </Card>
                         );
@@ -1137,7 +1092,7 @@ const SubjectLessonsPage = () => {
 
                       {/* Fallback if neither content nor description is useful */}
                       {!selectedLesson.content && (() => {
-                        const raw = (selectedLesson.description || '').replace(/<[^>]*>/g, '').trim();
+                        const raw = stripHtml(selectedLesson.description || '');
                         const isUrl = /^https?:\/\//.test(raw) || /^www\./.test(raw);
                         if (!raw || isUrl) {
                           return (

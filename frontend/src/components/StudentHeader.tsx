@@ -656,7 +656,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border animate-in slide-in-from-top-3 duration-200">
+          <div className="md:hidden border-t border-border animate-in slide-in-from-top-3 duration-200 overflow-y-auto max-h-[calc(100vh-4rem)]">
             {/* User Profile Card */}
             <div className="px-4 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40">
               <div className="flex items-center gap-3 mb-3">

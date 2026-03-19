@@ -385,7 +385,7 @@ const AdminDashboard = () => {
                     Send Notifications
                   </button>
                   <button onClick={() => navigate('/admin/leaderboard')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                    🏆 View Leaderboard
+                     View Leaderboard
                   </button>
                   <button onClick={() => navigate('/admin/newsletter')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
                     Newsletter Subscribers

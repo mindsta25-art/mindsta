@@ -121,8 +121,8 @@ const HomeFooterComponent = () => {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2.5 mb-4 group w-fit">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg group-hover:shadow-indigo-500/30 transition-shadow">
-                <BookOpen className="w-5 h-5 text-white" />
+              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
+                <BookOpen className="w-6 h-6 text-white" />
               </div>
               <div>
                 <span className="text-xl font-bold text-white">Mindsta</span>
@@ -178,12 +178,11 @@ const HomeFooterComponent = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-sm font-semibold mb-4 text-white">Quick Links</h4>
-            <ul className="space-y-2.5">
+            <h4 className="text-sm font-semibold mb-3 text-white">Quick Links</h4>
+            <ul className="space-y-1.5">
               {quickLinks.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 group">
-                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-indigo-400"></span>
+                  <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -193,32 +192,32 @@ const HomeFooterComponent = () => {
 
           {/* Legal */}
           <div>
-            <h4 className="text-sm font-semibold mb-4 text-white">Company</h4>
-            <ul className="space-y-2.5">
+            <h4 className="text-sm font-semibold mb-3 text-white">Company</h4>
+            <ul className="space-y-1.5">
               {legalLinks.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 group">
-                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-indigo-400"></span>
+                  <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors">
                     {link.label}
                   </Link>
                 </li>
               ))}
-            </ul>
-
-            {/* Sign Up CTA */}
-            <div className="mt-8">
-              <h4 className="text-sm font-semibold mb-3 text-white">Get Started</h4>
-              <div className="space-y-2">
-                <Link to="/auth?mode=signup&type=student"
-                  className="flex items-center justify-center gap-2 w-full h-9 px-4 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
-                  <BookOpen className="w-3.5 h-3.5" />Create Free Account
+              <li className="pt-2 border-t border-white/10">
+                <Link
+                  to="/auth?mode=signup&type=student"
+                  className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
+                >
+                  Create Free Account
                 </Link>
-                <Link to="/auth?mode=login"
-                  className="flex items-center justify-center gap-2 w-full h-9 px-4 rounded-lg text-xs font-medium border border-white/20 hover:border-indigo-400 hover:text-indigo-400 text-slate-400 transition-colors">
+              </li>
+              <li>
+                <Link
+                  to="/auth?mode=login"
+                  className="text-sm text-slate-400 hover:text-indigo-400 transition-colors"
+                >
                   Already have an account? Log in
                 </Link>
-              </div>
-            </div>
+              </li>
+            </ul>
           </div>
         </div>
 

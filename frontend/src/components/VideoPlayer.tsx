@@ -336,20 +336,7 @@ export const VideoPlayer = ({
             </div>
           )}
 
-          <div className="p-4 bg-gray-50 dark:bg-gray-800">
-            <h3 className="font-semibold text-lg mb-2">{title}</h3>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-              <div className="flex items-center gap-1">
-                <PlayCircle className="w-4 h-4" />
-                <span>YouTube Video</span>
-              </div>
-              {enableDownload && (
-                <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
-                  <Download className="w-4 h-4" />Download Options
-                </Button>
-              )}
-            </div>
-          </div>
+
         </CardContent>
       </Card>
     );

@@ -81,6 +81,11 @@ const Settings = () => {
   const [showProgress, setShowProgress] = useState(true);
   const [allowAnalytics, setAllowAnalytics] = useState(true);
 
+  // Account deletion dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
@@ -261,18 +266,7 @@ const Settings = () => {
   const handleDeleteAccount = async () => {
     if (!user?.id) return;
 
-    // Show confirmation dialog
-    const confirmed = window.confirm(
-      'Are you sure you want to delete your account? This action cannot be undone.\n\nAll your data including:\n- Progress\n- Enrollments\n- Achievements\n- Settings\n\nwill be permanently deleted.'
-    );
-
-    if (!confirmed) return;
-
-    const password = window.prompt('Please enter your password to confirm:');
-    if (!password) return;
-
-    const confirmText = window.prompt('Type DELETE to confirm account deletion:');
-    if (confirmText !== 'DELETE') {
+    if (deleteConfirmText !== 'DELETE') {
       toast({
         title: 'Deletion cancelled',
         description: 'You must type DELETE exactly to confirm',
@@ -283,14 +277,13 @@ const Settings = () => {
 
     try {
       const { deleteAccount } = await import('@/api/newsletter');
-      await deleteAccount(user.id, password, confirmText);
+      await deleteAccount(user.id, deletePassword, deleteConfirmText);
       
       toast({
         title: 'Account Deleted',
         description: 'Your account has been permanently deleted',
       });
 
-      // Clear local storage and redirect to home
       localStorage.clear();
       window.location.href = '/';
     } catch (error: any) {
@@ -299,6 +292,10 @@ const Settings = () => {
         description: error.response?.data?.error || 'Failed to delete account',
         variant: 'destructive',
       });
+    } finally {
+      setShowDeleteDialog(false);
+      setDeletePassword('');
+      setDeleteConfirmText('');
     }
   };
 
@@ -470,24 +467,50 @@ const Settings = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="gap-2">
-                        <Trash2 className="w-4 h-4" />
-                        Delete Account
-                      </Button>
-                    </AlertDialogTrigger>
+                  <Button variant="destructive" className="gap-2" onClick={() => { setDeletePassword(''); setDeleteConfirmText(''); setShowDeleteDialog(true); }}>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Account
+                  </Button>
+
+                  <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogTitle>Delete your account?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete your account
-                          and remove all your data from our servers.
+                          This action cannot be undone. All your progress, enrollments, achievements, and settings will be permanently deleted.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
+                      <div className="space-y-3 py-2">
+                        <div>
+                          <Label htmlFor="delete-password" className="text-sm font-medium">Enter your password</Label>
+                          <Input
+                            id="delete-password"
+                            type="password"
+                            placeholder="Your current password"
+                            value={deletePassword}
+                            onChange={e => setDeletePassword(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="delete-confirm" className="text-sm font-medium">Type <span className="font-bold">DELETE</span> to confirm</Label>
+                          <Input
+                            id="delete-confirm"
+                            type="text"
+                            placeholder="DELETE"
+                            value={deleteConfirmText}
+                            onChange={e => setDeleteConfirmText(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-600">
+                        <AlertDialogAction
+                          onClick={handleDeleteAccount}
+                          className="bg-red-600 hover:bg-red-700"
+                          disabled={!deletePassword || deleteConfirmText !== 'DELETE'}
+                        >
                           Delete Account
                         </AlertDialogAction>
                       </AlertDialogFooter>

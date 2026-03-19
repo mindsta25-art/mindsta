@@ -14,9 +14,11 @@ import {
   Heading3,
   Link as LinkIcon,
   Image as ImageIcon,
+  ImagePlus,
   Code
 } from 'lucide-react';
 import { Separator } from './ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 interface RichTextEditorProps {
   value: string;
@@ -33,7 +35,9 @@ export const RichTextEditor = ({
   minHeight = "200px",
   label 
 }: RichTextEditorProps) => {
+  const { toast } = useToast();
   const editorRef = useRef<HTMLDivElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
@@ -65,6 +69,30 @@ export const RichTextEditor = ({
     if (url) {
       executeCommand('insertImage', url);
     }
+  };
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid File', description: 'Please select a valid image file (PNG, JPG, GIF, WebP).', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File Too Large', description: 'Image must be less than 5MB. Please compress or resize the image first.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      editorRef.current?.focus();
+      executeCommand('insertImage', dataUrl);
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const formatBlock = (tag: string) => {
@@ -221,11 +249,28 @@ export const RichTextEditor = ({
             variant="ghost"
             size="sm"
             onClick={insertImage}
-            title="Insert Image"
+            title="Insert Image from URL"
             className="h-8 w-8 p-0"
           >
             <ImageIcon className="w-4 h-4" />
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => imageFileInputRef.current?.click()}
+            title="Upload Image from File"
+            className="h-8 w-8 p-0"
+          >
+            <ImagePlus className="w-4 h-4" />
+          </Button>
+          <input
+            ref={imageFileInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*"
+            onChange={handleImageFileUpload}
+          />
 
           <Separator orientation="vertical" className="h-6" />
 
