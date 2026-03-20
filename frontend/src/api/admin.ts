@@ -90,6 +90,7 @@ export interface SidebarCounts {
 	users: number;
 	referralPayouts: number;
 	newsletter: number;
+	notifications: number;
 }
 
 export const getSidebarCounts = (): Promise<SidebarCounts> =>

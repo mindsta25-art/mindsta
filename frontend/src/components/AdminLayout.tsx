@@ -63,7 +63,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [referralMenuExpanded, setReferralMenuExpanded] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [sidebarCounts, setSidebarCounts] = useState<SidebarCounts>({
-    questions: 0, suggestions: 0, tickets: 0, users: 0, referralPayouts: 0, newsletter: 0,
+    questions: 0, suggestions: 0, tickets: 0, users: 0, referralPayouts: 0, newsletter: 0, notifications: 0,
   });
 
   useEffect(() => {
@@ -254,6 +254,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           icon: Bell,
           label: "Notifications",
           path: "/admin/notifications",
+          countKey: 'notifications' as const,
         },
         {
           icon: Trophy,

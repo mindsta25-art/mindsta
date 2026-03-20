@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { requireAdmin } from '../middleware/auth.js';
-import { User, SystemSettings, Student, CourseQuestion, ReferralTransaction, Newsletter, Ticket, Suggestion } from '../models/index.js';
+import { User, SystemSettings, Student, CourseQuestion, ReferralTransaction, Newsletter, Ticket, Suggestion, Notification } from '../models/index.js';
 import { Lesson, Quiz, UserProgress, Referral, Payment, ReferralProfile, Enrollment, Subject, Topic } from '../models/index.js';
 
 const router = express.Router();
@@ -224,7 +224,7 @@ router.get('/online-users', requireAdmin, async (req, res) => {
 // GET /api/admin/sidebar-counts — live badge counts for the admin sidebar
 router.get('/sidebar-counts', requireAdmin, async (req, res) => {
   try {
-    const [questions, suggestions, tickets, users, referralPayouts, newsletter] = await Promise.all([
+    const [questions, suggestions, tickets, users, referralPayouts, newsletter, notifications] = await Promise.all([
       CourseQuestion.countDocuments({ status: 'open' }),
       Suggestion.countDocuments({ status: 'pending' }),
       Ticket.countDocuments({ status: 'open' }),
@@ -234,8 +234,9 @@ router.get('/sidebar-counts', requireAdmin, async (req, res) => {
         isActive: true,
         createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       }),
+      Notification.countDocuments({ isActive: true }),
     ]);
-    res.json({ questions, suggestions, tickets, users, referralPayouts, newsletter });
+    res.json({ questions, suggestions, tickets, users, referralPayouts, newsletter, notifications });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch sidebar counts', message: error.message });
   }
