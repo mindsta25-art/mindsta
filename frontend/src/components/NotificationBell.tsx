@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, X, Check, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -23,6 +24,7 @@ const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -48,12 +50,13 @@ const NotificationBell = () => {
   useEffect(() => {
     fetchNotifications();
     fetchUnreadCount();
-    
-    // Poll for new notifications every 30 seconds
+
+    // Poll for new notifications and unread count every 30 seconds
     const interval = setInterval(() => {
       fetchUnreadCount();
+      fetchNotifications();
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -96,6 +99,22 @@ const NotificationBell = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Click on a notification: mark as read + navigate if actionUrl present
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.isRead) {
+      await handleMarkAsRead(notification._id);
+    }
+    if (notification.metadata?.actionUrl) {
+      setIsOpen(false);
+      const url = notification.metadata.actionUrl;
+      if (url.startsWith('http')) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(url);
+      }
     }
   };
 
@@ -204,7 +223,10 @@ const NotificationBell = () => {
                   key={notification._id}
                   className={`p-3 sm:p-4 transition-colors hover:bg-muted/50 ${
                     !notification.isRead ? 'bg-muted/30' : ''
-                  } ${getPriorityColor(notification.priority)}`}
+                  } ${getPriorityColor(notification.priority)} ${
+                    notification.metadata?.actionUrl ? 'cursor-pointer' : ''
+                  }`}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start gap-2 sm:gap-3">
                     <div className="flex-shrink-0 mt-0.5">
@@ -257,16 +279,9 @@ const NotificationBell = () => {
                       </div>
 
                       {notification.metadata?.actionUrl && notification.metadata?.actionLabel && (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="h-auto p-0 mt-2 text-xs sm:text-sm"
-                          onClick={() => {
-                            window.location.href = notification.metadata!.actionUrl!;
-                          }}
-                        >
+                        <p className="mt-2 text-xs sm:text-sm text-primary font-medium">
                           {notification.metadata.actionLabel} →
-                        </Button>
+                        </p>
                       )}
                     </div>
                   </div>

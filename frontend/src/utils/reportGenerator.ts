@@ -319,8 +319,8 @@ export const generatePDFPreview = (
     );
   }
 
-  // Return data URL for preview
-  return doc.output('dataurlstring');
+  // Return blob URL for preview (data URLs are blocked in iframes by many browsers)
+  return URL.createObjectURL(doc.output('blob'));
 };
 
 // Generate Excel-compatible CSV with header

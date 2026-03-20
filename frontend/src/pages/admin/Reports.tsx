@@ -81,6 +81,13 @@ const Reports = () => {
   const [previewData, setPreviewData] = useState<any>(null);
   const [recentReports, setRecentReports] = useState<any[]>([]);
 
+  // Revoke blob URL when PDF preview dialog closes (prevent memory leaks)
+  useEffect(() => {
+    if (!previewDialogOpen && previewData?.url?.startsWith('blob:')) {
+      URL.revokeObjectURL(previewData.url);
+    }
+  }, [previewDialogOpen]);
+
   // Load recent reports from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('mindsta_recent_reports');
