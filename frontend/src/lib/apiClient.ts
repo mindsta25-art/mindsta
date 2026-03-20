@@ -110,13 +110,13 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
       error('❌ API Error:', errorData);
       
       // Create error object with response data attached
-      const error: any = new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`);
-      error.response = {
+      const apiError: any = new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`);
+      apiError.response = {
         status: response.status,
         statusText: response.statusText,
         data: errorData
       };
-      throw error;
+      throw apiError;
     }
     
     const data = await response.json();
