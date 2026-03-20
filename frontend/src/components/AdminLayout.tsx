@@ -487,22 +487,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                             title={sidebarCollapsed ? item.label : undefined}
                           >
                             {sidebarCollapsed ? (
-                              <span className="relative">
-                                <Icon className="w-5 h-5 flex-shrink-0" />
-                                {!!sidebarCounts.referralPayouts && (
-                                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-                                )}
-                              </span>
+                              <Icon className="w-5 h-5 flex-shrink-0" />
                             ) : (
                               <>
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                   <Icon className="w-5 h-5 flex-shrink-0" />
                                   <span className="flex-1">{item.label}</span>
-                                  {!!sidebarCounts.referralPayouts && (
-                                    <span className="min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold leading-none">
-                                      {sidebarCounts.referralPayouts > 99 ? '99+' : sidebarCounts.referralPayouts}
-                                    </span>
-                                  )}
                                 </div>
                                 {referralMenuExpanded ? 
                                   <ChevronDown className="w-4 h-4 flex-shrink-0 ml-1" /> : 
@@ -529,7 +519,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                               </Link>
                               <Link
                                 to="/admin/referral-payouts"
-                                onClick={() => { setMobileMenuOpen(false); clearCount('referralPayouts'); }}
+                                onClick={() => setMobileMenuOpen(false)}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                                   location.pathname === '/admin/referral-payouts'
                                     ? 'bg-primary/10 text-primary'
@@ -538,11 +528,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                               >
                                 <Wallet className="w-4 h-4 flex-shrink-0" />
                                 <span className="flex-1">Payouts</span>
-                                {!!sidebarCounts.referralPayouts && (
-                                  <span className="min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold leading-none">
-                                    {sidebarCounts.referralPayouts > 99 ? '99+' : sidebarCounts.referralPayouts}
-                                  </span>
-                                )}
                               </Link>
                             </div>
                           )}
