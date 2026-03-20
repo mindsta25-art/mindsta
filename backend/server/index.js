@@ -225,6 +225,11 @@ mongoose.connection.on('close', () => {
   process.exit(1);
 });
 
+// Root health check (for uptime monitors and Render health pings)
+app.all('/', (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'Mindsta API' });
+});
+
 // Root API endpoint
 app.get('/api', (req, res) => {
   res.json({
