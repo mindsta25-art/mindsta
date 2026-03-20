@@ -322,52 +322,65 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         fixed lg:relative h-full z-50
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        {/* Header */}
-        <div className="p-6 border-b border-border">
+        {/* Sidebar Header — gradient brand strip */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 to-pink-600 p-4 border-b border-purple-700/40">
           <div className="flex items-center justify-between">
-            <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
-                <BookOpen className="w-6 h-6 text-white" />
+            <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : ''}`}>
+              <div className="p-1.5 rounded-lg bg-white/20 backdrop-blur-sm shadow flex-shrink-0">
+                <BookOpen className="w-5 h-5 text-white" />
               </div>
               {!sidebarCollapsed && (
                 <div>
-                  <h1 className="text-lg font-bold text-foreground">Mindsta</h1>
-                  <p className="text-xs text-muted-foreground">Administrative Excellence</p>
+                  <h1 className="text-base font-bold text-white leading-tight">Mindsta</h1>
+                  <p className="text-xs text-purple-200 leading-tight">Admin Panel</p>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {/* Toggle Button - Desktop only */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="h-8 w-8 hidden lg:flex"
-              >
-                <Menu className="w-4 h-4" />
-              </Button>
+              {!sidebarCollapsed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="h-7 w-7 hidden lg:flex text-white hover:bg-white/20"
+                >
+                  <Menu className="w-4 h-4" />
+                </Button>
+              )}
               {/* Close button for mobile */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden"
+                className="lg:hidden text-white hover:bg-white/20 h-7 w-7"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </Button>
             </div>
           </div>
+          {/* Collapsed toggle */}
+          {sidebarCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarCollapsed(false)}
+              className="hidden lg:flex absolute bottom-1 right-1 h-6 w-6 text-white/70 hover:bg-white/20"
+            >
+              <ChevronRight className="w-3 h-3" />
+            </Button>
+          )}
         </div>
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 py-4">
-          <nav className="space-y-6 px-3">
+        <ScrollArea className="flex-1 py-3">
+          <nav className="space-y-4 px-3">
             {menuItems.map((section, sectionIndex) => (
               <div key={sectionIndex} className="space-y-1">
                 {/* Section Label */}
                 {!sidebarCollapsed && (
-                  <div className="px-3 py-2">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="px-3 pt-1 pb-1">
+                    <h3 className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-[0.1em]">
                       {section.section}
                     </h3>
                   </div>
@@ -397,7 +410,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                             className={`
                               flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-lg text-sm font-medium transition-all w-full
                               ${isContentActive 
-                                ? 'bg-primary text-primary-foreground shadow-sm' 
+                                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm' 
                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                               }
                             `}
@@ -480,7 +493,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                             className={`
                               flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2 rounded-lg text-sm font-medium transition-all w-full
                               ${isReferralActive 
-                                ? 'bg-primary text-primary-foreground shadow-sm' 
+                                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm' 
                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                               }
                             `}
@@ -544,7 +557,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                       className={`
                         flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm font-medium transition-all
                         ${active 
-                          ? 'bg-primary text-primary-foreground shadow-sm' 
+                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm' 
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                         }
                       `}
@@ -567,14 +580,14 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border">
+        <div className="p-3 border-t border-border bg-muted/30">
           <Button
-            variant="outline"
-            className={`w-full ${sidebarCollapsed ? 'px-2' : 'gap-2'}`}
+            variant="ghost"
+            className={`w-full ${sidebarCollapsed ? 'px-2 justify-center' : 'gap-2 justify-start'} text-muted-foreground hover:text-destructive hover:bg-destructive/10`}
             onClick={() => setShowLogoutDialog(true)}
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
-            {!sidebarCollapsed && <span>Logout</span>}
+            {!sidebarCollapsed && <span>Sign Out</span>}
           </Button>
         </div>
       </aside>
@@ -587,7 +600,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
 
         {/* Mobile Header */}
-        <div className="lg:hidden sticky top-0 z-30 bg-card border-b border-border p-4 flex items-center justify-between">
+        <div className="lg:hidden sticky top-0 z-30 bg-card border-b border-border px-4 flex items-center justify-between h-14">
           <Button
             variant="ghost"
             size="icon"
@@ -596,7 +609,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <Menu className="w-5 h-5" />
           </Button>
           <div className="flex items-center gap-2">
-            <span className="font-bold">Mindsta Admin</span>
+            <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600">
+              <BookOpen className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-sm bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta Admin</span>
           </div>
           <div className="w-10" /> {/* Spacer for centering */}
         </div>

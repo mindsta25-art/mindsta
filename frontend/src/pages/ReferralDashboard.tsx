@@ -13,6 +13,7 @@ import QRCode from 'react-qr-code';
 import { signOut } from '@/api/auth';
 import { CompleteReferralProfileModal } from '@/components/CompleteReferralProfileModal';
 import { ReferralOnboardingTour } from '@/components/ReferralOnboardingTour';
+import NotificationBell from '@/components/NotificationBell';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -249,6 +250,7 @@ export default function ReferralDashboard() {
             >
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
+            <NotificationBell />
             <Button
               variant="outline"
               size="icon"

@@ -109,11 +109,11 @@ const AdminAuth = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
                 <BookOpen className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Mindsta Admin</h1>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta Admin</h1>
                 <span className="text-xs text-muted-foreground font-medium">Administrative Excellence Portal</span>
               </div>
             </div>
@@ -163,7 +163,7 @@ const AdminAuth = () => {
       <main className="container mx-auto px-4 py-12 relative z-10 mt-20 flex items-center justify-center min-h-[calc(100vh-160px)]">
         <Card className="w-full max-w-md border-2 border-gray-200 shadow-xl bg-white dark:bg-card">
           <CardHeader className="text-center space-y-2">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-2">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg mb-2">
               <Shield className="w-8 h-8 text-white" />
             </div>
             <CardTitle className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -224,7 +224,7 @@ const AdminAuth = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold text-base shadow-lg"
+                className="w-full h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold text-base shadow-lg"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">

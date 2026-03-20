@@ -18,19 +18,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { 
-  User, 
   Settings, 
   LogOut,
   Shield,
   Moon,
   Sun,
-  Mail,
-  Clock
 } from "lucide-react";
 import { signOut } from "@/api";
 import { useToast } from "@/hooks/use-toast";
@@ -80,90 +76,91 @@ export function AdminHeader() {
 
   return (
     <>
-    <div className="flex items-center justify-between bg-card border-b border-border px-6 py-3">
-      <div className="flex items-center gap-3">
-        <Badge className="bg-blue-500 text-white gap-1">
-          <Clock className="w-3 h-3" />
-          {currentTime.toLocaleTimeString()}
-        </Badge>
-        <Badge variant="outline" className="gap-1">
-          {currentTime.toLocaleDateString('en-US', { 
-            weekday: 'short', 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
-          })}
-        </Badge>
+    {/* Modern top bar: gradient left accent + breadcrumb + actions */}
+    <div className="flex items-center justify-between bg-card border-b border-border px-6 py-0 h-14 shadow-sm">
+      {/* Left — brand accent + clock */}
+      <div className="flex items-center gap-4">
+        <div className="h-14 w-1 bg-gradient-to-b from-purple-500 to-pink-500 -ml-6 mr-2 flex-shrink-0" />
+        <div className="flex flex-col leading-tight">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+            {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </span>
+          <span className="text-sm font-bold text-foreground tabular-nums">
+            {currentTime.toLocaleTimeString()}
+          </span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Right — actions */}
+      <div className="flex items-center gap-1">
         {/* Theme Toggle */}
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          className="rounded-full"
+          className="rounded-full h-9 w-9"
         >
           {theme === "dark" ? (
-            <Sun className="w-5 h-5" />
+            <Sun className="w-4 h-4" />
           ) : (
-            <Moon className="w-5 h-5" />
+            <Moon className="w-4 h-4" />
           )}
         </Button>
 
         {/* Admin Alert Bell */}
         <AdminAlertBell />
 
+        {/* Divider */}
+        <div className="w-px h-6 bg-border mx-1" />
+
         {/* Admin Profile Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white font-semibold">
+            <Button variant="ghost" className="gap-2.5 px-2.5 h-10 rounded-full hover:bg-muted">
+              <Avatar className="h-8 w-8 ring-2 ring-purple-200 dark:ring-purple-800">
+                <AvatarFallback className="bg-gradient-to-br from-purple-600 to-pink-600 text-white font-bold text-sm">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start">
-                <span className="text-sm font-semibold">{displayName}</span>
-                <Badge className="bg-red-500 text-white text-xs gap-1 h-4 px-1">
-                  <Shield className="w-2.5 h-2.5" />
-                  Admin
-                </Badge>
+                <span className="text-sm font-semibold leading-tight">{displayName}</span>
+                <span className="text-xs text-muted-foreground leading-tight">Administrator</span>
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            
-            <div className="px-2 py-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <User className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">{displayName}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="w-4 h-4" />
-                <span className="truncate">{user?.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Shield className="w-4 h-4 text-red-500" />
-                <Badge className="bg-red-500 text-white">Administrator</Badge>
+          <DropdownMenuContent align="end" className="w-64 p-0 overflow-hidden">
+            {/* Profile banner */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 text-white">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10 ring-2 ring-white/50">
+                  <AvatarFallback className="bg-white/20 text-white font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold text-sm">{displayName}</p>
+                  <p className="text-xs text-purple-100 truncate max-w-[160px]">{user?.email}</p>
+                  <Badge className="mt-1 bg-white/20 text-white border-0 text-xs gap-1 h-4 px-1.5">
+                    <Shield className="w-2.5 h-2.5" />
+                    Admin
+                  </Badge>
+                </div>
               </div>
             </div>
 
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => navigate("/admin/settings")} className="gap-2">
-              <Settings className="w-4 h-4" />
-              Settings
-            </DropdownMenuItem>
-            
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => setShowLogoutDialog(true)} className="gap-2 text-destructive focus:text-destructive">
-              <LogOut className="w-4 h-4" />
-              Logout
-            </DropdownMenuItem>
+            <div className="p-1">
+              <DropdownMenuItem onClick={() => navigate("/admin/settings")} className="gap-2 rounded-md">
+                <Settings className="w-4 h-4 text-muted-foreground" />
+                Settings
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator className="my-1" />
+              
+              <DropdownMenuItem onClick={() => setShowLogoutDialog(true)} className="gap-2 rounded-md text-destructive focus:text-destructive focus:bg-destructive/10">
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </DropdownMenuItem>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
