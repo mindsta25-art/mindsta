@@ -22,6 +22,8 @@ function alertIcon(type: AdminAlert["type"]) {
       return <UserPlus className="w-4 h-4 text-purple-500" />;
     case "referral_purchase":
       return <ShoppingCart className="w-4 h-4 text-purple-500" />;
+    case "system":
+      return <Bell className="w-4 h-4 text-blue-500" />;
     default:
       return <AlertCircle className="w-4 h-4 text-yellow-500" />;
   }
@@ -84,8 +86,8 @@ export function AdminAlertBell() {
     // Small delay so the initial fetch doesn't fire before the app settles
     const initTimer = setTimeout(async () => {
       await fetchAlerts();
-      // Only start polling if the initial fetch succeeded (server is up)
-      if (!serverDown && failCountRef.current === 0) {
+      // Use the ref directly — state (serverDown) is stale inside this closure
+      if (failCountRef.current === 0) {
         startPolling();
       }
     }, 1000);

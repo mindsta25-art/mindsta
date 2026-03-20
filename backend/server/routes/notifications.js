@@ -2,6 +2,7 @@ import express from 'express';
 import Notification from '../models/Notification.js';
 import Student from '../models/Student.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { createAdminAlert } from './admin-alerts.js';
 
 const router = express.Router();
 
@@ -232,9 +233,20 @@ router.post('/admin', requireAuth, requireAdmin, async (req, res) => {
     });
     
     await notification.save();
-    
+
     console.log('[Notifications] Notification created successfully:', notification._id);
-    
+
+    // Notify admin bell so the admin sees what was just sent
+    const audienceLabel = audience === 'all' ? 'all students'
+      : audience === 'grade-specific' ? `grades ${(targetGrades || []).join(', ')}`
+      : 'specific users';
+    createAdminAlert({
+      type: 'system',
+      title: `Notification sent: "${title}"`,
+      message: `A ${priority || 'medium'}-priority notification was broadcast to ${audienceLabel}.`,
+      metadata: { notificationId: notification._id },
+    });
+
     res.status(201).json({ 
       message: 'Notification created successfully', 
       notification 

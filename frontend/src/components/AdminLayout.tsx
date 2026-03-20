@@ -566,21 +566,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                       title={sidebarCollapsed ? item.label : undefined}
                     >
                       {sidebarCollapsed ? (
-                        <span className="relative">
-                          <Icon className="w-5 h-5 flex-shrink-0" />
-                          {item.countKey && !!sidebarCounts[item.countKey] && (
-                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-                          )}
-                        </span>
+                        <Icon className="w-5 h-5 flex-shrink-0" />
                       ) : (
                         <>
                           <Icon className="w-5 h-5 flex-shrink-0" />
                           <span className="flex-1">{item.label}</span>
-                          {item.countKey && !!sidebarCounts[item.countKey] && (
-                            <span className="min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold leading-none">
-                              {sidebarCounts[item.countKey] > 99 ? '99+' : sidebarCounts[item.countKey]}
-                            </span>
-                          )}
                         </>
                       )}
                     </Link>
