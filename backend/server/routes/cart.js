@@ -78,6 +78,8 @@ router.post('/add-topic', requireAuth, async (req, res) => {
       imageUrl: topic.imageUrl,
       addedAt: new Date(),
     });
+    // Reset abandoned-cart flag so a new reminder can fire after the next abandonment
+    cart.abandonedEmailSentAt = null;
 
     await cart.save();
     await cart.populate('items.topicId');
@@ -137,6 +139,7 @@ router.post('/add-lesson', requireAuth, async (req, res) => {
       imageUrl: lesson.imageUrl,
       addedAt: new Date(),
     });
+    cart.abandonedEmailSentAt = null;
 
     await cart.save();
     await cart.populate('items.lessonId');

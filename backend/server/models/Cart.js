@@ -63,6 +63,11 @@ const cartSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // Set when the abandoned-cart reminder email is sent so we don't spam
+  abandonedEmailSentAt: {
+    type: Date,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

@@ -1032,3 +1032,111 @@ Manage your preferences or unsubscribe at any time.
     throw error;
   }
 };
+
+/**
+ * Send abandoned cart reminder email
+ * @param {string} email - User's email
+ * @param {string} name - User's full name
+ * @param {Array}  items - Cart items [{ title, subject, grade, price }]
+ * @param {number} totalAmount - Total cart value in Naira
+ */
+export const sendAbandonedCartEmail = async (email, name, items = [], totalAmount = 0) => {
+  const firstName = (name || 'there').split(' ')[0];
+  const cartUrl = `${process.env.FRONTEND_URL || 'https://mindsta.com.ng'}/cart`;
+
+  const itemRows = items.slice(0, 5).map(item => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;">
+        <strong style="color:#1a202c;">${item.title || item.subject || 'Course'}</strong><br>
+        <span style="color:#718096;font-size:13px;">${item.subject || ''}${item.grade ? ' · Grade ' + item.grade : ''}${item.term ? ' · ' + item.term : ''}</span>
+      </td>
+      <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;text-align:right;color:#10b981;font-weight:bold;white-space:nowrap;">
+        ₦${(item.price || 0).toLocaleString()}
+      </td>
+    </tr>
+  `).join('');
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f5f7fa;">
+      <div style="max-width:600px;margin:0 auto;background:#ffffff;">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:35px 30px;text-align:center;">
+          <p style="color:#fff;font-size:26px;font-weight:700;margin:0;">📚 Mindsta</p>
+          <h1 style="color:#fff;margin:12px 0 0;font-size:24px;">You left something behind!</h1>
+          <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:15px;">Your cart is waiting for you</p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:35px 30px;">
+          <p style="color:#2d3748;font-size:16px;margin:0 0 20px;">Hi <strong>${firstName}</strong>,</p>
+          <p style="color:#4a5568;font-size:15px;line-height:1.6;margin:0 0 25px;">
+            Great news — the courses in your cart are still available! 
+            You're just one step away from unlocking quality lessons for your studies.
+          </p>
+
+          <!-- Cart items -->
+          <div style="background:#f7fafc;border-radius:10px;padding:20px 25px;margin-bottom:25px;">
+            <h3 style="margin:0 0 15px;color:#1a202c;font-size:16px;">🛒 Your Cart</h3>
+            <table style="width:100%;border-collapse:collapse;">
+              ${itemRows}
+              <tr>
+                <td style="padding:12px 0 0;font-weight:700;color:#1a202c;font-size:16px;">Total</td>
+                <td style="padding:12px 0 0;text-align:right;font-weight:700;color:#667eea;font-size:18px;">₦${totalAmount.toLocaleString()}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- CTA -->
+          <div style="text-align:center;margin:30px 0;">
+            <a href="${cartUrl}"
+               style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;padding:16px 48px;border-radius:8px;font-weight:700;font-size:16px;box-shadow:0 4px 10px rgba(102,126,234,0.35);">
+              Complete My Purchase →
+            </a>
+          </div>
+
+          <p style="color:#718096;font-size:14px;text-align:center;margin:0;">
+            Questions? <a href="https://mindsta.com.ng/help" style="color:#667eea;text-decoration:none;">Visit our Help Centre</a>
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:#f7fafc;padding:25px 30px;text-align:center;border-top:1px solid #e2e8f0;">
+          <p style="color:#a0aec0;font-size:12px;margin:0;">
+            © ${new Date().getFullYear()} Mindsta. All rights reserved.<br>
+            You received this because you have items in your Mindsta cart.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const textContent = `
+Hi ${firstName},
+
+You left something in your Mindsta cart!
+
+Your items:
+${items.slice(0, 5).map(i => `- ${i.title || i.subject}: ₦${(i.price || 0).toLocaleString()}`).join('\n')}
+
+Total: ₦${totalAmount.toLocaleString()}
+
+Complete your purchase: ${cartUrl}
+
+© ${new Date().getFullYear()} Mindsta. All rights reserved.
+  `.trim();
+
+  return sendMailWithRetry({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: '🛒 You left something in your cart — Mindsta',
+    text: textContent,
+    html: htmlContent,
+  });
+};

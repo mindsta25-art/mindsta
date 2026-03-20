@@ -38,6 +38,7 @@ import ticketsRoutes from './routes/tickets.js';
 import adminAlertsRoutes from './routes/admin-alerts.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { startActivityMonitor } from './middleware/activityTracker.js';
+import { startAbandonedCartScheduler } from './services/abandonedCartScheduler.js';
 import {
   securityHeaders,
   corsOptions,
@@ -200,6 +201,7 @@ mongoose.connect(MONGODB_URI, {
   .then(() => {
     console.log('[MongoDB] Connected successfully');
     try { startActivityMonitor(); } catch (e) { console.error('[ActivityMonitor] Failed to start:', e.message); }
+    try { startAbandonedCartScheduler(); } catch (e) { console.error('[AbandonedCart] Failed to start:', e.message); }
   })
   .catch((error) => {
     console.error('[MongoDB] Connection failed:', error.message);
