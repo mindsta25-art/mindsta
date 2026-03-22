@@ -117,6 +117,13 @@ async function notifyAdminOfPurchase({ userId, amount, items, paymentId }) {
 
 async function handleReferralCommission({ userId, studentId, paymentId, amount }) {
   try {
+    // Idempotency guard: skip if commission already recorded for this payment
+    const existingTx = await ReferralTransaction.findOne({ paymentId });
+    if (existingTx) {
+      console.log(`[Referral] Commission already recorded for payment ${paymentId}, skipping duplicate`);
+      return;
+    }
+
     // Find referral by referredUserId or referredEmail
     let referral = await Referral.findOne({ referredUserId: userId });
     if (!referral) {

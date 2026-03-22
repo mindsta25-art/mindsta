@@ -1,5 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from './ui/dialog';
 import { 
   Bold, 
   Italic, 
@@ -39,6 +48,26 @@ export const RichTextEditor = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  // Saved selection range so we can restore it after dialog opens
+  const savedRangeRef = useRef<Range | null>(null);
+
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = () => {
+    const sel = window.getSelection();
+    if (sel && savedRangeRef.current) {
+      sel.removeAllRanges();
+      sel.addRange(savedRangeRef.current);
+    }
+  };
 
   useEffect(() => {
     if (editorRef.current && value !== editorRef.current.innerHTML) {
@@ -58,17 +87,38 @@ export const RichTextEditor = ({
   };
 
   const insertLink = () => {
-    const url = prompt('Enter URL:');
+    saveSelection();
+    setUrlInput('');
+    setLinkDialogOpen(true);
+  };
+
+  const confirmInsertLink = () => {
+    const url = urlInput.trim();
     if (url) {
+      editorRef.current?.focus();
+      restoreSelection();
       executeCommand('createLink', url);
     }
+    setLinkDialogOpen(false);
+    setUrlInput('');
   };
 
   const insertImage = () => {
-    const url = prompt('Enter image URL:');
+    saveSelection();
+    setUrlInput('');
+    setImageDialogOpen(true);
+  };
+
+  const confirmInsertImage = () => {
+    const url = urlInput.trim();
     if (url) {
+      editorRef.current?.focus();
+      restoreSelection();
       executeCommand('insertImage', url);
+      if (editorRef.current) onChange(editorRef.current.innerHTML);
     }
+    setImageDialogOpen(false);
+    setUrlInput('');
   };
 
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,6 +154,66 @@ export const RichTextEditor = ({
       {label && (
         <label className="text-sm font-medium">{label}</label>
       )}
+      
+      {/* Insert Link Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Insert Link</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="link-url">URL</Label>
+            <Input
+              id="link-url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://example.com"
+              onKeyDown={(e) => e.key === 'Enter' && confirmInsertLink()}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>Cancel</Button>
+            <Button onClick={confirmInsertLink} disabled={!urlInput.trim()}>Insert Link</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Insert Image Dialog */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Insert Image from URL</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="image-url">Image URL</Label>
+            <Input
+              id="image-url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="https://example.com/image.png"
+              onKeyDown={(e) => e.key === 'Enter' && confirmInsertImage()}
+              autoFocus
+            />
+            {urlInput.trim() && (
+              <div className="rounded border overflow-hidden max-h-40 flex items-center justify-center bg-muted">
+                <img
+                  src={urlInput}
+                  alt="Preview"
+                  className="max-h-40 object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  onLoad={(e) => { (e.target as HTMLImageElement).style.display = 'block'; }}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImageDialogOpen(false)}>Cancel</Button>
+            <Button onClick={confirmInsertImage} disabled={!urlInput.trim()}>Insert Image</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className={`border rounded-md ${isFocused ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-1 p-2 bg-muted/50 border-b">

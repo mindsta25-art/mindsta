@@ -67,6 +67,8 @@ const Support = lazy(() => import("./pages/Support"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContentManagement = lazy(() => import("./pages/admin/ContentManagement"));
+const CreateLesson = lazy(() => import("./pages/admin/CreateLesson"));
+const CreateQuiz = lazy(() => import("./pages/admin/CreateQuiz"));
 const LessonManagement = lazy(() => import("./pages/admin/LessonManagement"));
 const SubjectManagement = lazy(() => import("./pages/admin/SubjectManagement"));
 const TopicManagement = lazy(() => import("./pages/admin/TopicManagement"));
@@ -466,6 +468,22 @@ const App = () => (
                   element={
                     <ProtectedRoute requireAdmin>
                       <ContentManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/create-lesson" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <CreateLesson />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/create-quiz" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <CreateQuiz />
                     </ProtectedRoute>
                   } 
                 />

@@ -112,8 +112,10 @@ const FinancialReport = () => {
                       Array.isArray(earningsResponse) ? earningsResponse : [];
       console.log('[FinancialReport] Earnings fetched:', earnings.length, earnings);
 
-      // Transform payments into transactions
-      const paymentTransactions: Transaction[] = payments.map((payment: any) => ({
+      // Transform payments into transactions (exclude pending — not yet paid)
+      const paymentTransactions: Transaction[] = payments
+        .filter((payment: any) => payment.status !== 'pending')
+        .map((payment: any) => ({
         _id: payment._id,
         type: 'payment',
         amount: payment.amount || 0,

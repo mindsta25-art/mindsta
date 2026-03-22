@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,7 @@ const ContentManagement = () => {
     }
   };
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState("all");
@@ -1368,6 +1369,159 @@ const ContentManagement = () => {
                       </CardContent>
                     </Card>
 
+                    {/* Curriculum Builder Card */}
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              📑 Course Curriculum (Optional)
+                            </CardTitle>
+                            <CardDescription>
+                              Add sections and lectures to structure your course content
+                            </CardDescription>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setCurriculum([...curriculum, { title: '', description: '', order: curriculum.length + 1, lectures: [] }])}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Section
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {curriculum.length === 0 ? (
+                          <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground">
+                            <p className="text-sm">No sections yet. Click "Add Section" to begin structuring your course.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {curriculum.map((section, sIdx) => (
+                              <Card key={sIdx} className="border-l-4 border-l-primary">
+                                <CardContent className="pt-4 space-y-3">
+                                  <div className="flex items-start gap-2">
+                                    <div className="flex-1 space-y-2">
+                                      <Input
+                                        value={section.title}
+                                        onChange={(e) => {
+                                          const updated = [...curriculum];
+                                          updated[sIdx] = { ...section, title: e.target.value };
+                                          setCurriculum(updated);
+                                        }}
+                                        placeholder={`Section ${sIdx + 1} title`}
+                                        className="font-medium"
+                                      />
+                                      <Input
+                                        value={section.description || ''}
+                                        onChange={(e) => {
+                                          const updated = [...curriculum];
+                                          updated[sIdx] = { ...section, description: e.target.value };
+                                          setCurriculum(updated);
+                                        }}
+                                        placeholder="Section description (optional)"
+                                        className="text-sm"
+                                      />
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => setCurriculum(curriculum.filter((_, i) => i !== sIdx))}
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+
+                                  {/* Lectures */}
+                                  <div className="pl-4 space-y-2">
+                                    {section.lectures.map((lecture, lIdx) => (
+                                      <div key={lIdx} className="flex items-center gap-2 bg-muted/30 rounded p-2">
+                                        <Select
+                                          value={lecture.type}
+                                          onValueChange={(val) => {
+                                            const updated = [...curriculum];
+                                            updated[sIdx].lectures[lIdx] = { ...lecture, type: val as any };
+                                            setCurriculum(updated);
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-28 h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="video">🎬 Video</SelectItem>
+                                            <SelectItem value="article">📄 Article</SelectItem>
+                                            <SelectItem value="quiz">✏️ Quiz</SelectItem>
+                                            <SelectItem value="assignment">📎 Assignment</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <Input
+                                          value={lecture.title}
+                                          onChange={(e) => {
+                                            const updated = [...curriculum];
+                                            updated[sIdx].lectures[lIdx] = { ...lecture, title: e.target.value };
+                                            setCurriculum(updated);
+                                          }}
+                                          placeholder={`Lecture ${lIdx + 1} title`}
+                                          className="flex-1 h-8 text-sm"
+                                        />
+                                        <Input
+                                          type="number"
+                                          value={lecture.duration}
+                                          onChange={(e) => {
+                                            const updated = [...curriculum];
+                                            updated[sIdx].lectures[lIdx] = { ...lecture, duration: parseInt(e.target.value) || 0 };
+                                            setCurriculum(updated);
+                                          }}
+                                          placeholder="Mins"
+                                          className="w-16 h-8 text-xs"
+                                          min="0"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                                          onClick={() => {
+                                            const updated = [...curriculum];
+                                            updated[sIdx].lectures = section.lectures.filter((_, i) => i !== lIdx);
+                                            setCurriculum(updated);
+                                          }}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="gap-1 text-xs"
+                                      onClick={() => {
+                                        const updated = [...curriculum];
+                                        updated[sIdx].lectures = [
+                                          ...section.lectures,
+                                          { title: '', type: 'video', duration: 0, order: section.lectures.length + 1 }
+                                        ];
+                                        setCurriculum(updated);
+                                      }}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      Add Lecture
+                                    </Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
                     {/* Pricing Card */}
                     <Card>
                       <CardHeader className="pb-3">
@@ -1716,11 +1870,11 @@ const ContentManagement = () => {
                 Continue Draft
               </Button>
             )}
-            <Button onClick={() => openCreateDialog("lesson")} className="gap-2">
+            <Button onClick={() => navigate("/admin/create-lesson")} className="gap-2">
               <Plus className="w-4 h-4" />
               New Lesson
             </Button>
-            <Button onClick={() => openCreateDialog("quiz")} variant="outline" className="gap-2">
+            <Button onClick={() => navigate("/admin/create-quiz")} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" />
               New Quiz
             </Button>

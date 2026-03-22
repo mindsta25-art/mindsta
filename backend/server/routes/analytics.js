@@ -96,20 +96,26 @@ router.get('/detailed', requireAdmin, async (req, res) => {
     const lessonCompletions = await UserProgress.aggregate([
       { $match: { completed: true } },
       { $group: { _id: '$lessonId', count: { $sum: 1 } } },
-      { $limit: 10 }
+      { $limit: 50 }
     ]);
 
-    // Populate lesson details
+    // Populate lesson details and aggregate by subject
     const lessonIds = lessonCompletions.map(lc => lc._id);
-    const lessons = await Lesson.find({ _id: { $in: lessonIds } });
-    
-    const lessonData = lessonCompletions.map(lc => {
+    const lessons = await Lesson.find({ _id: { $in: lessonIds } }).select('subject title');
+
+    // Group completions by subject (skip lessons with no subject)
+    const subjectCompletions = new Map();
+    lessonCompletions.forEach(lc => {
       const lesson = lessons.find(l => l._id.toString() === lc._id.toString());
-      return {
-        subject: lesson?.subject || lesson?.title || 'Unknown',
-        completions: lc.count
-      };
+      const subject = lesson?.subject;
+      if (!subject) return; // skip lessons without a subject
+      subjectCompletions.set(subject, (subjectCompletions.get(subject) || 0) + lc.count);
     });
+
+    const lessonData = Array.from(subjectCompletions.entries())
+      .map(([subject, completions]) => ({ subject, completions }))
+      .sort((a, b) => b.completions - a.completions)
+      .slice(0, 10);
 
     // Date range for filtering (default: last 30 days)
     const rangeStart = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
