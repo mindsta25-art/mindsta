@@ -477,7 +477,7 @@ const SubjectLessonsPage = () => {
 
   const handleVideoTimeUpdate = (seconds: number) => {
     latestVideoPositionRef.current = seconds;
-    // Debounce backend saves — save to backend at most every 60 seconds
+    // Debounce backend saves — save to backend at most every 30 seconds
     if (!videoProgressSaveRef.current && selectedLesson?.id && user) {
       videoProgressSaveRef.current = setTimeout(() => {
         videoProgressSaveRef.current = null;
@@ -489,7 +489,7 @@ const SubjectLessonsPage = () => {
           videoWatchPercent: latestWatchPercentRef.current,
           lastAccessedAt: new Date(),
         }).catch(() => {});
-      }, 60_000);
+      }, 30_000);
     }
   };
 
@@ -505,22 +505,39 @@ const SubjectLessonsPage = () => {
     if (selectedLesson?.id) {
       localStorage.removeItem(LS_VIDEO_KEY(selectedLesson.id));
     }
+    // Cancel any pending debounced save — we're doing a full save now
+    if (videoProgressSaveRef.current) {
+      clearTimeout(videoProgressSaveRef.current);
+      videoProgressSaveRef.current = null;
+    }
     latestWatchPercentRef.current = 100;
+
+    // Auto-complete if no quiz (Udemy-style: video finish = lesson done)
+    const hasQuiz = quizQuestions.length > 0;
+    const autoComplete = !hasQuiz;
+
     if (selectedLesson?.id && user) {
       upsertProgress({
         userId: user.id,
         lessonId: selectedLesson.id,
-        completed: false,
+        completed: autoComplete,
         videoPosition: 0,
         videoWatchPercent: 100,
         lastAccessedAt: new Date(),
+      }).then(async () => {
+        // Refresh progress so the sidebar checkmarks update immediately
+        if (user?.id) {
+          const updated = await getUserProgress(user.id);
+          setProgress(updated.map((p: any) => ({ lessonId: p.lessonId, completed: p.completed || false })));
+        }
       }).catch(() => {});
     }
+
     toast({
-      title: "Video Complete! 🎬",
-      description: selectedQuiz
-        ? "Great job! Head to the Quiz tab to test your knowledge."
-        : "Excellent! Mark the lesson as complete when you're ready.",
+      title: autoComplete ? "Lesson Complete! 🎉" : "Video Complete! 🎬",
+      description: autoComplete
+        ? "Great job! Lesson marked as complete — keep going!"
+        : "Great job! Head to the Quiz tab to test your knowledge and complete this lesson.",
     });
   };
 
