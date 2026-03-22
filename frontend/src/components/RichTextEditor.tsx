@@ -53,6 +53,14 @@ export const RichTextEditor = ({
   const [urlInput, setUrlInput] = useState('');
   // Saved selection range so we can restore it after dialog opens
   const savedRangeRef = useRef<Range | null>(null);
+  // Image size state for new insertions
+  const [imageWidth, setImageWidth] = useState<'full' | '75' | '50' | '25' | 'original' | 'custom'>('full');
+  const [imageCustomWidthValue, setImageCustomWidthValue] = useState('50');
+  const [imageUnit, setImageUnit] = useState<'%' | 'px'>('%');
+  // Selected image inside the editor (for the inline resize bar)
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
+  const [floatingCustomW, setFloatingCustomW] = useState('50');
+  const [floatingUnit, setFloatingUnit] = useState<'%' | 'px'>('%');
 
   const saveSelection = () => {
     const sel = window.getSelection();
@@ -114,7 +122,8 @@ export const RichTextEditor = ({
     if (url) {
       editorRef.current?.focus();
       restoreSelection();
-      executeCommand('insertImage', url);
+      const style = buildImgStyleStr();
+      document.execCommand('insertHTML', false, `<img src="${url}" alt="" style="${style}" />`);
       if (editorRef.current) onChange(editorRef.current.innerHTML);
     }
     setImageDialogOpen(false);
@@ -132,17 +141,53 @@ export const RichTextEditor = ({
       toast({ title: 'File Too Large', description: 'Image must be less than 5MB. Please compress or resize the image first.', variant: 'destructive' });
       return;
     }
+    const style = buildImgStyleStr(); // capture at upload time
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
       editorRef.current?.focus();
-      executeCommand('insertImage', dataUrl);
+      document.execCommand('insertHTML', false, `<img src="${dataUrl}" alt="" style="${style}" />`);
       if (editorRef.current) {
         onChange(editorRef.current.innerHTML);
       }
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  // Build a CSS style string for an inserted image based on current size state
+  const buildImgStyleStr = (): string => {
+    let w = '';
+    if (imageWidth === 'full') w = '100%';
+    else if (imageWidth === '75') w = '75%';
+    else if (imageWidth === '50') w = '50%';
+    else if (imageWidth === '25') w = '25%';
+    else if (imageWidth === 'custom') w = `${imageCustomWidthValue}${imageUnit}`;
+    const widthPart = w ? `width:${w};` : '';
+    return `${widthPart}max-width:100%;height:auto;`;
+  };
+
+  // Apply a width to the currently-selected image in the editor
+  const applySelectedImgWidth = (width: string) => {
+    if (!selectedImg) return;
+    if (width === 'auto') {
+      selectedImg.style.removeProperty('width');
+    } else {
+      selectedImg.style.width = width;
+    }
+    selectedImg.style.maxWidth = '100%';
+    selectedImg.style.height = 'auto';
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+
+  // Detect clicks on <img> elements inside the editor
+  const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'IMG') {
+      setSelectedImg(target as HTMLImageElement);
+    } else {
+      setSelectedImg(null);
+    }
   };
 
   const formatBlock = (tag: string) => {
@@ -206,6 +251,52 @@ export const RichTextEditor = ({
                 />
               </div>
             )}
+            {/* Image size picker */}
+            <div className="space-y-2 pt-1">
+              <Label className="text-xs text-muted-foreground">Display Size</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {(['full', '75', '50', '25', 'original', 'custom'] as const).map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setImageWidth(val)}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${
+                      imageWidth === val
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    {val === 'full' ? 'Full Width' : val === 'original' ? 'Original' : val === 'custom' ? 'Custom' : `${val}%`}
+                  </button>
+                ))}
+              </div>
+              {imageWidth === 'custom' && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={imageCustomWidthValue}
+                    onChange={(e) => setImageCustomWidthValue(e.target.value)}
+                    className="w-20 h-8 text-sm"
+                    min="1"
+                    max={imageUnit === '%' ? 100 : 5000}
+                  />
+                  <div className="flex border rounded overflow-hidden">
+                    {(['%', 'px'] as const).map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setImageUnit(u)}
+                        className={`text-xs px-2 py-1 font-mono transition-colors ${
+                          imageUnit === u ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setImageDialogOpen(false)}>Cancel</Button>
@@ -214,7 +305,7 @@ export const RichTextEditor = ({
         </DialogContent>
       </Dialog>
 
-      <div className={`border rounded-md ${isFocused ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+      <div className={`border rounded-md ${isFocused ? 'ring-2 ring-primary ring-offset-2' : ''}`} >
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-1 p-2 bg-muted/50 border-b">
           {/* Text Formatting */}
@@ -397,11 +488,62 @@ export const RichTextEditor = ({
           </Button>
         </div>
 
+        {/* Inline image resize bar — appears when an image inside the editor is clicked */}
+        {selectedImg && (
+          <div
+            className="flex flex-wrap items-center gap-1 p-1.5 border-b bg-purple-50 dark:bg-purple-950/20"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <span className="text-xs font-medium text-purple-700 dark:text-purple-300 mr-1 shrink-0">🖼 Image size:</span>
+            {(['25%', '50%', '75%', '100%', 'auto'] as const).map((w) => (
+              <button
+                key={w}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applySelectedImgWidth(w); }}
+                className="text-xs px-2 py-0.5 rounded border bg-white dark:bg-card hover:bg-purple-100 dark:hover:bg-purple-900/40 border-purple-200 dark:border-purple-700 transition-colors"
+              >
+                {w === 'auto' ? 'Original' : w}
+              </button>
+            ))}
+            <Separator orientation="vertical" className="h-4 mx-0.5" />
+            <input
+              type="number"
+              value={floatingCustomW}
+              onMouseDown={(e) => e.stopPropagation()}
+              onChange={(e) => setFloatingCustomW(e.target.value)}
+              className="w-12 h-6 text-xs border rounded px-1 bg-white dark:bg-card border-purple-200 dark:border-purple-700"
+              min="1"
+              max={floatingUnit === '%' ? 100 : 5000}
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); setFloatingUnit((u) => (u === '%' ? 'px' : '%')); }}
+              className="text-xs w-7 h-6 rounded border bg-white dark:bg-card hover:bg-purple-100 dark:hover:bg-purple-900/40 border-purple-200 dark:border-purple-700 font-mono transition-colors"
+            >
+              {floatingUnit}
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); applySelectedImgWidth(`${floatingCustomW}${floatingUnit}`); }}
+              className="text-xs px-2 h-6 rounded bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+            >
+              Set
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); setSelectedImg(null); }}
+              className="ml-auto text-xs text-muted-foreground hover:text-foreground px-1"
+            >
+              ✕ Done
+            </button>
+          </div>
+        )}
         {/* Editor Content */}
         <div
           ref={editorRef}
           contentEditable
           onInput={handleInput}
+          onClick={handleEditorClick}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className="p-4 outline-none prose prose-sm max-w-none"
