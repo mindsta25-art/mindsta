@@ -361,17 +361,23 @@ export default function SearchResults() {
                       >
                         {/* Thumbnail */}
                         <div className={`h-40 relative overflow-hidden ${
-                          purchased
-                            ? 'bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500'
-                            : 'bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500'
+                          !lesson.imageUrl
+                            ? purchased
+                              ? 'bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500'
+                              : 'bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500'
+                            : ''
                         }`}>
+                          {lesson.imageUrl ? (
+                            <img src={lesson.imageUrl} alt={lesson.title} className="absolute inset-0 w-full h-full object-cover" />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              {purchased
+                                ? <PlayCircle className="w-12 h-12 text-white opacity-90" />
+                                : <BookOpen className="w-12 h-12 text-white opacity-90" />
+                              }
+                            </div>
+                          )}
                           <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            {purchased
-                              ? <PlayCircle className="w-12 h-12 text-white opacity-90" />
-                              : <BookOpen className="w-12 h-12 text-white opacity-90" />
-                            }
-                          </div>
 
                           {/* Purchased banner */}
                           {purchased && (

@@ -465,11 +465,15 @@ const Dashboard = () => {
                           aria-label={`Learn ${r.lesson.title} in ${r.lesson.subject}`}
                         >
                           {/* Thumbnail */}
-                          <div className="h-36 sm:h-40 bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500 relative overflow-hidden">
+                          <div className={`h-36 sm:h-40 relative overflow-hidden ${!r.lesson.imageUrl ? 'bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500' : ''}`}>
+                            {r.lesson.imageUrl ? (
+                              <img src={r.lesson.imageUrl} alt={r.lesson.title} className="absolute inset-0 w-full h-full object-cover" />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <BookOpen className="w-10 h-10 sm:w-12 sm:h-12 text-white opacity-90" aria-hidden="true" />
+                              </div>
+                            )}
                             <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <BookOpen className="w-10 h-10 sm:w-12 sm:h-12 text-white opacity-90" aria-hidden="true" />
-                            </div>
                             {r.lesson.difficulty && (
                               <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
                                 <Badge className={`text-xs font-semibold ${DIFFICULTY_COLORS[r.lesson.difficulty as keyof typeof DIFFICULTY_COLORS] || 'bg-gray-500'}`}>

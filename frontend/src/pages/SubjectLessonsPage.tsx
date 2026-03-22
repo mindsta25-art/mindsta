@@ -234,6 +234,15 @@ const SubjectLessonsPage = () => {
             videoUrl: lessonsData[0].videoUrl,
             imageUrl: lessonsData[0].imageUrl,
           });
+          // Record first lesson access immediately (Udemy-style progress tracking)
+          if (user?.id && lessonsData[0].id) {
+            upsertProgress({
+              userId: user.id,
+              lessonId: lessonsData[0].id,
+              completed: false,
+              lastAccessedAt: new Date(),
+            }).catch(() => {});
+          }
           try {
             const firstLessonQuiz = await getQuizByLessonId(lessonsData[0].id);
             if (firstLessonQuiz && firstLessonQuiz.questions && firstLessonQuiz.questions.length > 0) {
@@ -599,7 +608,17 @@ const SubjectLessonsPage = () => {
     setSelectedLesson(lesson);
     setCurrentTab("content");
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
+    // Record lesson access immediately (Udemy-style: progress tracked the moment a student opens a lesson)
+    if (lesson.id && user?.id) {
+      upsertProgress({
+        userId: user.id,
+        lessonId: lesson.id,
+        completed: false,
+        lastAccessedAt: new Date(),
+      }).catch(() => {});
+    }
+
     // Fetch quiz for the selected lesson
     if (lesson.id) {
       setLoadingQuiz(true);

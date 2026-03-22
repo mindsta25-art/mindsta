@@ -389,8 +389,12 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                         className="w-full p-3 hover:bg-muted/50 transition-colors text-left border-b last:border-b-0 group"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-cyan-400 rounded flex items-center justify-center flex-shrink-0">
-                            <BookOpen className="w-6 h-6 text-white" />
+                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-cyan-400 rounded flex-shrink-0 overflow-hidden flex items-center justify-center">
+                            {lesson.imageUrl ? (
+                              <img src={lesson.imageUrl} alt={lesson.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <BookOpen className="w-6 h-6 text-white" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-sm mb-1 line-clamp-1 group-hover:text-indigo-600 transition-colors">
