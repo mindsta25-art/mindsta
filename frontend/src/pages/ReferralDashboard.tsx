@@ -201,7 +201,7 @@ export default function ReferralDashboard() {
     <ReferralHeader />
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header & Nav */}}
+        {/* Header & Nav */}
         <motion.div 
           className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"
           initial={{ opacity: 0, y: -20 }}

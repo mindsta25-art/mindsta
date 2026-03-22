@@ -102,7 +102,7 @@ const ReferralAuth = () => {
       }
 
       toast({
-        title: "Welcome Back! ðŸŽ‰",
+        title: "Welcome Back! 🎉",
         description: "Successfully logged in!",
       });
       
@@ -197,7 +197,7 @@ const ReferralAuth = () => {
       });
 
       toast({
-        title: "Account Created! ðŸŽ‰",
+        title: "Account Created! 🎉",
         description: "Please check your email for a verification code to activate your account.",
       });
 
@@ -281,7 +281,7 @@ const ReferralAuth = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-4 mt-12 pt-8 border-t border-white/10">
-            {[{ value: "500+", label: "Partners" }, { value: "â‚¦2M+", label: "Paid Out" }, { value: "15%", label: "Commission" }].map(s => (
+            {[{ value: "500+", label: "Partners" }, { value: "₦2M+", label: "Paid Out" }, { value: "15%", label: "Commission" }].map(s => (
               <div key={s.label}>
                 <div className="text-2xl font-bold text-white">{s.value}</div>
                 <div className="text-xs text-pink-200">{s.label}</div>
@@ -339,7 +339,7 @@ const ReferralAuth = () => {
             {referralCode && !isLogin && (
               <div className="mb-5 p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg">
                 <p className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                  ðŸŽ‰ You're using referral code: <span className="font-bold">{referralCode}</span>
+                  🎉 You're using referral code: <span className="font-bold">{referralCode}</span>
                 </p>
               </div>
             )}
@@ -376,7 +376,7 @@ const ReferralAuth = () => {
                     <Input
                       id="login-password"
                       type={showLoginPassword ? "text" : "password"}
-                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                      placeholder="••••••••"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       className="h-11 pl-10 pr-10 border-gray-200 dark:border-border"
@@ -435,7 +435,7 @@ const ReferralAuth = () => {
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
                   {googleLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting serverâ€¦</span></>
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
                   ) : (
                     <>
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -531,7 +531,7 @@ const ReferralAuth = () => {
                     <Input
                       id="password"
                       type={showRegisterPassword ? "text" : "password"}
-                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                      placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="h-11 pl-10 pr-10 border-gray-200 dark:border-border"
@@ -550,7 +550,7 @@ const ReferralAuth = () => {
                     <Input
                       id="confirm-password"
                       type={showRegisterConfirmPassword ? "text" : "password"}
-                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                      placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="h-11 pl-10 pr-10 border-gray-200 dark:border-border"
@@ -641,7 +641,7 @@ const ReferralAuth = () => {
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
                   {googleLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting serverâ€¦</span></>
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
                   ) : (
                     <>
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
