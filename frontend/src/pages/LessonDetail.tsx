@@ -13,7 +13,7 @@ import { Quiz } from "@/components/Quiz";
 import CurriculumDisplay from "@/components/CurriculumDisplay";
 import { ArrowLeft, BookOpen, Brain, CheckCircle, PlayCircle, FileText, List, Lock, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import ReactMarkdown from "react-markdown";
+
 import { getLessonById, type Lesson, type Section, type Lecture } from "@/api/lessons";
 import { getQuizByLessonId } from "@/api/quizzes";
 import { upsertProgress, getUserProgress } from "@/api/progress";
@@ -377,9 +377,10 @@ const LessonDetail = () => {
               ) : currentLecture?.content ? (
                 <div className="aspect-video w-full bg-white dark:bg-gray-900 rounded-lg overflow-hidden">
                   <div className="w-full h-full overflow-y-auto p-8">
-                    <div className="prose prose-lg max-w-none dark:prose-invert">
-                      <ReactMarkdown>{currentLecture.content}</ReactMarkdown>
-                    </div>
+                    <div
+                      className="prose prose-lg max-w-none dark:prose-invert leading-relaxed break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
+                      dangerouslySetInnerHTML={{ __html: currentLecture.content }}
+                    />
                   </div>
                 </div>
               ) : lesson?.videoUrl ? (
@@ -556,13 +557,15 @@ const LessonDetail = () => {
                     <Card>
                       <CardContent className="p-8">
                         {currentLecture?.content ? (
-                          <div className="prose prose-lg max-w-none dark:prose-invert">
-                            <ReactMarkdown>{currentLecture.content}</ReactMarkdown>
-                          </div>
+                          <div
+                            className="prose prose-lg max-w-none dark:prose-invert leading-relaxed break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
+                            dangerouslySetInnerHTML={{ __html: currentLecture.content }}
+                          />
                         ) : hasLegacyContent ? (
-                          <div className="prose prose-lg max-w-none dark:prose-invert">
-                            <ReactMarkdown>{lesson.content}</ReactMarkdown>
-                          </div>
+                          <div
+                            className="prose prose-lg max-w-none dark:prose-invert leading-relaxed break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
+                            dangerouslySetInnerHTML={{ __html: lesson.content }}
+                          />
                         ) : (
                           <div className="text-center py-12">
                             <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
