@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle, Moon, Sun, Lock, Eye, EyeOff } from 'lucide-react';
+import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle, Moon, Sun, Lock, Eye, EyeOff, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { bankDetailsSchema, type BankDetailsFormData } from '@/lib/validations';
@@ -190,7 +190,18 @@ const ReferralSettings = () => {
   if (loading) return <div className="p-8 text-center">Loading referral settings...</div>;
 
   return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background">
     <div className="max-w-5xl mx-auto p-6 space-y-6">
+      {/* Brand Strip */}
+      <div className="flex items-center gap-3 pb-6 border-b border-purple-200 dark:border-purple-900/50">
+        <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-md">
+          <BookOpen className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
+          <span className="block text-xs text-muted-foreground">Referral Partner Portal</span>
+        </div>
+      </div>
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Referral Settings</h1>
         <Button variant="outline" onClick={() => navigate('/referral/dashboard')}>
@@ -474,6 +485,7 @@ const ReferralSettings = () => {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
     </div>
   );
 };

@@ -817,8 +817,8 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
     </AlertDialog>
     {/* Height sentinel: pushes page body below the fixed header on all screen sizes */}
     <div aria-hidden="true" className="h-[116px] md:h-16" />
-    </>
     </TooltipProvider>
+    </>
   );
 };
 

@@ -220,11 +220,11 @@ const Auth = () => {
     <div className="min-h-screen flex">
       {/* Left Panel — Brand Hero */}
       <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 flex-col relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #3730a3 0%, #4f46e5 40%, #7c3aed 100%)" }}>
+        style={{ background: "linear-gradient(135deg, #6d28d9 0%, #9333ea 40%, #db2777 100%)" }}>
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-        <div className="absolute top-[-80px] left-[-80px] w-72 h-72 rounded-full blur-3xl" style={{ background: "rgba(167,139,250,0.25)" }} />
-        <div className="absolute bottom-[-60px] right-[-60px] w-80 h-80 rounded-full blur-3xl" style={{ background: "rgba(99,102,241,0.2)" }} />
+        <div className="absolute top-[-80px] left-[-80px] w-72 h-72 rounded-full blur-3xl" style={{ background: "rgba(236,72,153,0.25)" }} />
+        <div className="absolute bottom-[-60px] right-[-60px] w-80 h-80 rounded-full blur-3xl" style={{ background: "rgba(147,51,234,0.2)" }} />
 
         <div className="relative z-10 flex flex-col h-full p-10 xl:p-14">
           <button onClick={() => navigate("/")} className="flex items-center gap-3 mb-12 group w-fit">
@@ -233,7 +233,7 @@ const Auth = () => {
             </div>
             <div>
               <span className="text-2xl font-bold text-white tracking-tight">Mindsta</span>
-              <span className="block text-[10px] text-indigo-200 leading-tight">Every Child Can Do Well</span>
+              <span className="block text-[10px] text-purple-200 leading-tight">Every Child Can Do Well</span>
             </div>
           </button>
 
@@ -241,7 +241,7 @@ const Auth = () => {
             <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-6">
               {isLogin ? "Welcome\nback!" : "Start your\nlearning journey"}
             </h2>
-            <p className="text-indigo-200 text-lg leading-relaxed mb-10 max-w-sm">
+            <p className="text-purple-200 text-lg leading-relaxed mb-10 max-w-sm">
               {isLogin
                 ? "Log in to continue where you left off. Your lessons, progress and achievements are waiting."
                 : "Join thousands of students mastering core subjects with expert-designed lessons and instant feedback."}
@@ -255,9 +255,9 @@ const Auth = () => {
               ].map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-start gap-3">
                   <div className="p-1.5 bg-white/15 rounded-lg mt-0.5 shrink-0">
-                    <Icon className="w-4 h-4 text-indigo-100" />
+                    <Icon className="w-4 h-4 text-purple-100" />
                   </div>
-                  <span className="text-indigo-100 text-sm leading-relaxed">{text}</span>
+                  <span className="text-purple-100 text-sm leading-relaxed">{text}</span>
                 </li>
               ))}
             </ul>
@@ -267,7 +267,7 @@ const Auth = () => {
             {[{ value: "5,000+", label: "Students" }, { value: "200+", label: "Lessons" }, { value: "6", label: "Grade Levels" }].map(s => (
               <div key={s.label}>
                 <div className="text-2xl font-bold text-white">{s.value}</div>
-                <div className="text-xs text-indigo-300">{s.label}</div>
+                <div className="text-xs text-pink-200">{s.label}</div>
               </div>
             ))}
           </div>
@@ -279,12 +279,12 @@ const Auth = () => {
         {/* Mobile header */}
         <div className="lg:hidden flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border">
           <button onClick={() => navigate("/")} className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={{ background: "#4f46e5" }}>
+            <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600">
               <BookOpen className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-gray-900 dark:text-white">Mindsta</span>
           </button>
-          <button onClick={() => navigate("/")} className="text-sm flex items-center gap-1" style={{ color: "#4f46e5" }}>
+          <button onClick={() => navigate("/")} className="text-sm flex items-center gap-1" style={{ color: "#9333ea" }}>
             <ArrowLeft className="w-4 h-4" /> Home
           </button>
         </div>
@@ -303,7 +303,7 @@ const Auth = () => {
                         ? 'bg-white dark:bg-card shadow'
                         : 'text-gray-500 dark:text-muted-foreground hover:text-gray-700'
                     }`}
-                    style={active ? { color: "#4f46e5" } : {}}>
+                    style={active ? { color: "#9333ea" } : {}}>
                     {label}
                   </button>
                 );
@@ -482,7 +482,7 @@ const Auth = () => {
                 {!isLogin && emailStatus === "taken" && (
                   <p className="text-xs text-red-500 flex items-center gap-1">
                     <XCircle className="w-3 h-3" />This email is already registered.{" "}
-                    <button type="button" className="underline" style={{ color: "#4f46e5" }} onClick={() => setIsLogin(true)}>Log in instead</button>
+                    <button type="button" className="underline" style={{ color: "#9333ea" }} onClick={() => setIsLogin(true)}>Log in instead</button>
                   </p>
                 )}
                 {!isLogin && emailStatus === "unverified" && (
@@ -504,7 +504,7 @@ const Auth = () => {
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</Label>
                   {isLogin && (
                     <button type="button" onClick={() => setShowForgotPasswordDialog(true)}
-                      className="text-xs hover:underline" style={{ color: "#4f46e5" }}>
+                      className="text-xs hover:underline" style={{ color: "#9333ea" }}>
                       Forgot password?
                     </button>
                   )}
@@ -615,10 +615,7 @@ const Auth = () => {
 
               {/* Submit */}
               <Button type="submit"
-                className="w-full h-12 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all mt-2"
-                style={{ background: "#4f46e5" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#4338ca")}
-                onMouseLeave={e => (e.currentTarget.style.background = "#4f46e5")}
+                className="w-full h-12 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all mt-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                 disabled={loading || (!isLogin && emailStatus === "taken")}>
                 {loading
                   ? <><Loader2 className="animate-spin w-4 h-4 mr-2" />Processing...</>
@@ -628,7 +625,7 @@ const Auth = () => {
 
             <div className="mt-5 text-center">
               <button onClick={() => setIsLogin(!isLogin)}
-                className="text-sm hover:underline font-medium" style={{ color: "#4f46e5" }}>
+                className="text-sm hover:underline font-medium" style={{ color: "#9333ea" }}>
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
               </button>
             </div>
@@ -663,7 +660,7 @@ const Auth = () => {
           </div>
           <DialogFooter>
             <Button onClick={handleForgotPassword} disabled={forgotLoading}
-              style={{ background: "#4f46e5", color: "#fff" }}>
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
               {forgotLoading ? "Sending..." : "Send reset link"}
             </Button>
           </DialogFooter>

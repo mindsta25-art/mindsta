@@ -100,7 +100,7 @@ const StudentFooterComponent = () => {
   ];
 
   return (
-    <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white mt-12 border-t border-slate-700">
+    <footer className="bg-gradient-to-br from-purple-950 via-slate-900 to-pink-950 text-white mt-12 border-t border-purple-900/50">
 
       {/* ── Stats Bar ── */}
       <div className="border-b border-white/10">
@@ -108,8 +108,8 @@ const StudentFooterComponent = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 md:divide-x md:divide-white/10">
             {stats.map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex items-center gap-3 md:px-6 first:pl-0 last:pr-0">
-                <div className="p-2.5 bg-indigo-500/20 rounded-xl shrink-0">
-                  <Icon className="w-5 h-5 text-indigo-300" />
+                <div className="p-2.5 bg-purple-500/20 rounded-xl shrink-0">
+                  <Icon className="w-5 h-5 text-pink-300" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-white leading-tight">{value}</div>
@@ -128,7 +128,7 @@ const StudentFooterComponent = () => {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2.5 mb-4 group w-fit">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg group-hover:shadow-indigo-500/30 transition-shadow">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg group-hover:shadow-purple-500/30 transition-shadow">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -144,10 +144,10 @@ const StudentFooterComponent = () => {
 
             {/* Contact */}
             <div className="space-y-2 text-sm text-slate-400 mb-6">
-              <a href={`mailto:${contactSettings.supportEmail}`} className="flex items-center gap-2 hover:text-indigo-400 transition-colors w-fit">
+              <a href={`mailto:${contactSettings.supportEmail}`} className="flex items-center gap-2 hover:text-pink-400 transition-colors w-fit">
                 <Mail className="w-4 h-4 shrink-0" />{contactSettings.supportEmail}
               </a>
-              <a href={`tel:${contactSettings.phone}`} className="flex items-center gap-2 hover:text-indigo-400 transition-colors w-fit">
+              <a href={`tel:${contactSettings.phone}`} className="flex items-center gap-2 hover:text-pink-400 transition-colors w-fit">
                 <Phone className="w-4 h-4 shrink-0" />{contactSettings.phone}
               </a>
               <div className="flex items-center gap-2">
@@ -162,16 +162,16 @@ const StudentFooterComponent = () => {
               <form onSubmit={handleNewsletterSubscribe} className="flex gap-2">
                 {user ? (
                   <div className="flex items-center gap-2 flex-1 bg-white/10 border border-white/20 rounded-lg px-3 h-10">
-                    <Mail className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+                    <Mail className="w-3.5 h-3.5 text-purple-300 shrink-0" />
                     <span className="text-xs text-white/80 truncate">{user.email}</span>
                   </div>
                 ) : (
                   <Input type="email" placeholder="your.email@example.com" value={email}
                     onChange={(e) => setEmail(e.target.value)} disabled={isSubscribing}
-                    className="flex-1 h-10 bg-white/10 border-white/20 text-white placeholder:text-slate-500 text-xs focus:border-indigo-400" />
+                    className="flex-1 h-10 bg-white/10 border-white/20 text-white placeholder:text-slate-500 text-xs focus:border-purple-400" />
                 )}
                 <Button type="submit" disabled={isSubscribing || isSubscribed} size="sm"
-                  className={`h-10 px-4 shrink-0 text-xs font-semibold ${isSubscribed ? 'bg-green-600 hover:bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                  className={`h-10 px-4 shrink-0 text-xs font-semibold ${isSubscribed ? 'bg-green-600 hover:bg-green-600' : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'}`}>
                   {isSubscribed ? <><CheckCircle className="w-3.5 h-3.5 mr-1.5" />Done</> : <><ArrowRight className="w-3.5 h-3.5 mr-1.5" />Subscribe</>}
                 </Button>
               </form>
@@ -185,8 +185,8 @@ const StudentFooterComponent = () => {
             <ul className="space-y-2.5">
               {quickLinks.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 group">
-                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-indigo-400">›</span>
+                  <Link to={link.href} className="text-sm text-slate-400 hover:text-purple-400 transition-colors inline-flex items-center gap-1.5 group">
+                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-purple-400">›</span>
                     {link.label}
                   </Link>
                 </li>
@@ -200,8 +200,8 @@ const StudentFooterComponent = () => {
             <ul className="space-y-2.5 mb-6">
               {supportLinks.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 group">
-                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-indigo-400">›</span>
+                  <Link to={link.href} className="text-sm text-slate-400 hover:text-purple-400 transition-colors inline-flex items-center gap-1.5 group">
+                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-purple-400">›</span>
                     {link.label}
                   </Link>
                 </li>
@@ -211,8 +211,8 @@ const StudentFooterComponent = () => {
             <ul className="space-y-2.5">
               {legalLinks.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-slate-400 hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 group">
-                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-indigo-400">›</span>
+                  <Link to={link.href} className="text-sm text-slate-400 hover:text-pink-400 transition-colors inline-flex items-center gap-1.5 group">
+                    <span className="w-0 group-hover:w-2 overflow-hidden transition-all duration-200 text-pink-400">›</span>
                     {link.label}
                   </Link>
                 </li>
@@ -228,16 +228,16 @@ const StudentFooterComponent = () => {
           <form onSubmit={handleNewsletterSubscribe} className="space-y-2">
             {user ? (
               <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-lg px-3 h-11">
-                <Mail className="w-4 h-4 text-indigo-300 shrink-0" />
+                <Mail className="w-4 h-4 text-purple-300 shrink-0" />
                 <span className="text-sm text-white/80 truncate flex-1">{user.email}</span>
               </div>
             ) : (
               <Input type="email" placeholder="your.email@example.com" value={email}
                 onChange={(e) => setEmail(e.target.value)} disabled={isSubscribing}
-                className="h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-500 focus:border-indigo-400" />
+                  className="h-11 bg-white/10 border-white/20 text-white placeholder:text-slate-500 focus:border-purple-400" />
             )}
             <Button type="submit" disabled={isSubscribing || isSubscribed}
-              className={`w-full h-11 font-semibold ${isSubscribed ? 'bg-green-600 hover:bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+              className={`w-full h-11 font-semibold ${isSubscribed ? 'bg-green-600 hover:bg-green-600' : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'}`}>
               {isSubscribed
                 ? <><CheckCircle className="w-4 h-4 mr-2" />Subscribed!</>
                 : isSubscribing
@@ -257,7 +257,7 @@ const StudentFooterComponent = () => {
             { icon: Heart,        label: "Student-First Design" },
           ].map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-2 text-slate-400 text-xs">
-              <Icon className="w-4 h-4 text-indigo-400" />
+              <Icon className="w-4 h-4 text-purple-400" />
               <span>{label}</span>
             </div>
           ))}
@@ -271,7 +271,7 @@ const StudentFooterComponent = () => {
           <div className="flex items-center gap-2">
             {socialLinks.map((social) => (
               <a key={social.label} href={social.href} target="_blank" rel="noopener noreferrer"
-                className="p-2 bg-slate-800 hover:bg-indigo-600 rounded-full transition-all hover:scale-110 duration-200"
+                className="p-2 bg-white/10 hover:bg-gradient-to-r hover:from-purple-600 hover:to-pink-600 rounded-full transition-all hover:scale-110 duration-200"
                 aria-label={social.label}>
                 <social.icon className="w-4 h-4" />
               </a>

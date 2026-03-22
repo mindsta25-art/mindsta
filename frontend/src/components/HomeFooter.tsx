@@ -93,7 +93,7 @@ const HomeFooterComponent = () => {
   ];
 
   return (
-    <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white mt-12 border-t border-slate-700">
+    <footer className="bg-gradient-to-br from-purple-950 via-slate-900 to-pink-950 text-white mt-12 border-t border-purple-900/50">
 
       {/* Stats Bar */}
       <div className="border-b border-white/10">

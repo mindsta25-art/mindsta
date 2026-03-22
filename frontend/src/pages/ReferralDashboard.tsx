@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, Clock, ExternalLink, ListTree, ReceiptText, QrCode, Settings, LogOut, FileText, ChevronDown, ChevronUp, Moon, Sun, RefreshCw } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, Clock, ExternalLink, ListTree, ReceiptText, QrCode, Settings, LogOut, FileText, ChevronDown, ChevronUp, Moon, Sun, RefreshCw, BookOpen } from 'lucide-react';
 import { getMyReferralDashboard, type ReferralDashboard, getReferralsByUserId, type Referral as ReferralItem, getMyReferralTransactions, type ReferralTransactionItem, requestReferralPayout } from '@/api/referrals';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -209,8 +209,18 @@ export default function ReferralDashboard() {
       onComplete={() => setShowProfileModal(false)}
     />
     <ReferralOnboardingTour />
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-background dark:via-background dark:to-background p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
+        {/* Brand Strip */}
+        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-purple-200 dark:border-purple-900/50">
+          <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-md">
+            <BookOpen className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
+            <span className="block text-xs text-muted-foreground">Referral Partner Portal</span>
+          </div>
+        </div>
         {/* Header & Nav */}
         <motion.div 
           className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"
@@ -220,7 +230,7 @@ export default function ReferralDashboard() {
         >
           <div>
             <motion.h1 
-              className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
+              className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
@@ -321,7 +331,7 @@ export default function ReferralDashboard() {
               transition={{ delay: 0.3, duration: 0.6 }}
               whileHover={{ scale: 1.02, y: -5 }}
             >
-              <Card className="bg-gradient-to-br from-purple-500 to-blue-600 text-white shadow-xl">
+              <Card className="bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-xl">
               <CardHeader>
                 <CardTitle className="text-white">Your Referral Link</CardTitle>
                 <CardDescription className="text-purple-100">
@@ -462,19 +472,19 @@ export default function ReferralDashboard() {
                 whileHover={{ scale: 1.05, y: -5 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
-                <Card className="border-blue-200 hover:shadow-lg transition-shadow">
+                <Card className="border-pink-200 hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Paid Out</CardTitle>
                   <motion.div
                     whileHover={{ scale: 1.2 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <CheckCircle className="h-4 w-4 text-pink-600" />
                   </motion.div>
                 </CardHeader>
                 <CardContent>
                   <motion.div 
-                    className="text-2xl font-bold text-blue-600"
+                    className="text-2xl font-bold text-pink-600"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.8, type: "spring", stiffness: 200 }}

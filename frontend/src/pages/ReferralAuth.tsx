@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Menu, X, Eye, EyeOff, Loader2 } from "lucide-react";
+import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff, Loader2, TrendingUp, DollarSign, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { signIn, signUp, requestPasswordReset } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,7 +56,7 @@ const ReferralAuth = () => {
     
     if (!loginEmail || !loginPassword) {
       toast({
-        title: "Missing Information! ⚠️",
+        title: "Missing Information! âš ï¸",
         description: "Please fill in all fields.",
         variant: "destructive",
       });
@@ -71,7 +71,7 @@ const ReferralAuth = () => {
         password: loginPassword,
       });
 
-      // Unverified account — redirect to OTP page
+      // Unverified account â€” redirect to OTP page
       if (result?.requiresVerification) {
         toast({
           title: "Email Not Verified",
@@ -102,7 +102,7 @@ const ReferralAuth = () => {
       }
 
       toast({
-        title: "Welcome Back! 🎉",
+        title: "Welcome Back! ðŸŽ‰",
         description: "Successfully logged in!",
       });
       
@@ -113,7 +113,7 @@ const ReferralAuth = () => {
       navigate("/referral/dashboard", { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
-      // Account exists but email not verified — redirect to OTP page
+      // Account exists but email not verified â€” redirect to OTP page
       if (error?.requiresVerification) {
         toast({
           title: "Email Not Verified",
@@ -197,7 +197,7 @@ const ReferralAuth = () => {
       });
 
       toast({
-        title: "Account Created! 🎉",
+        title: "Account Created! ðŸŽ‰",
         description: "Please check your email for a verification code to activate your account.",
       });
 
@@ -234,171 +234,156 @@ const ReferralAuth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-pink-50 dark:from-background dark:via-muted dark:to-background relative overflow-hidden">
-      {/* Fun Background Elements */}
-      {/* <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-10 text-4xl animate-bounce delay-200">🎁</div>
-        <div className="absolute top-20 right-20 text-4xl animate-bounce delay-500">⭐</div>
-        <div className="absolute bottom-20 left-20 text-4xl animate-bounce delay-700">💰</div>
-        <div className="absolute bottom-32 right-32 text-4xl animate-bounce delay-1000">🎉</div>
-      </div> */}
+    <div className="min-h-screen flex">
+      {/* Left Panel â€” Brand Hero */}
+      <div className="hidden lg:flex lg:w-[45%] xl:w-1/2 flex-col relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #6d28d9 0%, #9333ea 40%, #db2777 100%)" }}>
+        <div className="absolute inset-0 opacity-10"
+          style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+        <div className="absolute top-[-80px] left-[-80px] w-72 h-72 rounded-full blur-3xl" style={{ background: "rgba(236,72,153,0.25)" }} />
+        <div className="absolute bottom-[-60px] right-[-60px] w-80 h-80 rounded-full blur-3xl" style={{ background: "rgba(147,51,234,0.2)" }} />
 
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-white/80 dark:bg-card backdrop-blur-sm shadow-lg border-b-4 border-purple-300 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
-                <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</h1>
-                <span className="text-xs text-muted-foreground">Referral Portal</span>
-              </div>
+        <div className="relative z-10 flex flex-col h-full p-10 xl:p-14">
+          <button onClick={() => navigate("/")} className="flex items-center gap-3 mb-12 group w-fit">
+            <div className="p-2.5 bg-white/15 rounded-xl backdrop-blur-sm group-hover:bg-white/25 transition-colors">
+              <BookOpen className="w-6 h-6 text-white" />
             </div>
-            
-            {/* Desktop Buttons */}
-            <div className="hidden md:flex items-center gap-2">
-              {isLogin ? (
-                <Button
-                  onClick={() => setIsLogin(false)}
-                  className="gap-2 border-2 border-green-300 hover:border-green-500 font-bold"
-                  variant="outline"
-                >
-                  <Gift className="w-4 h-4" />
-                  Register
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => setIsLogin(true)}
-                  className="gap-2 border-2 border-green-300 hover:border-green-500 font-bold"
-                  variant="outline"
-                >
-                  <Lock className="w-4 h-4" />
-                  Login
-                </Button>
-              )}
-              <Button
-                onClick={() => navigate("/")}
-                className="gap-2 border-2 border-yellow-300 hover:border-yellow-500 font-bold"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Home
-              </Button>
+            <div>
+              <span className="text-2xl font-bold text-white tracking-tight">Mindsta</span>
+              <span className="block text-[10px] text-purple-200 leading-tight">Referral Partner Portal</span>
             </div>
+          </button>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-yellow-100 transition-colors"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6 text-yellow-600" />
-              ) : (
-                <Menu className="w-6 h-6 text-yellow-600" />
-              )}
-            </button>
+          <div className="flex-1 flex flex-col justify-center">
+            <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-6">
+              {isLogin ? "Welcome\nback, Partner!" : "Join Our\nPartner Network"}
+            </h2>
+            <p className="text-purple-200 text-lg leading-relaxed mb-10 max-w-sm">
+              {isLogin
+                ? "Log in to access your referral dashboard, track your earnings and manage payouts."
+                : "Earn commissions by referring students to Mindsta. Get paid for every successful referral."}
+            </p>
+            <ul className="space-y-4">
+              {[
+                { icon: Gift, text: "Earn commissions on every successful student referral" },
+                { icon: TrendingUp, text: "Real-time dashboard to monitor referrals and earnings" },
+                { icon: DollarSign, text: "Fast payouts directly to your Nigerian bank account" },
+                { icon: Users, text: "Join hundreds of active referral partners nationwide" },
+              ].map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-start gap-3">
+                  <div className="p-1.5 bg-white/15 rounded-lg mt-0.5 shrink-0">
+                    <Icon className="w-4 h-4 text-purple-100" />
+                  </div>
+                  <span className="text-purple-100 text-sm leading-relaxed">{text}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden mt-4 pb-4 space-y-2 animate-in slide-in-from-top-5 duration-200">
-              {isLogin ? (
-                <Button
-                  onClick={() => {
-                    setIsLogin(false);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full gap-2 border-2 border-green-300 hover:border-green-500 font-bold justify-center"
-                  variant="outline"
-                >
-                  <Gift className="w-4 h-4" />
-                  Register
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => {
-                    setIsLogin(true);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full gap-2 border-2 border-green-300 hover:border-green-500 font-bold justify-center"
-                  variant="outline"
-                >
-                  <Lock className="w-4 h-4" />
-                  Login
-                </Button>
-              )}
-              <Button
-                onClick={() => {
-                  navigate("/");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full gap-2 border-2 border-yellow-300 hover:border-yellow-500 font-bold justify-center"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Home
-              </Button>
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-4 mt-12 pt-8 border-t border-white/10">
+            {[{ value: "500+", label: "Partners" }, { value: "â‚¦2M+", label: "Paid Out" }, { value: "15%", label: "Commission" }].map(s => (
+              <div key={s.label}>
+                <div className="text-2xl font-bold text-white">{s.value}</div>
+                <div className="text-xs text-pink-200">{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-12 relative z-10 mt-20 flex items-center justify-center min-h-[calc(100vh-160px)]">
-        <Card className="w-full max-w-md border-4 border-yellow-300 shadow-2xl bg-white dark:bg-card">
-          <CardHeader className="text-center">
-            <div className="text-6xl mb-4 animate-bounce"></div> 
-            <CardTitle className="text-3xl font-black">
-              {isLogin ? "Welcome Back to Partnership!" : "Join Our Referral Excellence Program!"}
-            </CardTitle>
-            <CardDescription className="text-lg font-bold">
-              {isLogin ? "Login to your referral account" : "Create your account and start earning rewards!"}
-            </CardDescription>
+      {/* Right Panel â€” Form */}
+      <div className="flex-1 flex flex-col bg-white dark:bg-background overflow-y-auto">
+        {/* Mobile header */}
+        <div className="lg:hidden flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border">
+          <button onClick={() => navigate("/")} className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600">
+              <BookOpen className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-gray-900 dark:text-white">Mindsta</span>
+          </button>
+          <button onClick={() => navigate("/")} className="text-sm flex items-center gap-1" style={{ color: "#9333ea" }}>
+            <ArrowLeft className="w-4 h-4" /> Home
+          </button>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center px-5 py-8 sm:px-8">
+          <div className="w-full max-w-md">
+            {/* Tab Switch */}
+            <div className="flex bg-gray-100 dark:bg-muted rounded-xl p-1 mb-8">
+              {["Log In", "Register"].map((label, i) => {
+                const active = i === 0 ? isLogin : !isLogin;
+                return (
+                  <button key={label} onClick={() => setIsLogin(i === 0)}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                      active
+                        ? 'bg-white dark:bg-card shadow'
+                        : 'text-gray-500 dark:text-muted-foreground hover:text-gray-700'
+                    }`}
+                    style={active ? { color: "#9333ea" } : {}}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Heading */}
+            <div className="mb-7">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {isLogin ? "Welcome back, Partner" : "Create your partner account"}
+              </h1>
+              <p className="text-gray-500 dark:text-muted-foreground text-sm mt-1">
+                {isLogin ? "Enter your credentials to access your referral dashboard." : "Sign up to start earning commissions."}
+              </p>
+            </div>
+
             {referralCode && !isLogin && (
-              <div className="mt-4 p-3 bg-green-50 border-2 border-green-300 rounded-lg">
-                <p className="text-sm font-bold text-green-700">
-                  🎉 You're using referral code: <span className="font-black">{referralCode}</span>
+              <div className="mb-5 p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg">
+                <p className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                  ðŸŽ‰ You're using referral code: <span className="font-bold">{referralCode}</span>
                 </p>
               </div>
             )}
-          </CardHeader>
 
-          <CardContent>
             {isLogin ? (
               // Login Form
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email" className="font-bold">Email Address </Label>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="login-email" className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="login-email"
                       type="email"
                       placeholder="your@email.com"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="h-11 pl-10 border-gray-200 dark:border-border"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="login-password" className="font-bold">Password </Label>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="login-password" className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</Label>
+                    <button type="button" onClick={() => setShowForgotPasswordDialog(true)}
+                      className="text-xs hover:underline" style={{ color: "#9333ea" }}>
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="login-password"
                       type={showLoginPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="pl-10 pr-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="h-11 pl-10 pr-10 border-gray-200 dark:border-border"
                       required
                     />
-                    <button type="button" onClick={() => setShowLoginPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
-                      {showLoginPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    <button type="button" onClick={() => setShowLoginPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                      {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -406,18 +391,18 @@ const ReferralAuth = () => {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full text-lg font-black py-6 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                  className="w-full h-11 text-white font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-md"
                 >
-                  {loading ? "Logging In..." : "Login "}
+                  {loading ? "Logging In..." : "Log In to Dashboard"}
                 </Button>
 
                 {/* Google OAuth */}
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-yellow-200" />
+                    <span className="w-full border-t border-gray-200 dark:border-border" />
                   </div>
-                  <div className="relative flex justify-center text-xs text-muted-foreground">
-                    <span className="bg-white dark:bg-card px-2">or continue with</span>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white dark:bg-background px-3 text-xs text-gray-400 uppercase tracking-wide">or continue with</span>
                   </div>
                 </div>
                 <button
@@ -450,7 +435,7 @@ const ReferralAuth = () => {
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
                   {googleLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting serverâ€¦</span></>
                   ) : (
                     <>
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -464,134 +449,120 @@ const ReferralAuth = () => {
                   )}
                 </button>
 
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotPasswordDialog(true)}
-                    className="text-sm font-bold text-yellow-600 hover:text-yellow-700 underline"
-                  >
-                    Forgot password? 
-                  </button>
-                </div>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsLogin(false)}
-                    className="text-sm font-bold text-yellow-600 hover:text-yellow-700 underline"
-                  >
-                    Don't have an account? Register here! 
+                <div className="mt-4 text-center">
+                  <button onClick={() => setIsLogin(false)}
+                    className="text-sm hover:underline font-medium" style={{ color: "#9333ea" }}>
+                    Don't have an account? Register here
                   </button>
                 </div>
               </form>
             ) : (
               // Register Form
               <form onSubmit={handleRegister} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first-name" className="font-bold">First Name </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="first-name" className="text-sm font-medium text-gray-700 dark:text-gray-300">First Name</Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
                         id="first-name"
                         type="text"
                         placeholder="John"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                        className="h-11 pl-10 border-gray-200 dark:border-border"
                         required
                       />
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="last-name" className="font-bold">Last Name </Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="last-name" className="text-sm font-medium text-gray-700 dark:text-gray-300">Last Name</Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
                         id="last-name"
                         type="text"
                         placeholder="Doe"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                        className="h-11 pl-10 border-gray-200 dark:border-border"
                         required
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="font-bold">Email Address </Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="email"
                       type="email"
                       placeholder="your@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="h-11 pl-10 border-gray-200 dark:border-border"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="font-bold">Phone Number </Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+1234567890"
+                      placeholder="+234 800 000 0000"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="pl-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="h-11 pl-10 border-gray-200 dark:border-border"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="font-bold">Password</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="password"
                       type={showRegisterPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="h-11 pl-10 pr-10 border-gray-200 dark:border-border"
                       required
                     />
-                    <button type="button" onClick={() => setShowRegisterPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
-                      {showRegisterPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    <button type="button" onClick={() => setShowRegisterPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                      {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password" className="font-bold">Confirm Password </Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm-password" className="text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="confirm-password"
                       type={showRegisterConfirmPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                      placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10 pr-10 border-2 border-yellow-200 focus:border-yellow-400"
+                      className="h-11 pl-10 pr-10 border-gray-200 dark:border-border"
                       required
                     />
-                    <button type="button" onClick={() => setShowRegisterConfirmPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
-                      {showRegisterConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    <button type="button" onClick={() => setShowRegisterConfirmPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                      {showRegisterConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-2">
+                <div className="space-y-3 pt-1">
                   <div className="flex items-start space-x-2">
                     <Checkbox
                       id="terms"
@@ -599,16 +570,9 @@ const ReferralAuth = () => {
                       onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
                       className="mt-1"
                     />
-                    <label
-                      htmlFor="terms"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
+                    <label htmlFor="terms" className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                       I agree to the{" "}
-                      <button
-                        type="button"
-                        className="text-yellow-600 hover:text-yellow-700 underline font-bold"
-                        onClick={() => window.open("/terms", "_blank")}
-                      >
+                      <button type="button" className="underline font-medium" style={{ color: "#9333ea" }} onClick={() => window.open("/terms", "_blank")}>
                         Terms and Conditions
                       </button>
                     </label>
@@ -621,16 +585,9 @@ const ReferralAuth = () => {
                       onCheckedChange={(checked) => setAgreeToPrivacy(checked as boolean)}
                       className="mt-1"
                     />
-                    <label
-                      htmlFor="privacy"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
+                    <label htmlFor="privacy" className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                       I agree to the{" "}
-                      <button
-                        type="button"
-                        className="text-yellow-600 hover:text-yellow-700 underline font-bold"
-                        onClick={() => window.open("/privacy", "_blank")}
-                      >
+                      <button type="button" className="underline font-medium" style={{ color: "#9333ea" }} onClick={() => window.open("/privacy", "_blank")}>
                         Privacy Policy
                       </button>
                     </label>
@@ -640,18 +597,18 @@ const ReferralAuth = () => {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full text-lg font-black py-6 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                  className="w-full h-11 text-white font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-md"
                 >
-                  {loading ? "Creating Account..." : "Create Account "}
+                  {loading ? "Creating Account..." : "Create Partner Account"}
                 </Button>
 
                 {/* Google OAuth */}
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-yellow-200" />
+                    <span className="w-full border-t border-gray-200 dark:border-border" />
                   </div>
-                  <div className="relative flex justify-center text-xs text-muted-foreground">
-                    <span className="bg-white dark:bg-card px-2">or sign up with</span>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white dark:bg-background px-3 text-xs text-gray-400 uppercase tracking-wide">or sign up with</span>
                   </div>
                 </div>
                 <button
@@ -684,7 +641,7 @@ const ReferralAuth = () => {
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
                   {googleLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting serverâ€¦</span></>
                   ) : (
                     <>
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -698,20 +655,24 @@ const ReferralAuth = () => {
                   )}
                 </button>
 
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsLogin(true)}
-                    className="text-sm font-bold text-yellow-600 hover:text-yellow-700 underline"
-                  >
-                    Already have an account? Login here! 
+                <div className="mt-4 text-center">
+                  <button onClick={() => setIsLogin(true)}
+                    className="text-sm hover:underline font-medium" style={{ color: "#9333ea" }}>
+                    Already have an account? Log in here
                   </button>
                 </div>
               </form>
             )}
-          </CardContent>
-        </Card>
-      </main>
+
+            <div className="mt-4 text-center">
+              <button onClick={() => navigate("/")}
+                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 mx-auto">
+                <ArrowLeft className="w-3 h-3" /> Back to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Forgot Password Dialog */}
       <Dialog open={showForgotPasswordDialog} onOpenChange={setShowForgotPasswordDialog}>
@@ -725,7 +686,8 @@ const ReferralAuth = () => {
             <Input id="forgot-email" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button onClick={handleForgotPassword} disabled={forgotLoading}>
+            <Button onClick={handleForgotPassword} disabled={forgotLoading}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
               {forgotLoading ? "Sending..." : "Send reset link"}
             </Button>
           </DialogFooter>
