@@ -331,19 +331,6 @@ const Auth = () => {
                   ? 'https://api.mindsta.com.ng/api'
                   : 'http://localhost:3000/api';
                 setGoogleLoading(true);
-                // Pre-warm the backend (Render.com free tier spins down when idle)
-                try {
-                  for (let i = 0; i < 12; i++) {
-                    try {
-                      const res = await fetch(`${backendURL}/health`);
-                      if (res.ok) {
-                        const ct = res.headers.get('content-type') || '';
-                        if (ct.includes('application/json')) break;
-                      }
-                    } catch { /* server not ready yet */ }
-                    await new Promise(r => setTimeout(r, 2500));
-                  }
-                } catch { /* ignore — proceed anyway */ }
                 window.location.href = `${backendURL}/auth/google`;
               }}
               className="w-full flex items-center justify-center gap-3 h-11 mb-5 px-4 rounded-lg border font-medium text-sm transition-all disabled:opacity-50"
@@ -364,7 +351,7 @@ const Auth = () => {
               {googleLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  <span style={{ color: "#374151" }}>Starting server, please wait…</span>
+                  <span style={{ color: "#374151" }}>Redirecting to Google…</span>
                 </>
               ) : (
                 <>

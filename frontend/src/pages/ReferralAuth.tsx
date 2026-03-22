@@ -415,18 +415,6 @@ const ReferralAuth = () => {
                       ? 'https://api.mindsta.com.ng/api'
                       : 'http://localhost:3000/api';
                     setGoogleLoading(true);
-                    try {
-                      for (let i = 0; i < 12; i++) {
-                        try {
-                          const res = await fetch(`${backendURL}/health`);
-                          if (res.ok) {
-                            const ct = res.headers.get('content-type') || '';
-                            if (ct.includes('application/json')) break;
-                          }
-                        } catch { /* server not ready */ }
-                        await new Promise(r => setTimeout(r, 2500));
-                      }
-                    } catch { /* ignore */ }
                     window.location.href = `${backendURL}/auth/google?userType=referral`;
                   }}
                   className="w-full flex items-center justify-center gap-3 h-11 px-4 rounded-lg border font-medium text-sm transition-all disabled:opacity-50"
@@ -435,7 +423,7 @@ const ReferralAuth = () => {
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
                   {googleLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Redirecting to Google…</span></>
                   ) : (
                     <>
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -621,18 +609,6 @@ const ReferralAuth = () => {
                       ? 'https://api.mindsta.com.ng/api'
                       : 'http://localhost:3000/api';
                     setGoogleLoading(true);
-                    try {
-                      for (let i = 0; i < 12; i++) {
-                        try {
-                          const res = await fetch(`${backendURL}/health`);
-                          if (res.ok) {
-                            const ct = res.headers.get('content-type') || '';
-                            if (ct.includes('application/json')) break;
-                          }
-                        } catch { /* server not ready */ }
-                        await new Promise(r => setTimeout(r, 2500));
-                      }
-                    } catch { /* ignore */ }
                     window.location.href = `${backendURL}/auth/google?userType=referral`;
                   }}
                   className="w-full flex items-center justify-center gap-3 h-11 px-4 rounded-lg border font-medium text-sm transition-all disabled:opacity-50"
@@ -641,7 +617,7 @@ const ReferralAuth = () => {
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#ffffff'; }}
                 >
                   {googleLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Starting server…</span></>
+                    <><Loader2 className="w-4 h-4 animate-spin shrink-0" /><span style={{ color: '#374151' }}>Redirecting to Google…</span></>
                   ) : (
                     <>
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
