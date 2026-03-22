@@ -57,6 +57,8 @@ export const RichTextEditor = ({
   const [imageWidth, setImageWidth] = useState<'full' | '75' | '50' | '25' | 'original' | 'custom'>('full');
   const [imageCustomWidthValue, setImageCustomWidthValue] = useState('50');
   const [imageUnit, setImageUnit] = useState<'%' | 'px'>('%');
+  // Image alignment for new insertions
+  const [imageAlign, setImageAlign] = useState<'left' | 'center' | 'right'>('left');
   // Selected image inside the editor (for the inline resize bar)
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
   const [floatingCustomW, setFloatingCustomW] = useState('50');
@@ -155,7 +157,7 @@ export const RichTextEditor = ({
     e.target.value = '';
   };
 
-  // Build a CSS style string for an inserted image based on current size state
+  // Build a CSS style string for an inserted image based on current size + alignment state
   const buildImgStyleStr = (): string => {
     let w = '';
     if (imageWidth === 'full') w = '100%';
@@ -164,7 +166,30 @@ export const RichTextEditor = ({
     else if (imageWidth === '25') w = '25%';
     else if (imageWidth === 'custom') w = `${imageCustomWidthValue}${imageUnit}`;
     const widthPart = w ? `width:${w};` : '';
-    return `${widthPart}max-width:100%;height:auto;`;
+    const alignStyle =
+      imageAlign === 'center' ? 'display:block;margin-left:auto;margin-right:auto;'
+      : imageAlign === 'right'  ? 'display:block;margin-left:auto;margin-right:0;'
+      : 'display:block;margin-left:0;margin-right:auto;';
+    return `${widthPart}max-width:100%;height:auto;${alignStyle}`;
+  };
+
+  // Apply alignment to the currently-selected image in the editor
+  const applySelectedImgAlign = (align: 'left' | 'center' | 'right') => {
+    if (!selectedImg) return;
+    if (align === 'center') {
+      selectedImg.style.display = 'block';
+      selectedImg.style.marginLeft = 'auto';
+      selectedImg.style.marginRight = 'auto';
+    } else if (align === 'right') {
+      selectedImg.style.display = 'block';
+      selectedImg.style.marginLeft = 'auto';
+      selectedImg.style.marginRight = '0';
+    } else {
+      selectedImg.style.display = 'block';
+      selectedImg.style.marginLeft = '0';
+      selectedImg.style.marginRight = 'auto';
+    }
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
   // Apply a width to the currently-selected image in the editor
@@ -296,6 +321,29 @@ export const RichTextEditor = ({
                   </div>
                 </div>
               )}
+            </div>
+            {/* Image alignment picker */}
+            <div className="space-y-2 pt-1">
+              <Label className="text-xs text-muted-foreground">Alignment</Label>
+              <div className="flex gap-1.5">
+                {(['left', 'center', 'right'] as const).map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setImageAlign(a)}
+                    className={`flex-1 flex items-center justify-center gap-1 text-xs py-1 rounded border transition-colors ${
+                      imageAlign === a
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    {a === 'left' && <AlignLeft className="w-3.5 h-3.5" />}
+                    {a === 'center' && <AlignCenter className="w-3.5 h-3.5" />}
+                    {a === 'right' && <AlignRight className="w-3.5 h-3.5" />}
+                    {a.charAt(0).toUpperCase() + a.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -529,6 +577,21 @@ export const RichTextEditor = ({
             >
               Set
             </button>
+            <Separator orientation="vertical" className="h-4 mx-0.5" />
+            <span className="text-xs font-medium text-purple-700 dark:text-purple-300 shrink-0">Align:</span>
+            {(['left', 'center', 'right'] as const).map((a) => (
+              <button
+                key={a}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); applySelectedImgAlign(a); }}
+                className="h-6 w-6 flex items-center justify-center rounded border bg-white dark:bg-card hover:bg-purple-100 dark:hover:bg-purple-900/40 border-purple-200 dark:border-purple-700 transition-colors"
+                title={`Align ${a}`}
+              >
+                {a === 'left' && <AlignLeft className="w-3.5 h-3.5" />}
+                {a === 'center' && <AlignCenter className="w-3.5 h-3.5" />}
+                {a === 'right' && <AlignRight className="w-3.5 h-3.5" />}
+              </button>
+            ))}
             <button
               type="button"
               onMouseDown={(e) => { e.preventDefault(); setSelectedImg(null); }}
