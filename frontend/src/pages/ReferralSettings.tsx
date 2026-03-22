@@ -8,7 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle, Moon, Sun, Lock, Eye, EyeOff, BookOpen } from 'lucide-react';
+import { Banknote, Settings, Wallet, ReceiptText, ArrowLeft, AlertTriangle, Moon, Sun, Lock, Eye, EyeOff } from 'lucide-react';
+import ReferralHeader from '@/components/ReferralHeader';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { bankDetailsSchema, type BankDetailsFormData } from '@/lib/validations';
@@ -191,17 +192,8 @@ const ReferralSettings = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background">
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {/* Brand Strip */}
-      <div className="flex items-center gap-3 pb-6 border-b border-purple-200 dark:border-purple-900/50">
-        <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-md">
-          <BookOpen className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
-          <span className="block text-xs text-muted-foreground">Referral Partner Portal</span>
-        </div>
-      </div>
+      <ReferralHeader />
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Referral Settings</h1>
         <Button variant="outline" onClick={() => navigate('/referral/dashboard')}>
@@ -269,18 +261,12 @@ const ReferralSettings = () => {
                 <div>
                   <label className="block text-sm font-medium mb-1">Commission Rate (%)</label>
                   <input 
-                    type="number" 
-                    {...bankForm.register('commissionRate', { valueAsNumber: true })}
-                    min={0} 
-                    max={100}
-                    step="0.1"
-                    className="w-full border rounded px-3 py-2 dark:bg-background dark:border-gray-700 dark:text-foreground"
-                    placeholder="e.g. 10" 
+                    type="text"
+                    readOnly
+                    value={`${((settings?.commissionRate || 0) * 100).toFixed(1)}%`}
+                    className="w-full border rounded px-3 py-2 bg-gray-50 dark:bg-muted dark:border-gray-700 dark:text-foreground text-muted-foreground cursor-not-allowed select-none"
                   />
-                  {bankForm.formState.errors.commissionRate && (
-                    <p className="text-red-500 text-xs mt-1">{bankForm.formState.errors.commissionRate.message}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">Commission you earn per referral payment (0-100%)</p>
+                  <p className="text-xs text-muted-foreground mt-1">Your commission rate is set by admin and cannot be changed here.</p>
                 </div>
                 <div className="flex items-end">
                   <Button type="submit" disabled={saving}>

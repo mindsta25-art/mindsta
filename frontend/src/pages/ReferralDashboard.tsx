@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, Clock, ExternalLink, ListTree, ReceiptText, QrCode, Settings, LogOut, FileText, ChevronDown, ChevronUp, Moon, Sun, RefreshCw, BookOpen } from 'lucide-react';
+import { Copy, Share2, TrendingUp, Users, DollarSign, CheckCircle, Clock, ExternalLink, ListTree, ReceiptText, QrCode, Settings, FileText, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { getMyReferralDashboard, type ReferralDashboard, getReferralsByUserId, type Referral as ReferralItem, getMyReferralTransactions, type ReferralTransactionItem, requestReferralPayout } from '@/api/referrals';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,20 +10,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import QRCode from 'react-qr-code';
-import { signOut } from '@/api/auth';
 import { CompleteReferralProfileModal } from '@/components/CompleteReferralProfileModal';
 import { ReferralOnboardingTour } from '@/components/ReferralOnboardingTour';
 import NotificationBell from '@/components/NotificationBell';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import ReferralHeader from '@/components/ReferralHeader';
 
 // Animation variants
 const containerVariants = {
@@ -72,9 +62,8 @@ export default function ReferralDashboard() {
   const [showTerms, setShowTerms] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const { user } = useAuth();
+  const { theme } = useTheme();
   const [requestingPayout, setRequestingPayout] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -209,19 +198,10 @@ export default function ReferralDashboard() {
       onComplete={() => setShowProfileModal(false)}
     />
     <ReferralOnboardingTour />
+    <ReferralHeader />
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Brand Strip */}
-        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-purple-200 dark:border-purple-900/50">
-          <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-md">
-            <BookOpen className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
-            <span className="block text-xs text-muted-foreground">Referral Partner Portal</span>
-          </div>
-        </div>
-        {/* Header & Nav */}
+        {/* Header & Nav */}}
         <motion.div 
           className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"
           initial={{ opacity: 0, y: -20 }}
@@ -252,14 +232,6 @@ export default function ReferralDashboard() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
           >
-            <Button 
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
             <NotificationBell />
             <Button
               variant="outline"
@@ -269,15 +241,6 @@ export default function ReferralDashboard() {
               aria-label="Refresh"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button onClick={() => navigate('/referral/settings')}>
-              <Settings className="h-4 w-4 mr-2" /> Settings
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={() => setShowLogoutDialog(true)}
-            >
-              <LogOut className="h-4 w-4 mr-2" /> Logout
             </Button>
           </motion.div>
         </motion.div>
@@ -961,34 +924,6 @@ export default function ReferralDashboard() {
         <div className="mt-1" />
       </div>
     </div>
-
-    <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">
-            <LogOut className="w-5 h-5 text-red-500" />
-            Sign Out
-          </AlertDialogTitle>
-          <AlertDialogDescription className="text-base">
-            Are you sure you want to sign out of your account?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              signOut();
-              refreshUser();
-              navigate('/');
-              toast({ title: 'Logged out successfully', description: 'See you next time!' });
-            }}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
-            Yes, sign me out
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
     </>
   );
 }

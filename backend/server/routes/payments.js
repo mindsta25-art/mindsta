@@ -299,6 +299,9 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
     const payment = await Payment.findOne({ reference, userId: req.user.id });
     if (!payment) return res.status(404).json({ error: 'Payment record not found' });
 
+    // Capture current status before any update to prevent double-firing side effects
+    const wasAlreadySuccess = payment.status === 'success';
+
     const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
       headers: { Authorization: `Bearer ${secretKey}` }
     });
@@ -380,22 +383,24 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
           console.error('[Payment Success Email Error]', emailError.message);
         }
       }
-      // Notify admin of purchase
-      await notifyAdminOfPurchase({
-        userId: req.user.id,
-        amount: payment.amount,
-        items: payment.items || [],
-        paymentId: payment._id
-      });
-      
-      // Update sales statistics in SystemSettings
-      await updateSalesStats({
-        amount: payment.amount,
-        itemCount: payment.items?.length || 0
-      });
-      
-      // Referral commission
-      await handleReferralCommission({ userId: req.user.id, studentId: student?._id, paymentId: payment._id, amount: payment.amount });
+      // Notify admin, update stats, and process referral commission only once per payment
+      if (!wasAlreadySuccess) {
+        await notifyAdminOfPurchase({
+          userId: req.user.id,
+          amount: payment.amount,
+          items: payment.items || [],
+          paymentId: payment._id
+        });
+        
+        // Update sales statistics in SystemSettings
+        await updateSalesStats({
+          amount: payment.amount,
+          itemCount: payment.items?.length || 0
+        });
+        
+        // Referral commission
+        await handleReferralCommission({ userId: req.user.id, studentId: student?._id, paymentId: payment._id, amount: payment.amount });
+      }
     }
     await payment.save();
 
