@@ -2391,59 +2391,110 @@ const ContentManagement = () => {
                                         <p className="text-sm text-muted-foreground">No content</p>
                                       ) : (
                                         <div className="space-y-3">
-                                          {items.map((item) => {
+                                          {selectedTab === 'quizzes' ? quizList.map((item) => {
                                             const isSelected = selectedItems.has(item.id);
                                             return (
-                                            <motion.div
-                                              key={item.id}
-                                              initial={{ opacity: 0, y: 10 }}
-                                              animate={{ opacity: 1, y: 0 }}
-                                              exit={{ opacity: 0, x: -20 }}
-                                              className={`flex items-start gap-3 border rounded-md p-3 transition-colors ${isSelected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20' : 'hover:border-gray-300'}`}
-                                            >
-                                              <Checkbox
-                                                checked={isSelected}
-                                                onCheckedChange={() => toggleItemSelection(item.id)}
-                                                className="mt-1"
-                                              />
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                  <Badge variant="outline" className="gap-1">
-                                                    {('type' in item ? (item as any).type : (item as any).questions ? 'quiz' : 'lesson') === 'lesson' ? (
-                                                      <><BookOpen className="w-3 h-3" /> Lesson</>
-                                                    ) : (
-                                                      <><Award className="w-3 h-3" /> Quiz</>
-                                                    )}
-                                                  </Badge>
-                                                  <span className="font-medium truncate max-w-[20rem]">{(item as any).title}</span>
+                                              <motion.div
+                                                key={item.id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className={`flex items-start gap-3 border rounded-md p-3 transition-colors ${isSelected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20' : 'hover:border-gray-300'}`}
+                                              >
+                                                <Checkbox checked={isSelected} onCheckedChange={() => toggleItemSelection(item.id)} className="mt-1" />
+                                                <div className="flex-1 min-w-0">
+                                                  <div className="flex items-center gap-2">
+                                                    <Badge variant="outline" className="gap-1"><Award className="w-3 h-3" /> Quiz</Badge>
+                                                    <span className="font-medium truncate max-w-[20rem]">{item.title}</span>
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground mt-1 truncate max-w-[24rem]">
+                                                    Lesson: {item.lessonTitle || 'N/A'} • {item.questions?.length || 0} questions • Pass {item.passingScore}%
+                                                  </div>
                                                 </div>
-                                                <div className="text-xs text-muted-foreground mt-1 truncate max-w-[24rem]">
-                                                  {selectedTab === 'quizzes' ? (
-                                                    <>
-                                                      Lesson: {(item as Quiz).lessonTitle || 'N/A'} • {(item as Quiz).questions?.length || 0} questions • Pass {(item as Quiz).passingScore}%
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      Subject: {(item as Lesson).subject} • Difficulty: {(item as Lesson).difficulty}
-                                                    </>
-                                                  )}
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                  <Button variant="ghost" size="sm" onClick={() => openEditDialog(item as any, 'quiz')}><Edit className="w-4 h-4" /></Button>
+                                                  <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id as string, 'quiz')}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                                                 </div>
-                                              </div>
-                                              <div className="flex items-center gap-1 flex-shrink-0">
-                                                <Button variant="ghost" size="sm" onClick={() => openEditDialog(item as any, (selectedTab === 'quizzes' ? 'quiz' : 'lesson') as any)}>
-                                                  <Edit className="w-4 h-4" />
-                                                </Button>
-                                                {((selectedTab === 'lessons' || selectedTab === 'all') && (item as any).type === 'lesson') && (
-                                                  <Button variant="ghost" size="sm" onClick={() => handleDuplicate(item as Lesson)}>
-                                                    <span title="Duplicate">📄</span>
-                                                  </Button>
-                                                )}
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id as string, (selectedTab === 'quizzes' ? 'quiz' : 'lesson') as any)}>
-                                                  <Trash2 className="w-4 h-4 text-destructive" />
-                                                </Button>
-                                              </div>
-                                            </motion.div>
-                                          )})}
+                                              </motion.div>
+                                            );
+                                          }) : (() => {
+                                            // Group lessons by subject for 'lessons' and 'all' tabs
+                                            const groups: { subject: string; lessons: Lesson[] }[] = [];
+                                            lessonList.forEach(l => {
+                                              const subj = l.subject || 'Other';
+                                              const existing = groups.find(g => g.subject === subj);
+                                              if (existing) existing.lessons.push(l);
+                                              else groups.push({ subject: subj, lessons: [l] });
+                                            });
+                                            return (
+                                              <>
+                                                {groups.map(({ subject, lessons }) => (
+                                                  <div key={subject} className="space-y-2">
+                                                    <div className="flex items-center gap-2 py-1 px-2 bg-muted/50 rounded-md">
+                                                      <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                                                      <span className="text-xs font-semibold">{subject}</span>
+                                                      <Badge variant="secondary" className="ml-auto text-xs">{lessons.length} lesson{lessons.length !== 1 ? 's' : ''}</Badge>
+                                                    </div>
+                                                    {lessons.map((item) => {
+                                                      const isSelected = selectedItems.has(item.id);
+                                                      return (
+                                                        <motion.div
+                                                          key={item.id}
+                                                          initial={{ opacity: 0, y: 10 }}
+                                                          animate={{ opacity: 1, y: 0 }}
+                                                          exit={{ opacity: 0, x: -20 }}
+                                                          className={`flex items-start gap-3 border rounded-md p-3 transition-colors ${isSelected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20' : 'hover:border-gray-300'}`}
+                                                        >
+                                                          <Checkbox checked={isSelected} onCheckedChange={() => toggleItemSelection(item.id)} className="mt-1" />
+                                                          <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                              <Badge variant="outline" className="gap-1"><BookOpen className="w-3 h-3" /> Lesson</Badge>
+                                                              <span className="font-medium truncate max-w-[20rem]">{item.title}</span>
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground mt-1 truncate max-w-[24rem]">
+                                                              Difficulty: {item.difficulty}
+                                                            </div>
+                                                          </div>
+                                                          <div className="flex items-center gap-1 flex-shrink-0">
+                                                            <Button variant="ghost" size="sm" onClick={() => openEditDialog(item as any, 'lesson')}><Edit className="w-4 h-4" /></Button>
+                                                            <Button variant="ghost" size="sm" onClick={() => handleDuplicate(item)}><span title="Duplicate">📄</span></Button>
+                                                            <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id as string, 'lesson')}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                                                          </div>
+                                                        </motion.div>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                ))}
+                                                {selectedTab === 'all' && quizList.map((item) => {
+                                                  const isSelected = selectedItems.has(item.id);
+                                                  return (
+                                                    <motion.div
+                                                      key={item.id}
+                                                      initial={{ opacity: 0, y: 10 }}
+                                                      animate={{ opacity: 1, y: 0 }}
+                                                      exit={{ opacity: 0, x: -20 }}
+                                                      className={`flex items-start gap-3 border rounded-md p-3 transition-colors ${isSelected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20' : 'hover:border-gray-300'}`}
+                                                    >
+                                                      <Checkbox checked={isSelected} onCheckedChange={() => toggleItemSelection(item.id)} className="mt-1" />
+                                                      <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                          <Badge variant="outline" className="gap-1"><Award className="w-3 h-3" /> Quiz</Badge>
+                                                          <span className="font-medium truncate max-w-[20rem]">{item.title}</span>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-[24rem]">
+                                                          Lesson: {item.lessonTitle || 'N/A'} • {item.questions?.length || 0} questions • Pass {item.passingScore}%
+                                                        </div>
+                                                      </div>
+                                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(item as any, 'quiz')}><Edit className="w-4 h-4" /></Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id as string, 'quiz')}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                                                      </div>
+                                                    </motion.div>
+                                                  );
+                                                })}
+                                              </>
+                                            );
+                                          })()}
                                         </div>
                                       )}
                                     </CardContent>
