@@ -51,7 +51,8 @@ interface EnrolledCourse {
   term?: string;
   lessonsTotal: number;
   lessonsCompleted: number;
-  progress: number;
+  lessonsInProgress: number;   // started (videoPosition > 0) but not yet completed
+  progress: number;           // weighted: completed + partial video watch %
   lastAccessed?: Date;
   nextLesson?: Lesson;
   thumbnailUrl?: string;
@@ -128,6 +129,7 @@ const MyLearning = () => {
               term: enrollment.term,
               lessonsTotal: 0,
               lessonsCompleted: 0,
+              lessonsInProgress: 0,
               progress: 0,
               nextLesson: undefined,
               averageScore: undefined,
@@ -136,59 +138,72 @@ const MyLearning = () => {
           }
         }
         
+        // Accumulate weighted progress per course key
+        const progressWeights = new Map<string, number>();
+
         // Then add lesson data to existing enrollments
         for (const lesson of enrolledLessons) {
           const key = `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
-          
+
           // Only process if this enrollment exists (it should, from the loop above)
           if (courseMap.has(key)) {
             const course = courseMap.get(key)!;
             course.lessonsTotal += 1;
 
-          const lessonProgress = progress.find(p => p.lessonId === lesson.id);
-          if (lessonProgress) {
-            if (lessonProgress.completed) {
-              course.lessonsCompleted += 1;
-            }
-            
-            // Track last accessed
-            const accessedDate = new Date(lessonProgress.lastAccessedAt);
-            if (!course.lastAccessed || accessedDate > course.lastAccessed) {
-              course.lastAccessed = accessedDate;
-            }
+            const lessonProgress = progress.find(p => p.lessonId === lesson.id);
+            if (lessonProgress) {
+              if (lessonProgress.completed) {
+                course.lessonsCompleted += 1;
+                progressWeights.set(key, (progressWeights.get(key) || 0) + 1);
+              } else {
+                const watchPct = (lessonProgress.videoWatchPercent || 0) / 100;
+                const hasStarted = watchPct > 0 || (lessonProgress.videoPosition || 0) > 2;
+                if (hasStarted) {
+                  course.lessonsInProgress += 1;
+                  // Cap partial credit at 99% (only mark complete when fully complete)
+                  progressWeights.set(key, (progressWeights.get(key) || 0) + Math.min(watchPct, 0.99));
+                }
+              }
 
-            // Find next incomplete lesson
-            if (!lessonProgress.completed && !course.nextLesson) {
+              // Track last accessed
+              const accessedDate = new Date(lessonProgress.lastAccessedAt);
+              if (!course.lastAccessed || accessedDate > course.lastAccessed) {
+                course.lastAccessed = accessedDate;
+              }
+
+              // Find next incomplete lesson
+              if (!lessonProgress.completed && !course.nextLesson) {
+                course.nextLesson = lesson;
+              }
+            } else if (!course.nextLesson) {
+              // First unstarted lesson
               course.nextLesson = lesson;
             }
-          } else if (!course.nextLesson) {
-            // First unstarted lesson
-            course.nextLesson = lesson;
-          }
 
-          // Capture first available thumbnail from any lesson
-          if (!course.thumbnailUrl && lesson.imageUrl) {
-            course.thumbnailUrl = lesson.imageUrl;
-          }
+            // Capture first available thumbnail from any lesson
+            if (!course.thumbnailUrl && lesson.imageUrl) {
+              course.thumbnailUrl = lesson.imageUrl;
+            }
 
-          // Calculate average score
-          const scoresForCourse = progress
-            .filter(p => {
-              const l = enrolledLessons.find(les => les.id === p.lessonId);
-              return l && l.subject === course.subject && l.grade === course.grade && l.term === course.term && typeof p.quizScore === 'number';
-            })
-            .map(p => p.quizScore!);
-          
-          if (scoresForCourse.length > 0) {
-            course.averageScore = Math.round(scoresForCourse.reduce((a, b) => a + b, 0) / scoresForCourse.length);
+            // Calculate average score
+            const scoresForCourse = progress
+              .filter(p => {
+                const l = enrolledLessons.find(les => les.id === p.lessonId);
+                return l && l.subject === course.subject && l.grade === course.grade && l.term === course.term && typeof p.quizScore === 'number';
+              })
+              .map(p => p.quizScore!);
+
+            if (scoresForCourse.length > 0) {
+              course.averageScore = Math.round(scoresForCourse.reduce((a, b) => a + b, 0) / scoresForCourse.length);
+            }
           }
         }
-      }
 
-        // Calculate progress percentages
-        courseMap.forEach((course) => {
-          course.progress = course.lessonsTotal > 0 
-            ? Math.round((course.lessonsCompleted / course.lessonsTotal) * 100)
+        // Calculate weighted progress percentages (includes partial video watch)
+        courseMap.forEach((course, key) => {
+          const weight = progressWeights.get(key) || 0;
+          course.progress = course.lessonsTotal > 0
+            ? Math.round((weight / course.lessonsTotal) * 100)
             : 0;
         });
 
@@ -334,9 +349,9 @@ const MyLearning = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-2xl md:text-3xl font-bold">
-                      {enrolled.filter(c => c.progress > 0).length}
+                      {enrolled.reduce((sum, c) => sum + c.lessonsInProgress, 0)}
                     </p>
-                    <p className="text-xs md:text-sm text-muted-foreground truncate">In Progress</p>
+                    <p className="text-xs md:text-sm text-muted-foreground truncate">Lessons In Progress</p>
                   </div>
                 </div>
               </CardContent>
@@ -457,13 +472,21 @@ const MyLearning = () => {
                     )}
                     {course.progress === 100 && (
                       <div className="absolute top-3 right-3">
-                        <Badge className="bg-green-500">
+                        <Badge className="bg-green-500 shadow-md">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Completed
                         </Badge>
                       </div>
                     )}
-                    {isNewPurchase(course.enrollmentDate) && course.progress === 0 && (
+                    {course.lessonsInProgress > 0 && course.progress < 100 && (
+                      <div className="absolute top-3 left-3">
+                        <Badge className="bg-blue-600 text-white border-0 shadow-md">
+                          <TrendingUp className="w-3 h-3 mr-1" />
+                          {course.lessonsInProgress} In Progress
+                        </Badge>
+                      </div>
+                    )}
+                    {isNewPurchase(course.enrollmentDate) && course.progress === 0 && course.lessonsInProgress === 0 && (
                       <div className="absolute top-3 left-3">
                         <Badge className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-0 shadow-md">
                           <ShoppingBag className="w-3 h-3 mr-1" />
@@ -492,10 +515,16 @@ const MyLearning = () => {
                           {course.progress}% complete
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {course.lessonsCompleted}/{course.lessonsTotal} lessons
+                          {course.lessonsCompleted}/{course.lessonsTotal} done
+                          {course.lessonsInProgress > 0 && (
+                            <span className="text-blue-500 ml-1">· {course.lessonsInProgress} in progress</span>
+                          )}
                         </span>
                       </div>
-                      <Progress value={course.progress} className="h-2" />
+                      <Progress
+                        value={course.progress}
+                        className={`h-2 ${course.lessonsInProgress > 0 && course.progress < 100 ? '[&>div]:bg-blue-500' : ''}`}
+                      />
                     </div>
 
                     {/* Stats */}
@@ -540,11 +569,23 @@ const MyLearning = () => {
                         e.stopPropagation();
                         navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
                       }}
-                      className={`w-full gap-2 ${course.progress === 100 ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' : ''}`}
+                      className={`w-full gap-2 ${
+                        course.progress === 100
+                          ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                          : course.lessonsInProgress > 0
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                          : ''
+                      }`}
                       size="sm"
                     >
                       <PlayCircle className="w-4 h-4" />
-                      {course.progress === 100 ? "Review Course" : course.progress > 0 ? "Continue Learning" : "Start Course"}
+                      {course.progress === 100
+                        ? 'Review Course'
+                        : course.lessonsInProgress > 0
+                        ? 'Continue Learning'
+                        : course.lessonsCompleted > 0
+                        ? 'Continue Learning'
+                        : 'Start Course'}
                     </Button>
                   </CardContent>
                 </Card>

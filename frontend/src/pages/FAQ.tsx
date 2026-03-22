@@ -5,17 +5,15 @@ import { StudentFooter } from '@/components/StudentFooter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { motion } from 'framer-motion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search, HelpCircle } from 'lucide-react';
 
 const FAQPage = () => {
   const { user } = useAuth();
   const Header = user ? StudentHeader : HomeHeader;
   const Footer = user ? StudentFooter : HomeFooter;
   const [searchQuery, setSearchQuery] = useState('');
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const faqs = [
     {
@@ -103,18 +101,14 @@ const FAQPage = () => {
       
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
+          <div className="mb-8">
             <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Frequently Asked Questions
             </h1>
             <p className="text-muted-foreground">
               Find quick answers to common questions
             </p>
-          </motion.div>
+          </div>
 
           {/* Search */}
           <Card className="mb-8">
@@ -138,45 +132,27 @@ const FAQPage = () => {
               <Card key={catIndex}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5" />
+                    <HelpCircle className="w-5 h-5 text-indigo-500" />
                     {category.category}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {category.questions.map((faq, qIndex) => {
-                    const globalIndex = catIndex * 100 + qIndex;
-                    const isOpen = openIndex === globalIndex;
-
-                    return (
-                      <div
+                <CardContent className="pt-0">
+                  <Accordion type="single" collapsible className="w-full">
+                    {category.questions.map((faq, qIndex) => (
+                      <AccordionItem
                         key={qIndex}
-                        className="border-b border-gray-200 dark:border-gray-700 last:border-0 pb-4 last:pb-0"
+                        value={`cat-${catIndex}-q-${qIndex}`}
+                        className="border-gray-200 dark:border-gray-700"
                       >
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-between p-0 h-auto hover:bg-transparent"
-                          onClick={() => setOpenIndex(isOpen ? null : globalIndex)}
-                        >
-                          <span className="text-left font-semibold">{faq.q}</span>
-                          {isOpen ? (
-                            <ChevronUp className="w-5 h-5 flex-shrink-0 ml-2" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5 flex-shrink-0 ml-2" />
-                          )}
-                        </Button>
-                        {isOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mt-3 text-muted-foreground text-sm leading-relaxed"
-                          >
-                            {faq.a}
-                          </motion.div>
-                        )}
-                      </div>
-                    );
-                  })}
+                        <AccordionTrigger className="text-left font-semibold text-sm sm:text-base hover:no-underline hover:text-indigo-600 transition-colors py-4">
+                          {faq.q}
+                        </AccordionTrigger>
+                        <AccordionContent className="text-muted-foreground text-sm leading-relaxed pb-4">
+                          {faq.a}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
                 </CardContent>
               </Card>
             ))}

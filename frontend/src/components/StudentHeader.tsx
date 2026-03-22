@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, memo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -9,6 +9,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -74,6 +80,7 @@ interface StudentHeaderProps {
 
 const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, refreshUser } = useAuth();
   const { cart, cartCount, removeFromCart } = useCart();
   const { wishlistCount } = useWishlistSafe();
@@ -273,6 +280,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
 
   return (
     <>
+    <TooltipProvider delayDuration={300}>
     <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 shadow-sm border-b z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
@@ -293,11 +301,11 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             </button>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-6">
+            <nav className="hidden lg:flex items-center gap-1">
               <Button
                 variant="ghost"
                 onClick={() => navigate("/dashboard")}
-                className="font-medium"
+                className={`font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
               >
                 <Home className="w-4 h-4 mr-2" />
                 Dashboard
@@ -305,14 +313,14 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/browse")}
-                className="font-medium"
+                className={`font-medium transition-colors ${location.pathname === '/browse' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
               >
                 Browse Courses
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => navigate("/my-learning")}
-                className="font-medium"
+                className={`font-medium transition-colors ${location.pathname === '/my-learning' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
               >
                 My Learning
               </Button>
@@ -431,38 +439,48 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
             {/* Theme Toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="hidden md:flex"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleTheme}
+                  aria-label="Toggle theme"
+                  className="hidden md:flex hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="w-5 h-5" />
+                  ) : (
+                    <Moon className="w-5 h-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</TooltipContent>
+            </Tooltip>
 
             {/* Notification Bell */}
             <NotificationBell />
             
             {/* Wishlist Icon with count - visible on all screens */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="flex relative"
-              onClick={() => navigate("/wishlist")}
-              aria-label="Wishlist"
-            >
-              <Heart className="w-5 h-5" />
-              {wishlistCount > 0 && (
-                <Badge className={`absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs transition-transform duration-200 ${wishBump ? 'scale-110' : 'scale-100'}`}>
-                  {wishlistCount}
-                </Badge>
-              )}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="flex relative hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                  onClick={() => navigate("/wishlist")}
+                  aria-label="Wishlist"
+                >
+                  <Heart className="w-5 h-5" />
+                  {wishlistCount > 0 && (
+                    <Badge className={`absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs transition-transform duration-200 ${wishBump ? 'scale-110' : 'scale-100'}`}>
+                      {wishlistCount}
+                    </Badge>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Wishlist</TooltipContent>
+            </Tooltip>
             {/* Cart Icon with Hover Dropdown - visible on all screens */}
             <HoverCard openDelay={100} closeDelay={200}>
               <HoverCardTrigger asChild>
@@ -800,6 +818,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
     {/* Height sentinel: pushes page body below the fixed header on all screen sizes */}
     <div aria-hidden="true" className="h-[116px] md:h-16" />
     </>
+    </TooltipProvider>
   );
 };
 
