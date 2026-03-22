@@ -40,6 +40,8 @@ const CreateLesson = () => {
     difficulty: "",
     videoUrl: "",
     imageUrl: "",
+    imageDisplaySize: "full",
+    imageObjectFit: "cover",
     order: 0,
     duration: 30,
     price: 0,
@@ -368,11 +370,37 @@ const CreateLesson = () => {
                       </div>
                     )}
                     {form.imageUrl && (
-                      <div className="relative mt-2 rounded-lg overflow-hidden border bg-muted/20" style={{ aspectRatio: "16/9", maxHeight: 120 }}>
-                        <img src={form.imageUrl} alt="Thumbnail preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <div className="relative mt-2 rounded-lg overflow-hidden border bg-muted/20" style={{ aspectRatio: "16/9", maxHeight: { full: 300, large: 220, medium: 160, small: 100 }[form.imageDisplaySize] || 120 }}>
+                        <img src={form.imageUrl} alt="Thumbnail preview" className="w-full h-full" style={{ objectFit: form.imageObjectFit as any || "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                         <button type="button" onClick={() => setForm({ ...form, imageUrl: "" })} className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">✕</button>
                       </div>
                     )}
+                    {/* Image display size controls */}
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Display Size</Label>
+                        <Select value={form.imageDisplaySize} onValueChange={(v) => setForm({ ...form, imageDisplaySize: v })}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="full">Full Width</SelectItem>
+                            <SelectItem value="large">Large</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="small">Small</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Image Fit</Label>
+                        <Select value={form.imageObjectFit} onValueChange={(v) => setForm({ ...form, imageObjectFit: v })}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cover">Cover (fill &amp; crop)</SelectItem>
+                            <SelectItem value="contain">Contain (show full)</SelectItem>
+                            <SelectItem value="fill">Fill (stretch)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

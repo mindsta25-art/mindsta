@@ -120,6 +120,18 @@ const LessonSchema = new Schema(
     imageUrl: {
       type: String,
     },
+    // How the thumbnail displays: full=full-width, large, medium, small
+    imageDisplaySize: {
+      type: String,
+      enum: ['full', 'large', 'medium', 'small'],
+      default: 'full',
+    },
+    // CSS object-fit value for the thumbnail image
+    imageObjectFit: {
+      type: String,
+      enum: ['cover', 'contain', 'fill'],
+      default: 'cover',
+    },
     // Legacy videoUrl for backward compatibility
     videoUrl: {
       type: String,

@@ -47,6 +47,8 @@ export interface Lesson {
   duration?: number;
   videoUrl?: string; // Legacy field
   imageUrl?: string;
+  imageDisplaySize?: 'full' | 'large' | 'medium' | 'small';
+  imageObjectFit?: 'cover' | 'contain' | 'fill';
   keywords?: string[];
   learningObjectives?: string[];
   whatYouWillLearn?: string[];

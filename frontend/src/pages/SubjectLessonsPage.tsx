@@ -73,6 +73,8 @@ interface Lesson {
   duration?: number;
   videoUrl?: string;
   imageUrl?: string;
+  imageDisplaySize?: string;
+  imageObjectFit?: string;
 }
 
 interface Progress {
@@ -852,7 +854,8 @@ const SubjectLessonsPage = () => {
                             <img
                               src={selectedLesson.imageUrl}
                               alt={selectedLesson.title}
-                              className="absolute inset-0 w-full h-full object-cover opacity-50"
+                              className="absolute inset-0 w-full h-full opacity-50"
+                              style={{ objectFit: (selectedLesson.imageObjectFit as any) || 'cover' }}
                               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                           )}
