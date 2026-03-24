@@ -198,8 +198,28 @@ mongoose.connect(MONGODB_URI, {
   retryWrites: true,
   w: 'majority',
 })
-  .then(() => {
+  .then(async () => {
     console.log('[MongoDB] Connected successfully');
+
+    // ── One-time migration: drop the old unique index on enrollments ──────────
+    // The old schema had { userId, subject, grade, term } with unique:true.
+    // The new schema tracks per-lesson enrollments so that index is too strict.
+    // We replace it with a non-unique index that includes lessonId.
+    try {
+      const enrollmentCollection = mongoose.connection.db.collection('enrollments');
+      const OLD_INDEX = 'userId_1_subject_1_grade_1_term_1';
+      const indexes = await enrollmentCollection.indexes();
+      const oldExists = indexes.some(i => i.name === OLD_INDEX && i.unique);
+      if (oldExists) {
+        await enrollmentCollection.dropIndex(OLD_INDEX);
+        console.log('[Migration] Dropped old unique enrollment index — per-lesson enrollments now supported.');
+      }
+    } catch (migErr) {
+      // Non-fatal: log and continue. The server can still run even if migration fails.
+      console.warn('[Migration] Could not drop old enrollment index:', migErr.message);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     try { startActivityMonitor(); } catch (e) { console.error('[ActivityMonitor] Failed to start:', e.message); }
     try { startAbandonedCartScheduler(); } catch (e) { console.error('[AbandonedCart] Failed to start:', e.message); }
   })

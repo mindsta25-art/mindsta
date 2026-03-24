@@ -9,9 +9,11 @@ const router = express.Router();
 // Get user's cart
 router.get('/', requireAuth, async (req, res) => {
   try {
+    // Only populate topicId — lessonId is returned as a raw ObjectId string so that
+    // downstream code (Checkout → Payment → Enrollment) receives a serialisable ID,
+    // not a full populated Lesson document.
     let cart = await Cart.findOne({ userId: req.user.id })
-      .populate('items.topicId')
-      .populate('items.lessonId');
+      .populate('items.topicId');
     
     if (!cart) {
       // Create empty cart if doesn't exist
@@ -157,7 +159,7 @@ router.post('/add', requireAuth, async (req, res) => {
     console.log('[Cart] POST /add called by user:', req.user?.id);
     console.log('[Cart] Request body:', req.body);
     
-    const { subject, grade, term, price = 0, title = 'Item' } = req.body;
+    const { subject, grade, term, price = 0, title = 'Item', lessonId } = req.body;
 
     if (!subject || !grade) {
       console.log('[Cart] Validation failed: missing subject or grade');
@@ -175,10 +177,10 @@ router.post('/add', requireAuth, async (req, res) => {
       });
     }
 
-    // Check if item already exists in cart
-    const existingItem = cart.items.find(
-      item => item.subject === subject && item.grade === grade && item.term === term
-    );
+    // Check if item already exists in cart (match by lessonId if provided, else by subject+grade+term)
+    const existingItem = lessonId
+      ? cart.items.find(item => item.lessonId?.toString() === lessonId)
+      : cart.items.find(item => item.subject === subject && item.grade === grade && item.term === term && !item.lessonId);
 
     if (existingItem) {
       console.log('[Cart] Item already exists in cart');
@@ -186,15 +188,17 @@ router.post('/add', requireAuth, async (req, res) => {
     }
 
     // Add new item
-    cart.items.push({
-      itemType: 'subject',
+    const newItem = {
+      itemType: lessonId ? 'lesson' : 'subject',
       title,
       subject,
       grade,
       term,
       price,
       addedAt: new Date(),
-    });
+    };
+    if (lessonId) newItem.lessonId = lessonId;
+    cart.items.push(newItem);
 
     console.log('[Cart] Saving cart with', cart.items.length, 'items');
     await cart.save();

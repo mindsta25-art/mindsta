@@ -17,6 +17,7 @@ export interface CartItemForPayment {
   grade: string;
   term?: string;
   price: number;
+  lessonId?: string; // set for lesson-level purchases
 }
 
 export const getPaymentStatus = async (): Promise<PaymentStatus> => {

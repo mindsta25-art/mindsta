@@ -267,7 +267,70 @@ const StudentHome = () => {
     ? Math.round((completedCount / enrolledLessons.length) * 100) 
     : 0;
 
-  const recentLessons = enrolledLessons.slice(0, 4);
+  // Group enrolled lessons into course-level entries (collective view, not individual lessons)
+  const recentCourses = (() => {
+    const courseMap = new Map<string, {
+      subject: string;
+      grade: string;
+      term?: string;
+      lessonsTotal: number;
+      lessonsCompleted: number;
+      progress: number;
+      nextLesson?: EnrolledLesson;
+      thumbnailUrl?: string;
+      lastAccessed?: Date;
+    }>();
+
+    for (const lesson of enrolledLessons) {
+      const key = `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
+      if (!courseMap.has(key)) {
+        courseMap.set(key, {
+          subject: lesson.subject,
+          grade: lesson.grade,
+          term: lesson.term,
+          lessonsTotal: 0,
+          lessonsCompleted: 0,
+          progress: 0,
+        });
+      }
+      const course = courseMap.get(key)!;
+      course.lessonsTotal += 1;
+
+      if (!course.thumbnailUrl && lesson.imageUrl) {
+        course.thumbnailUrl = lesson.imageUrl;
+      }
+
+      const lessonProg = progress.find(p => p.lessonId === lesson.id);
+      if (lessonProg) {
+        if (lessonProg.completed) {
+          course.lessonsCompleted += 1;
+        } else if (!course.nextLesson) {
+          course.nextLesson = lesson;
+        }
+        const accessedDate = new Date(lessonProg.lastAccessedAt);
+        if (!course.lastAccessed || accessedDate > course.lastAccessed) {
+          course.lastAccessed = accessedDate;
+        }
+      } else if (!course.nextLesson) {
+        course.nextLesson = lesson;
+      }
+    }
+
+    courseMap.forEach((course) => {
+      course.progress = course.lessonsTotal > 0
+        ? Math.round((course.lessonsCompleted / course.lessonsTotal) * 100)
+        : 0;
+    });
+
+    return Array.from(courseMap.values())
+      .sort((a, b) => {
+        if (!a.lastAccessed && !b.lastAccessed) return 0;
+        if (!a.lastAccessed) return 1;
+        if (!b.lastAccessed) return -1;
+        return b.lastAccessed.getTime() - a.lastAccessed.getTime();
+      })
+      .slice(0, 4);
+  })();
 
   const quickActions = [
     ...(lastAccessedLesson ? [{
@@ -798,7 +861,7 @@ const StudentHome = () => {
               </Card>
 
               {/* Recent Activity */}
-              {recentLessons.length > 0 && (
+              {recentCourses.length > 0 && (
                 <Card className="mt-6 shadow-lg hover:shadow-2xl transition-all duration-300">
                   <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30">
                     <div className="flex items-center justify-between">
@@ -824,85 +887,87 @@ const StudentHome = () => {
                   </CardHeader>
                   <CardContent className="pt-6">
                     <div className="space-y-3">
-                      {recentLessons.map((lesson, idx) => {
-                        const isCompleted = progress.some(
-                          p => p.lessonId === lesson.id && p.completed
-                        );
-                        
-                        return (
-                          <motion.button
-                            key={lesson.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            whileHover={{ scale: 1.02, x: 5, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.15)" }}
-                            onClick={() => {
-                              // Navigate to subject page instead of individual lesson
-                              navigate(`/subjects/${lesson.grade}/${lesson.subject}${lesson.term ? `?term=${lesson.term}` : ''}`);
-                            }}
-                            className="w-full p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-cyan-500 dark:hover:border-cyan-400 transition-all text-left group shadow-lg hover:shadow-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
-                          >
-                            <div className="flex items-start gap-4">
-                              {lesson.imageUrl ? (
-                                <img
-                                  src={lesson.imageUrl}
-                                  alt={lesson.title}
-                                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-xl"
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                              ) : (
-                                <motion.div 
-                                  className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xl"
-                                  whileHover={{ scale: 1.15, rotate: 10 }}
-                                  transition={{ type: "spring", stiffness: 400 }}
-                                >
-                                  <BookOpen className="w-7 h-7 text-white drop-shadow-lg" />
-                                </motion.div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
-                                  {lesson.title}
-                                </h4>
-                                <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
-                                  {lesson.description}
-                                </p>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <Badge variant="outline" className="text-xs">
-                                    {lesson.subject}
-                                  </Badge>
-                                  <Badge variant="outline" className="text-xs">
-                                    Grade {lesson.grade}
-                                  </Badge>
-                                  {isCompleted && (
-                                    <motion.div
-                                      initial={{ scale: 0 }}
-                                      animate={{ scale: 1 }}
-                                      transition={{ type: "spring" }}
-                                    >
-                                      <Badge className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 border-0 shadow-lg">
-                                        <motion.div
-                                          animate={{ scale: [1, 1.1, 1] }}
-                                          transition={{ duration: 2, repeat: Infinity }}
-                                          className="flex items-center"
-                                        >
-                                          <Award className="w-3 h-3 mr-1" />
-                                          Completed
-                                        </motion.div>
-                                      </Badge>
-                                    </motion.div>
-                                  )}
-                                </div>
-                              </div>
+                      {recentCourses.map((course, idx) => (
+                        <motion.button
+                          key={`${course.subject}-${course.grade}-${course.term}`}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          whileHover={{ scale: 1.02, x: 5, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.15)" }}
+                          onClick={() => navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`)}
+                          className="w-full p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-cyan-500 dark:hover:border-cyan-400 transition-all text-left group shadow-lg hover:shadow-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
+                        >
+                          <div className="flex items-start gap-4">
+                            {course.thumbnailUrl ? (
+                              <img
+                                src={course.thumbnailUrl}
+                                alt={course.subject}
+                                className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-xl"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            ) : (
                               <motion.div
-                                whileHover={{ scale: 1.2 }}
+                                className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xl"
+                                whileHover={{ scale: 1.15, rotate: 10 }}
                                 transition={{ type: "spring", stiffness: 400 }}
                               >
-                                <PlayCircle className="w-5 h-5 text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                                <BookOpen className="w-7 h-7 text-white drop-shadow-lg" />
                               </motion.div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
+                                {course.subject}
+                              </h4>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Grade {course.grade}{course.term ? ` · ${course.term}` : ''} · {course.lessonsCompleted}/{course.lessonsTotal} lessons
+                              </p>
+                              {/* Progress bar */}
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-2">
+                                <div
+                                  className="bg-gradient-to-r from-cyan-500 to-blue-500 h-1.5 rounded-full transition-all"
+                                  style={{ width: `${course.progress}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="text-xs">
+                                  Grade {course.grade}
+                                </Badge>
+                                {course.term && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {course.term}
+                                  </Badge>
+                                )}
+                                {course.progress === 100 ? (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ type: "spring" }}
+                                  >
+                                    <Badge className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 border-0 shadow-lg">
+                                      <motion.div
+                                        animate={{ scale: [1, 1.1, 1] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                        className="flex items-center"
+                                      >
+                                        <Award className="w-3 h-3 mr-1" />
+                                        Completed
+                                      </motion.div>
+                                    </Badge>
+                                  </motion.div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">{course.progress}% complete</span>
+                                )}
+                              </div>
                             </div>
-                          </motion.button>
-                        );
-                      })}
+                            <motion.div
+                              whileHover={{ scale: 1.2 }}
+                              transition={{ type: "spring", stiffness: 400 }}
+                            >
+                              <PlayCircle className="w-5 h-5 text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                            </motion.div>
+                          </div>
+                        </motion.button>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>

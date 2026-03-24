@@ -602,7 +602,7 @@ const BrowseCourses = () => {
         if (prevCourses.length === 0) return prevCourses;
         return prevCourses.map(course => ({
           ...course,
-          enrolled: enrollmentsData.some(e => isEnrolledUtil(e, course.subject, course.grade, course.term)),
+          enrolled: enrollmentsData.some(e => isEnrolledUtil(e, course.subject, course.grade, course.term, course.lessonId)),
         }));
       });
       
@@ -697,7 +697,7 @@ const BrowseCourses = () => {
       if (prev.length === 0) return prev;
       const updated = prev.map(course => ({
         ...course,
-        enrolled: enrollments.some(e => isEnrolledUtil(e, course.subject, course.grade, course.term)),
+        enrolled: enrollments.some(e => isEnrolledUtil(e, course.subject, course.grade, course.term, course.lessonId)),
       }));
       const changed = updated.some((c, i) => c.enrolled !== prev[i].enrolled);
       return changed ? updated : prev;
@@ -878,11 +878,6 @@ const BrowseCourses = () => {
         if (lessons.length > 0) {
           subjectsSet.add(subject.name);
           
-          // Use enrollmentsRef.current — always current, never stale closure
-          const enrolled = enrollmentsRef.current.some(e =>
-            isEnrolledUtil(e, subject.name, gradeValue, term)
-          );
-          
           const validDifficulty = subject.difficulty && 
             ['beginner', 'intermediate', 'advanced', 'easy', 'medium', 'hard', 'Beginner', 'Intermediate', 'Advanced'].includes(subject.difficulty)
             ? subject.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'easy' | 'medium' | 'hard' | 'Beginner' | 'Intermediate' | 'Advanced'
@@ -892,6 +887,12 @@ const BrowseCourses = () => {
 
           // Push one card per individual lesson so each lesson appears as a separate entry
           lessons.forEach(lesson => {
+            // Check enrollment per lesson — only mark enrolled if there's a matching enrollment
+            // for this specific lessonId (new) OR a subject-level enrollment (legacy/backward compat)
+            const enrolled = enrollmentsRef.current.some(e =>
+              isEnrolledUtil(e, subject.name, gradeValue, term, lesson.id)
+            );
+
             const lessonDuration = lesson.duration || 30;
             const durationDisplay = lessonDuration >= 60
               ? `${Math.ceil(lessonDuration / 60)}h`
@@ -940,7 +941,7 @@ const BrowseCourses = () => {
           // Always re-check via the ref — this is the ONLY source of truth for enrolled status
           // regardless of what value was computed in the stale closure above.
           const isEnrolledNow = enrollmentsRef.current.some(e =>
-            isEnrolledUtil(e, newCourse.subject, newCourse.grade, newCourse.term)
+            isEnrolledUtil(e, newCourse.subject, newCourse.grade, newCourse.term, newCourse.lessonId)
           );
           const courseWithCorrectStatus = { ...newCourse, enrolled: isEnrolledNow };
 
@@ -1013,7 +1014,8 @@ const BrowseCourses = () => {
       subject: course.subject, 
       grade: course.grade, 
       term: course.term,
-      price: course.price
+      price: course.price,
+      lessonId: course.lessonId, // pass the specific lesson ID for per-lesson enrollment
     });
     toast({
       title: "Added to cart",
@@ -3315,7 +3317,8 @@ const BrowseCourses = () => {
               subject: selectedCourseForPreview.subject,
               grade: selectedCourseForPreview.grade,
               term: selectedCourseForPreview.term,
-              price: selectedCourseForPreview.price
+              price: selectedCourseForPreview.price,
+              lessonId: selectedCourseForPreview.id,
             });
             toast({
               title: "Added to cart",
@@ -3324,7 +3327,7 @@ const BrowseCourses = () => {
           }
         }}
         isEnrolled={selectedCourseForPreview ? enrollments.some(e =>
-          isEnrolledUtil(e, selectedCourseForPreview.subject, selectedCourseForPreview.grade, selectedCourseForPreview.term)
+          isEnrolledUtil(e, selectedCourseForPreview.subject, selectedCourseForPreview.grade, selectedCourseForPreview.term, selectedCourseForPreview.id)
         ) : false}
         isInCart={selectedCourseForPreview ? isInCart(
           selectedCourseForPreview.subject,

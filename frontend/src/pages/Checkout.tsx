@@ -25,6 +25,7 @@ interface EnrichedCartItem {
   rating?: number;
   enrolledStudents?: number;
   duration?: number;
+  lessonId?: string; // present for lesson-level purchases
 }
 
 const Checkout = () => {
@@ -187,7 +188,8 @@ const Checkout = () => {
                             subject: item.subject,
                             grade: item.grade,
                             term: item.term || undefined,
-                            price: item.price
+                            price: item.price,
+                            lessonId: item.lessonId || undefined,
                           }));
                           
                           console.log('Initializing payment with:', { total, items });

@@ -12,6 +12,7 @@ export interface CartItem {
   term?: string;
   price: number;
   addedAt: string;
+  lessonId?: string; // set when item is a specific lesson purchase
 }
 
 export interface Cart {
@@ -43,6 +44,7 @@ export const addToCart = async (item: {
   grade: string;
   term?: string;
   price?: number;
+  lessonId?: string;
 }): Promise<Cart> => {
   try {
     console.log('[Cart API] Adding to cart:', item);

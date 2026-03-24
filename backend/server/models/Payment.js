@@ -22,6 +22,7 @@ const PaymentSchema = new Schema(
       grade: { type: String, required: true },
       term: { type: String },
       price: { type: Number, required: true },
+      lessonId: { type: Schema.Types.ObjectId, ref: 'Lesson', default: null },
     }],
   },
   { timestamps: true }

@@ -279,6 +279,7 @@ router.post('/initialize', requireAuth, async (req, res) => {
         grade: item.grade,
         term: item.term,
         price: item.price || 0,
+        lessonId: item.lessonId || null,
       })),
     });
 
@@ -324,6 +325,7 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
                 subject: item.subject,
                 grade: item.grade,
                 term: item.term,
+                lessonId: item.lessonId || null,
               },
               {
                 userId: req.user.id,
@@ -334,13 +336,15 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
                 purchasePrice: item.price,
                 purchasedAt: payment.paidAt,
                 isActive: true,
+                lessonId: item.lessonId || null,
               },
               { upsert: true, new: true }
             );
             createdEnrollments.push({
               subject: item.subject,
               grade: item.grade,
-              term: item.term
+              term: item.term,
+              lessonId: item.lessonId || null,
             });
           } catch (enrollError) {
             console.error(`[Enrollment Error for ${item.subject}]:`, enrollError.message);
@@ -447,6 +451,7 @@ router.post('/webhook', express.json(), async (req, res) => {
                   subject: item.subject,
                   grade: item.grade,
                   term: item.term,
+                  lessonId: item.lessonId || null,
                 },
                 {
                   userId: payment.userId,
@@ -457,6 +462,7 @@ router.post('/webhook', express.json(), async (req, res) => {
                   purchasePrice: item.price,
                   purchasedAt: payment.paidAt,
                   isActive: true,
+                  lessonId: item.lessonId || null,
                 },
                 { upsert: true, new: true }
               );

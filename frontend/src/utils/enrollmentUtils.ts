@@ -1,6 +1,6 @@
 // Utility for matching enrollments to courses/lessons
 // Ensures purchased courses are always recognized correctly
-export function isEnrolled(enrollment, subject, grade, term) {
+export function isEnrolled(enrollment, subject, grade, term, lessonId?: string) {
   // Normalize and compare grades
   const enrollmentGrade = String(enrollment.grade).trim().toLowerCase();
   const courseGrade = String(grade).trim().toLowerCase();
@@ -23,12 +23,21 @@ export function isEnrolled(enrollment, subject, grade, term) {
   const termMatch = (!enrollmentTerm && !courseTerm) || (enrollmentTerm === courseTerm);
   
   const isMatch = gradeMatch && subjectMatch && termMatch;
-  
-  // Debug logging for troubleshooting
-  if (isMatch) {
-    console.log(`✅ Enrollment match: ${courseSubject} (Grade ${courseGrade}, Term: ${courseTerm || 'N/A'})`);
+  if (!isMatch) return false;
+
+  if (lessonId) {
+    // Per-lesson check (used for browse-page card badges):
+    // Require an exact lessonId match on the enrollment record.
+    // A subject-level enrollment (enrollment.lessonId is null/undefined) does NOT
+    // grant enrolled status to a specific lesson — this prevents newly admin-created
+    // lessons from automatically appearing as purchased.
+    if (!enrollment.lessonId) return false;
+    return String(enrollment.lessonId) === String(lessonId);
   }
-  
-  return isMatch;
+
+  // Subject-level check (no lessonId requested) — any enrollment for this
+  // subject+grade+term grants access (used for subject page access control).
+  console.log(`✅ Enrollment match: ${courseSubject} (Grade ${courseGrade}, Term: ${courseTerm || 'N/A'})`);
+  return true;
 }
 

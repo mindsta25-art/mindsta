@@ -7,7 +7,7 @@ interface CartContextType {
   cart: Cart | null;
   cartCount: number;
   loading: boolean;
-  addToCart: (item: { subject: string; grade: string; term?: string; price?: number }) => Promise<void>;
+  addToCart: (item: { subject: string; grade: string; term?: string; price?: number; lessonId?: string }) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
@@ -60,7 +60,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     }
   }, [user, refreshCart]);
 
-  const addToCart = async (item: { subject: string; grade: string; term?: string; price?: number }) => {
+  const addToCart = async (item: { subject: string; grade: string; term?: string; price?: number; lessonId?: string }) => {
     if (!user) {
       toast({
         title: 'Please log in',

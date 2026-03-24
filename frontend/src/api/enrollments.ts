@@ -14,6 +14,7 @@ export interface Enrollment {
   purchasePrice: number;
   purchasedAt: string;
   isActive: boolean;
+  lessonId?: string; // set for per-lesson purchases; null/absent for legacy subject-level enrollments
   createdAt: string;
   updatedAt: string;
 }

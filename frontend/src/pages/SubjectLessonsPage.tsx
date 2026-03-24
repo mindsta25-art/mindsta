@@ -786,6 +786,15 @@ const SubjectLessonsPage = () => {
     return filtered.length > 0 ? filtered : lessons;
   })();
 
+  // Duration to display in sidebar header — matches what sidebarLessons shows
+  const sidebarDuration = sidebarLessons.reduce((sum, l) => sum + (l.duration || 30), 0);
+
+  // Duration shown in stats / header — per selected lesson when navigating from a card,
+  // otherwise the full course total
+  const displayDuration = lessonIdParam && selectedLesson
+    ? (selectedLesson.duration || 30)
+    : totalDuration;
+
   return (
     <div className="min-h-screen bg-background">
       <StudentHeader studentName={studentName} />
@@ -956,7 +965,12 @@ const SubjectLessonsPage = () => {
                       <div className="flex flex-wrap gap-4 text-sm">
                         <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-900/80 px-4 py-2 rounded-lg">
                           <Clock className="w-4 h-4 text-purple-600" />
-                          <span className="font-medium">{Math.floor(totalDuration / 60)}h {totalDuration % 60}m total</span>
+                          <span className="font-medium">
+                            {displayDuration >= 60
+                              ? `${Math.floor(displayDuration / 60)}h ${displayDuration % 60}m`
+                              : `${displayDuration}m`}
+                            {lessonIdParam ? '' : ' total'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-900/80 px-4 py-2 rounded-lg">
                           <BookOpen className="w-4 h-4 text-blue-600" />
@@ -1082,9 +1096,9 @@ const SubjectLessonsPage = () => {
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
                           <div className="text-2xl font-bold text-blue-600">
-                            {totalDuration >= 60
-                              ? `${Math.floor(totalDuration / 60)}h${totalDuration % 60 > 0 ? ` ${totalDuration % 60}m` : ''}`
-                              : `${totalDuration}m`}
+                            {displayDuration >= 60
+                              ? `${Math.floor(displayDuration / 60)}h${displayDuration % 60 > 0 ? ` ${displayDuration % 60}m` : ''}`
+                              : `${displayDuration}m`}
                           </div>
                           <div className="text-sm text-muted-foreground">Video Time</div>
                         </div>
@@ -1553,7 +1567,7 @@ const SubjectLessonsPage = () => {
                   <div className="p-6">
                     <h3 className="font-bold text-lg mb-1">Lesson Content</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {quizzes.length} quizzes • {Math.floor(totalDuration / 60)}h {totalDuration % 60}m
+                      {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {quizzes.length} quizzes • {sidebarDuration >= 60 ? `${Math.floor(sidebarDuration / 60)}h ${sidebarDuration % 60}m` : `${sidebarDuration}m`}
                     </p>
                     <div className="space-y-4">
                       {/* Lessons Section */}
