@@ -158,6 +158,7 @@ const SubjectLessonsPage = () => {
   // Get term from URL query params
   const termParam = searchParams.get('term');
   const gradeParam = searchParams.get('grade') || grade;
+  const lessonIdParam = searchParams.get('lessonId');
   
   // Decode and use subject name directly - React Router already decodes URL params
   // So "Computer%20Science" becomes "Computer Science"
@@ -225,28 +226,31 @@ const SubjectLessonsPage = () => {
           completed: p.completed,
         })));
         
-        // Auto-select first lesson and pre-load its quiz so the Complete button is correctly gated
+        // Auto-select the lesson from URL param, or fall back to first lesson
         if (lessonsData.length > 0 && !selectedLesson) {
+          const targetLesson = lessonIdParam
+            ? (lessonsData.find(l => l.id === lessonIdParam) || lessonsData[0])
+            : lessonsData[0];
           setSelectedLesson({
-            id: lessonsData[0].id,
-            title: lessonsData[0].title,
-            description: lessonsData[0].description,
-            content: lessonsData[0].content || '',
-            duration: lessonsData[0].duration || 30,
-            videoUrl: lessonsData[0].videoUrl,
-            imageUrl: lessonsData[0].imageUrl,
+            id: targetLesson.id,
+            title: targetLesson.title,
+            description: targetLesson.description,
+            content: targetLesson.content || '',
+            duration: targetLesson.duration || 30,
+            videoUrl: targetLesson.videoUrl,
+            imageUrl: targetLesson.imageUrl,
           });
-          // Record first lesson access immediately (Udemy-style progress tracking)
-          if (user?.id && lessonsData[0].id) {
+          // Record lesson access immediately (Udemy-style progress tracking)
+          if (user?.id && targetLesson.id) {
             upsertProgress({
               userId: user.id,
-              lessonId: lessonsData[0].id,
+              lessonId: targetLesson.id,
               completed: false,
               lastAccessedAt: new Date(),
             }).catch(() => {});
           }
           try {
-            const firstLessonQuiz = await getQuizByLessonId(lessonsData[0].id);
+            const firstLessonQuiz = await getQuizByLessonId(targetLesson.id);
             if (firstLessonQuiz && firstLessonQuiz.questions && firstLessonQuiz.questions.length > 0) {
               setQuizTitle(firstLessonQuiz.title || "Lesson Quiz");
               const mapped = firstLessonQuiz.questions.map((q: any, idx: number) => ({

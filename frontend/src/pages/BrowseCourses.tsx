@@ -96,6 +96,8 @@ interface Course {
   topics: string[];     // lesson titles for topic-level search
   lessonIds: string[]; // lesson IDs for "continue where you left off"
   reviewCount: number; // number of reviews
+  lessonTitle?: string; // individual lesson title (when card represents one lesson)
+  lessonId?: string;    // specific lesson id for direct navigation
 }
 
 // Subject → category mapping
@@ -871,7 +873,7 @@ const BrowseCourses = () => {
 
       const allLessons = await Promise.all(lessonPromises);
 
-      // Process all results
+      // Process all results — push one card per individual lesson so each lesson is separately browseable
       allLessons.forEach(({ subject, term, lessons, quizCount, gradeValue }) => {
         if (lessons.length > 0) {
           subjectsSet.add(subject.name);
@@ -881,51 +883,44 @@ const BrowseCourses = () => {
             isEnrolledUtil(e, subject.name, gradeValue, term)
           );
           
-          const courseProgress = userProgress.filter(p => 
-            lessons.some(l => l.id === p.lessonId)
-          );
-          const completedCount = courseProgress.filter(p => p.completed).length;
-          const completionRate = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
-          
           const validDifficulty = subject.difficulty && 
             ['beginner', 'intermediate', 'advanced', 'easy', 'medium', 'hard', 'Beginner', 'Intermediate', 'Advanced'].includes(subject.difficulty)
             ? subject.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'easy' | 'medium' | 'hard' | 'Beginner' | 'Intermediate' | 'Advanced'
             : 'beginner' as const;
-          
-          // Calculate total duration from all lessons in minutes
-          let totalDuration = 0;
-          for (const lesson of lessons) {
-            totalDuration += (lesson.duration || 30);
-          }
-          
-          // Format duration: show hours if ≥ 60 min, otherwise show minutes
-          const durationDisplay = totalDuration >= 60
-            ? `${Math.ceil(totalDuration / 60)}h`
-            : `${totalDuration}m`;
-          
-          // Use the first lesson's description if available, else empty
-          const description = lessons[0]?.description?.trim() || '';
-          
-          newCourses.push({
-            id: `${grade}-${term}-${subject.name}`,
-            subject: subject.name,
-            grade: grade,
-            term: term,
-            lessonCount: lessons.length,
-            quizCount,
-            description,
-            difficulty: validDifficulty,
-            estimatedHours: Math.ceil(totalDuration / 60), // Convert minutes to hours
-            durationDisplay,
-            completionRate,
-            enrolled,
-            price: subject.price || 0,
-            rating: subject.rating || 0,
-            studentCount: enrollmentCountsRef.current[`${subject.name}|${gradeValue}|${term}`] || 0,
-            imageUrl: lessons[0]?.imageUrl || undefined,
-            topics: lessons.map(l => l.title),
-            lessonIds: lessons.map(l => l.id),
-            reviewCount: 0,
+
+          const studentCount = enrollmentCountsRef.current[`${subject.name}|${gradeValue}|${term}`] || 0;
+
+          // Push one card per individual lesson so each lesson appears as a separate entry
+          lessons.forEach(lesson => {
+            const lessonDuration = lesson.duration || 30;
+            const durationDisplay = lessonDuration >= 60
+              ? `${Math.ceil(lessonDuration / 60)}h`
+              : `${lessonDuration}m`;
+            const lessonCompleted = userProgress.some(p => p.lessonId === lesson.id && p.completed);
+
+            newCourses.push({
+              id: lesson.id,
+              subject: subject.name,
+              grade: grade,
+              term: term,
+              lessonTitle: lesson.title,
+              lessonId: lesson.id,
+              lessonCount: 1,
+              quizCount: 0,
+              description: lesson.description?.trim() || '',
+              difficulty: validDifficulty,
+              estimatedHours: Math.ceil(lessonDuration / 60),
+              durationDisplay,
+              completionRate: lessonCompleted ? 100 : 0,
+              enrolled,
+              price: subject.price || 0,
+              rating: subject.rating || 0,
+              studentCount,
+              imageUrl: lesson.imageUrl || undefined,
+              topics: [lesson.title],
+              lessonIds: [lesson.id],
+              reviewCount: 0,
+            });
           });
         }
       });
@@ -1065,8 +1060,12 @@ const BrowseCourses = () => {
 
   const handleViewCourse = (course: Course) => {
     if (course.enrolled) {
-      // Navigate to course lessons if already purchased
-      navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+      // Navigate to course lessons if already purchased, pre-selecting the specific lesson
+      const params = new URLSearchParams();
+      if (course.term) params.set('term', course.term);
+      if (course.lessonId) params.set('lessonId', course.lessonId);
+      const qs = params.toString();
+      navigate(`/subjects/${course.grade}/${course.subject}${qs ? `?${qs}` : ''}`);
     } else {
       // Add to cart if not purchased
       handleAddToCart(course);
@@ -1347,7 +1346,7 @@ const BrowseCourses = () => {
                       <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-0.5">
                         ▶ Continue where you left off
                       </p>
-                      <p className="font-bold text-foreground truncate text-lg leading-tight">{lastCourse.subject}</p>
+                      <p className="font-bold text-foreground truncate text-lg leading-tight">{lastCourse.lessonTitle || lastCourse.subject}</p>
                       {lastLesson && (
                         <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300 truncate max-w-xs">
                           Next: {lastLesson}
@@ -1364,7 +1363,12 @@ const BrowseCourses = () => {
                     </div>
                   </div>
                   <Button
-                    onClick={() => navigate(`/subjects/${lastCourse.grade}/${lastCourse.subject}${lastCourse.term ? `?term=${encodeURIComponent(lastCourse.term)}` : ''}`)}
+                    onClick={() => {
+                      const p = new URLSearchParams();
+                      if (lastCourse.term) p.set('term', lastCourse.term);
+                      if (lastCourse.lessonId) p.set('lessonId', lastCourse.lessonId);
+                      navigate(`/subjects/${lastCourse.grade}/${lastCourse.subject}${p.toString() ? `?${p}` : ''}`);
+                    }}
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white flex-shrink-0 shadow-lg"
                     size="lg"
                   >
@@ -1482,7 +1486,7 @@ const BrowseCourses = () => {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
                                   <h4 className="font-semibold text-sm group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">
-                                    {course.subject}
+                                    {course.lessonTitle || course.subject}
                                   </h4>
                                   {course.enrolled && (
                                     <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs flex-shrink-0">
@@ -2200,8 +2204,8 @@ const BrowseCourses = () => {
                               )}
                             </div>
                             <CardContent className="p-2.5">
-                              <p className="font-semibold text-xs truncate group-hover:text-purple-600 transition-colors">{course.subject}</p>
-                              <p className="text-xs text-muted-foreground">{course.term}</p>
+                              <p className="font-semibold text-xs truncate group-hover:text-purple-600 transition-colors">{course.lessonTitle || course.subject}</p>
+                              <p className="text-xs text-muted-foreground">{course.lessonTitle ? `${course.subject} · ` : ''}{course.term}</p>
                               <div className="flex items-center justify-between mt-1">
                                 <p className="text-sm font-bold text-purple-600">{formatCurrency(course.price)}</p>
                                 <div className="flex items-center gap-0.5">
@@ -2292,10 +2296,10 @@ const BrowseCourses = () => {
                   {/* Info */}
                   <div className="p-2.5">
                     <h4 className="font-bold text-[13px] leading-tight line-clamp-2 text-foreground mb-1">
-                      {course.subject}
+                      {course.lessonTitle || course.subject}
                     </h4>
                     <p className="text-[11px] text-muted-foreground mb-1.5">
-                      {course.grade === 'Common Entrance' ? 'CE' : `Gr.${course.grade}`} · {course.term.replace(' Term', '')}
+                      {course.lessonTitle ? `${course.subject} · ` : ''}{course.grade === 'Common Entrance' ? 'CE' : `Gr.${course.grade}`} · {course.term.replace(' Term', '')}
                     </p>
                     {/* Rating */}
                     <div className="flex items-center gap-1 mb-2">
@@ -2442,9 +2446,12 @@ const BrowseCourses = () => {
                   <CardHeader className="pb-3 pt-5">
                     <div className="cursor-pointer" onClick={() => handleViewCourse(course)}>
                       <CardTitle className="text-xl font-bold group-hover:text-purple-600 transition-colors line-clamp-2 mb-3">
-                        {course.subject}
+                        {course.lessonTitle || course.subject}
                       </CardTitle>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 flex-wrap">
+                        {course.lessonTitle && (
+                          <><span className="font-medium text-foreground/70">{course.subject}</span><span>•</span></>
+                        )}
                         <div className="flex items-center gap-1">
                           <GraduationCap className="w-4 h-4 text-purple-600" />
                           <span className="font-medium">
@@ -2730,9 +2737,9 @@ const BrowseCourses = () => {
                         <BookOpen className="w-8 h-8 text-white" />
                       </div>
                       <CardContent className="p-3">
-                        <p className="font-semibold text-sm truncate group-hover:text-purple-600 transition-colors">{course.subject}</p>
+                        <p className="font-semibold text-sm truncate group-hover:text-purple-600 transition-colors">{course.lessonTitle || course.subject}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {course.grade === "Common Entrance" ? "CE" : `Gr. ${course.grade}`} &bull; {course.term}
+                          {course.lessonTitle ? `${course.subject} · ` : ''}{course.grade === "Common Entrance" ? "CE" : `Gr. ${course.grade}`} &bull; {course.term}
                         </p>
                         {course.enrolled
                           ? <p className="text-xs text-green-600 font-medium mt-0.5">✓ Purchased</p>
@@ -2785,7 +2792,7 @@ const BrowseCourses = () => {
                       </div>
                     </div>
                     <CardContent className="p-4">
-                      <h3 className="font-bold text-lg mb-2 line-clamp-1">{course.subject}</h3>
+                      <h3 className="font-bold text-lg mb-2 line-clamp-1">{course.lessonTitle || course.subject}</h3>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         <Users className="w-4 h-4" />
                         <span>{course.studentCount}+ students enrolled</span>
@@ -2797,7 +2804,7 @@ const BrowseCourses = () => {
                           className={course.enrolled ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold" : ""}
                           onClick={() => {
                             if (course.enrolled) {
-                              navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+                              handleViewCourse(course);
                             } else if (!isInCart(course.subject, course.grade, course.term)) {
                               handleAddToCart(course);
                             } else {
@@ -2965,7 +2972,7 @@ const BrowseCourses = () => {
                         <CardContent className="p-4 flex flex-col gap-3">
                           <div>
                             <h3 className={`font-bold text-base mb-0.5 line-clamp-1 transition-colors ${style.accentText}`}>
-                              {course.subject}
+                              {course.lessonTitle || course.subject}
                             </h3>
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span>{course.grade === 'Common Entrance' ? 'Common Entrance' : `Grade ${course.grade}`}</span>
@@ -3206,7 +3213,7 @@ const BrowseCourses = () => {
                                 {/* Card body */}
                                 <div className="p-3">
                                   <h4 className="font-semibold text-sm leading-snug line-clamp-2 text-foreground group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors mb-1">
-                                    {course.subject}
+                                    {course.lessonTitle || course.subject}
                                   </h4>
                                   <p className="text-[11px] text-muted-foreground mb-2">
                                     {course.grade === 'Common Entrance' ? 'Common Entrance' : `Grade ${course.grade}`}

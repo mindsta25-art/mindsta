@@ -448,7 +448,10 @@ const MyLearning = () => {
                   key={index}
                   className="group hover:shadow-lg transition-all cursor-pointer overflow-hidden"
                   onClick={() => {
-                    navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+                    const p = new URLSearchParams();
+                    if (course.term) p.set('term', course.term);
+                    if (course.nextLesson?.id) p.set('lessonId', course.nextLesson.id);
+                    navigate(`/subjects/${course.grade}/${course.subject}${p.toString() ? `?${p}` : ''}`);
                   }}
                 >
                   {/* Course Thumbnail */}
@@ -567,7 +570,10 @@ const MyLearning = () => {
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
+                        const p = new URLSearchParams();
+                        if (course.term) p.set('term', course.term);
+                        if (course.nextLesson?.id) p.set('lessonId', course.nextLesson.id);
+                        navigate(`/subjects/${course.grade}/${course.subject}${p.toString() ? `?${p}` : ''}`);
                       }}
                       className={`w-full gap-2 ${
                         course.progress === 100
