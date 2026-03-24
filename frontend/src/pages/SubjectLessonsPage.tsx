@@ -779,6 +779,13 @@ const SubjectLessonsPage = () => {
   const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
   const totalDuration = lessons.reduce((sum, l) => sum + (l.duration || 30), 0);
 
+  // When navigated from a specific lesson card (lessonId in URL), only show that lesson in the sidebar
+  const sidebarLessons = (() => {
+    if (!lessonIdParam) return lessons;
+    const filtered = lessons.filter(l => l.id === lessonIdParam);
+    return filtered.length > 0 ? filtered : lessons;
+  })();
+
   return (
     <div className="min-h-screen bg-background">
       <StudentHeader studentName={studentName} />
@@ -1546,18 +1553,18 @@ const SubjectLessonsPage = () => {
                   <div className="p-6">
                     <h3 className="font-bold text-lg mb-1">Lesson Content</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {lessons.length} lessons • {quizzes.length} quizzes • {Math.floor(totalDuration / 60)}h {totalDuration % 60}m
+                      {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {quizzes.length} quizzes • {Math.floor(totalDuration / 60)}h {totalDuration % 60}m
                     </p>
                     <div className="space-y-4">
                       {/* Lessons Section */}
-                      {lessons.length > 0 && (
+                      {sidebarLessons.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
                             <BookOpen className="w-4 h-4" />
-                            Lessons ({lessons.length})
+                            Lessons ({sidebarLessons.length})
                           </h4>
                           <div className="space-y-2">
-                            {lessons.map((lesson, index) => {
+                            {sidebarLessons.map((lesson, index) => {
                               const completed = isLessonCompleted(lesson.id);
                               return (
                                 <div

@@ -2396,12 +2396,12 @@ const BrowseCourses = () => {
                       )}
                     </div>
                     
-                    {/* Purchased Ribbon - Top Right Corner */}
+                    {/* Enrolled Ribbon - Top Right Corner */}
                     {course.enrolled && (
                       <div className="absolute top-0 right-0 z-20">
-                        <div className="bg-green-600 text-white px-5 py-2 shadow-lg flex items-center gap-2 font-bold text-sm rounded-bl-lg">
-                          <CheckCircle className="w-4 h-4" />
-                          PURCHASED
+                        <div className="bg-green-600 text-white px-4 py-1.5 shadow-lg flex items-center gap-1.5 font-semibold text-xs rounded-bl-lg">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          ENROLLED
                         </div>
                       </div>
                     )}
@@ -2533,7 +2533,7 @@ const BrowseCourses = () => {
                         {course.enrolled ? (
                           <p className="text-sm font-semibold text-green-600 flex items-center gap-1">
                             <CheckCircle className="w-4 h-4" />
-                            Purchased
+                            Course Enrolled
                           </p>
                         ) : (
                           <p className="text-2xl font-bold text-purple-600">{formatCurrency(course.price)}</p>
