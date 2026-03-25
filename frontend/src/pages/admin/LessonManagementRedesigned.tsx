@@ -100,13 +100,13 @@ const LessonManagementRedesigned = () => {
 
   const calculateStats = () => {
     const total = lessons.length;
-    const published = lessons.filter(l => (l as any).status !== 'draft').length;
-    const draft = lessons.filter(l => (l as any).status === 'draft').length;
+    const withVideo = lessons.filter(l => l.videoUrl?.trim()).length;
+    const noVideo = total - withVideo;
     const avgDuration = lessons.length > 0 
       ? Math.round(lessons.reduce((sum, l) => sum + (l.duration || 0), 0) / lessons.length)
       : 0;
 
-    setStats({ total, published, draft, avgDuration });
+    setStats({ total, published: withVideo, draft: noVideo, avgDuration });
   };
 
   const applyFiltersAndSort = () => {
@@ -234,7 +234,7 @@ const LessonManagementRedesigned = () => {
               Create, edit, and manage your educational content
             </p>
           </div>
-          <Button onClick={() => navigate('/admin/content?create=lesson')} size="lg" className="gap-2">
+          <Button onClick={() => navigate('/admin/create-lesson')} size="sm" className="gap-2">
             <Plus className="w-5 h-5" />
             Create New Lesson
           </Button>
@@ -257,26 +257,26 @@ const LessonManagementRedesigned = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Published</CardTitle>
+              <CardTitle className="text-sm font-medium">With Video</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.published}</div>
               <p className="text-xs text-muted-foreground">
-                {stats.total > 0 ? Math.round((stats.published / stats.total) * 100) : 0}% of total lessons
+                {stats.total > 0 ? Math.round((stats.published / stats.total) * 100) : 0}% have video content
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Drafts</CardTitle>
+              <CardTitle className="text-sm font-medium">No Video</CardTitle>
               <Edit className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.draft}</div>
               <p className="text-xs text-muted-foreground">
-                Pending publication
+                Text/image only
               </p>
             </CardContent>
           </Card>
@@ -449,7 +449,7 @@ const LessonManagementRedesigned = () => {
                   ? "Try adjusting your filters"
                   : "Get started by creating your first lesson"}
               </p>
-              <Button onClick={() => navigate('/admin/content?create=lesson')}>
+              <Button onClick={() => navigate('/admin/create-lesson')}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Lesson
               </Button>
@@ -482,9 +482,9 @@ const LessonManagementRedesigned = () => {
                         <Badge className={getDifficultyColor(lesson.difficulty || '')}>
                           {lesson.difficulty || 'N/A'}
                         </Badge>
-                        {(lesson as any).status === 'draft' && (
-                          <Badge variant="outline" className="border-yellow-500 text-yellow-600">
-                            Draft
+                        {lesson.videoUrl?.trim() && (
+                          <Badge variant="outline" className="border-green-500 text-green-600">
+                            Video
                           </Badge>
                         )}
                       </div>
@@ -517,7 +517,7 @@ const LessonManagementRedesigned = () => {
                           variant="outline" 
                           size="sm" 
                           className="flex-1"
-                          onClick={() => navigate(`/admin/content?edit=${lesson.id}`)}
+                          onClick={() => navigate(`/admin/create-lesson?edit=${lesson.id}`)}
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
@@ -580,13 +580,13 @@ const LessonManagementRedesigned = () => {
                           </td>
                           <td className="px-4 py-3 text-sm">{lesson.duration || 30} min</td>
                           <td className="px-4 py-3">
-                            {(lesson as any).status === 'draft' ? (
-                              <Badge variant="outline" className="border-yellow-500 text-yellow-600">
-                                Draft
+                            {lesson.videoUrl?.trim() ? (
+                              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                Has Video
                               </Badge>
                             ) : (
-                              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                                Published
+                              <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                                No Video
                               </Badge>
                             )}
                           </td>
@@ -595,7 +595,7 @@ const LessonManagementRedesigned = () => {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => navigate(`/admin/content?edit=${lesson.id}`)}
+                                onClick={() => navigate(`/admin/create-lesson?edit=${lesson.id}`)}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>

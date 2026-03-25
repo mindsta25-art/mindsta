@@ -117,13 +117,16 @@ const QuestionManagement = () => {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Question Management</h1>
-        <p className="text-muted-foreground">
-          Manage and respond to student questions across all courses
-        </p>
-      </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Question Management</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage and respond to student questions across all courses
+            </p>
+          </div>
+        </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

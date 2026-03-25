@@ -528,11 +528,23 @@ const FinancialReport = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Financial Report</h1>
-          <p className="text-muted-foreground mt-2">
-            Comprehensive overview of all transactions and payouts
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Financial Report</h1>
+            <p className="text-muted-foreground mt-1">
+              Comprehensive overview of all transactions and payouts
+            </p>
+          </div>
+          <div className="flex gap-2 self-start sm:self-auto">
+            <Button size="sm" variant="outline" onClick={fetchFinancialData} className="gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Refresh
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleExport('csv')} className="gap-2">
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
         {/* Summary Cards */}

@@ -193,13 +193,16 @@ const ReferralSettings = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background">
       <ReferralHeader />
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Referral Settings</h1>
-        <Button variant="outline" onClick={() => navigate('/referral/dashboard')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-        </Button>
-      </div>
+      <div className="max-w-5xl mx-auto px-6 pb-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Referral Settings</h1>
+            <p className="text-muted-foreground mt-1">Manage your bank details and referral preferences</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => navigate('/referral/dashboard')} className="gap-2 self-start sm:self-auto">
+            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+          </Button>
+        </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">

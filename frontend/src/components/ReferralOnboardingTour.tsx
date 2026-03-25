@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -155,7 +155,8 @@ export const ReferralOnboardingTour = ({ onComplete }: ReferralOnboardingTourPro
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleComplete(); }}>
-      <DialogContent className="sm:max-w-[520px] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+      <DialogContent className="sm:max-w-[520px] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl" aria-describedby={undefined}>
+        <DialogTitle className="sr-only">Referral Program Tour</DialogTitle>
         {/* Hero gradient section */}
         <div className={`bg-gradient-to-br ${step.gradient} px-8 pt-8 pb-6 text-white relative`}>
           <Button

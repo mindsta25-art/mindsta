@@ -393,7 +393,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   
                   // Special handling for Content Management with dropdown
                   if (item.path === "/admin/content") {
-                    const isContentActive = isActive(item.path);
+                    const isContentActive = isActive(item.path) ||
+                      location.pathname === '/admin/create-lesson' ||
+                      location.pathname === '/admin/create-quiz';
                     
                     return (
                       <div key={item.path}>
@@ -431,10 +433,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                           {!sidebarCollapsed && contentMenuExpanded && (
                             <div className="ml-8 mt-1 space-y-1">
                               <Link
-                                to="/admin/content?create=lesson"
+                                to="/admin/create-lesson"
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                                  location.search.includes('create=lesson')
+                                  location.pathname === '/admin/create-lesson'
                                     ? 'bg-primary/10 text-primary'
                                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                 }`}
@@ -443,10 +445,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                                 <span>Create Lesson</span>
                               </Link>
                               <Link
-                                to="/admin/content?create=quiz"
+                                to="/admin/create-quiz"
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                                  location.search.includes('create=quiz')
+                                  location.pathname === '/admin/create-quiz'
                                     ? 'bg-primary/10 text-primary'
                                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                 }`}

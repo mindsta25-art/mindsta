@@ -320,7 +320,7 @@ const Settings = () => {
 
           {/* Tabs */}
           <Tabs defaultValue="security" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 bg-white dark:bg-gray-800 p-1 border-2 border-indigo-100 dark:border-indigo-900">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-white dark:bg-gray-800 p-1 border-2 border-indigo-100 dark:border-indigo-900">
               <TabsTrigger value="security" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">Security</TabsTrigger>
               <TabsTrigger value="notifications" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white">Notifications</TabsTrigger>
               <TabsTrigger value="privacy" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-blue-600 data-[state=active]:text-white">Privacy</TabsTrigger>

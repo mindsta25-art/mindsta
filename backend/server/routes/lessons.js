@@ -1,5 +1,5 @@
 import express from 'express';
-import { Lesson, UserProgress } from '../models/index.js';
+import { Lesson, UserProgress, Enrollment } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -289,7 +289,11 @@ router.delete('/:id', async (req, res) => {
     
     // Delete all user progress records for this lesson
     const progressDeleteResult = await UserProgress.deleteMany({ lessonId });
-    
+
+    // Delete per-lesson enrollment records for this lesson so students no
+    // longer see a ghost card for content that no longer exists
+    await Enrollment.deleteMany({ lessonId });
+
     // Delete the lesson itself
     const lesson = await Lesson.findByIdAndDelete(lessonId);
     

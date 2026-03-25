@@ -10,8 +10,8 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { getAllLessons, type Lesson } from "@/api/lessons";
-import { createQuiz, type QuizQuestion } from "@/api/quizzes";
-import { ArrowLeft, X } from "lucide-react";
+import { createQuiz, getQuizByLessonId, type QuizQuestion } from "@/api/quizzes";
+import { ArrowLeft, AlertTriangle, X } from "lucide-react";
 
 const createBlankQuestion = (): QuizQuestion => ({
   question: "",
@@ -41,6 +41,8 @@ const CreateQuiz = () => {
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([createBlankQuestion()]);
   const [currentQ, setCurrentQ] = useState(0);
+  const [existingQuizId, setExistingQuizId] = useState<string | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
   useEffect(() => {
     getAllLessons()
@@ -48,6 +50,19 @@ const CreateQuiz = () => {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  // Check if the selected lesson already has a quiz
+  useEffect(() => {
+    if (!form.lessonId) {
+      setExistingQuizId(null);
+      return;
+    }
+    setCheckingExisting(true);
+    getQuizByLessonId(form.lessonId)
+      .then(quiz => setExistingQuizId(quiz ? quiz.id : null))
+      .catch(() => setExistingQuizId(null))
+      .finally(() => setCheckingExisting(false));
+  }, [form.lessonId]);
 
   const isComplete = (q: QuizQuestion) =>
     q.question.trim() &&
@@ -144,7 +159,7 @@ const CreateQuiz = () => {
               <h1 className="text-3xl font-bold">Create Quiz</h1>
               <p className="text-muted-foreground mt-1">Create a quiz for an existing lesson</p>
             </div>
-            <Button variant="outline" onClick={() => navigate("/admin/content")} className="gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate("/admin/content")} className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               Back to Content
             </Button>
@@ -224,6 +239,16 @@ const CreateQuiz = () => {
                       )}
                     </SelectContent>
                   </Select>
+                  {checkingExisting && <p className="text-xs text-muted-foreground">Checking for existing quiz…</p>}
+                  {existingQuizId && (
+                    <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 flex items-start gap-2 mt-1">
+                      <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-yellow-800">This lesson already has a quiz.</p>
+                        <p className="text-xs text-yellow-700 mt-0.5">Each lesson can only have one quiz. Go to Content Management to edit the existing quiz.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="quizTitle">Quiz Title *</Label>
@@ -376,7 +401,7 @@ const CreateQuiz = () => {
                 <Button variant="outline" onClick={() => navigate("/admin/content")}>Cancel</Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || !allTenComplete || !form.lessonId || !form.title || !form.description}
+                  disabled={isSubmitting || !allTenComplete || !form.lessonId || !form.title || !form.description || !!existingQuizId}
                 >
                   {isSubmitting ? "Creating..." : "Create Quiz"}
                 </Button>

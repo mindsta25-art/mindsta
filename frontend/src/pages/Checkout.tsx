@@ -13,6 +13,7 @@ import { BookOpen, Star, Users, Clock } from "lucide-react";
 import { getStudentByUserId, initializePayment } from "@/api";
 import { getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/config/siteConfig";
 
 interface EnrichedCartItem {
   _id: string;
@@ -147,7 +148,7 @@ const Checkout = () => {
                             </div>
                           </div>
                           <div className="font-bold text-base text-purple-600">
-                            ₦{item.price.toLocaleString()}
+                            {formatCurrency(item.price)}
                           </div>
                         </div>
                       ))}
@@ -164,12 +165,12 @@ const Checkout = () => {
                     <div className="space-y-4 mb-6">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Original Price:</span>
-                        <span className="font-semibold">₦{calculatedTotal.toLocaleString()}</span>
+                        <span className="font-semibold">{formatCurrency(calculatedTotal)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between">
                         <span className="text-lg font-bold">Total:</span>
-                        <span className="text-2xl font-bold text-purple-600">₦{calculatedTotal.toLocaleString()}</span>
+                        <span className="text-2xl font-bold text-purple-600">{formatCurrency(calculatedTotal)}</span>
                       </div>
                     </div>
 
@@ -180,7 +181,13 @@ const Checkout = () => {
                         try {
                           const total = calculatedTotal;
                           if (total <= 0 || enrichedItems.length === 0) {
-                            console.error('Invalid state: total=', total, 'items=', enrichedItems.length);
+                            toast({
+                              title: 'Cannot process checkout',
+                              description: total <= 0
+                                ? 'Course prices could not be loaded. Please refresh and try again.'
+                                : 'Your cart appears to be empty.',
+                              variant: 'destructive',
+                            });
                             return;
                           }
                           

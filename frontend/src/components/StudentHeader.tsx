@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -179,8 +181,10 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   };
 
   const handleSuggestionClick = (lesson: Lesson) => {
-    const termSlug = lesson.term ? lesson.term.toLowerCase().replace(/\s+/g, '-') : '';
-    navigate(`/subjects/${lesson.grade}/${encodeURIComponent(lesson.subject)}${termSlug ? `?term=${termSlug}` : ''}`);
+    const p = new URLSearchParams();
+    if (lesson.term) p.set('term', lesson.term);
+    if (lesson.id) p.set('lessonId', lesson.id);
+    navigate(`/subjects/${lesson.grade}/${encodeURIComponent(lesson.subject)}${p.toString() ? `?${p}` : ''}`);
     setSearchQuery('');
     setShowSuggestions(false);
   };
@@ -315,7 +319,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 onClick={() => navigate("/browse")}
                 className={`font-medium transition-colors ${location.pathname === '/browse' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
               >
-                Browse Courses
+                Browse lessonss
               </Button>
               <Button
                 variant="ghost"
@@ -654,10 +658,10 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               variant="ghost"
               size="icon"
               className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle menu"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              <Menu className="w-6 h-6" />
             </Button>
           </div>
         </div>
@@ -675,122 +679,130 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             />
           </form>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border animate-in slide-in-from-top-3 duration-200 overflow-y-auto max-h-[calc(100vh-4rem)]">
-            {/* User Profile Card */}
-            <div className="px-4 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40">
-              <div className="flex items-center gap-3 mb-3">
-                <Avatar className="h-10 w-10 ring-2 ring-indigo-400">
-                  <AvatarFallback className="bg-indigo-600 text-white font-bold text-sm">
-                    {displayName.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">{displayName}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400 mb-1.5 block">Current Grade</label>
-                <Select value={currentGrade} onValueChange={handleGradeChange} disabled={updatingGrade}>
-                  <SelectTrigger className="w-full h-9 bg-white dark:bg-card border-indigo-200 dark:border-indigo-800 text-sm">
-                    <SelectValue placeholder="Select grade..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Grade 1</SelectItem>
-                    <SelectItem value="2">Grade 2</SelectItem>
-                    <SelectItem value="3">Grade 3</SelectItem>
-                    <SelectItem value="4">Grade 4</SelectItem>
-                    <SelectItem value="5">Grade 5</SelectItem>
-                    <SelectItem value="6">Grade 6</SelectItem>
-                    <SelectItem value="Common Entrance">Common Entrance</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Navigation Sections */}
-            <div className="py-2 px-2 space-y-1">
-              {/* ── Learning ── */}
-              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Learning</p>
-              {[
-                { label: "Dashboard",     icon: Home,      path: "/dashboard" },
-                { label: "Browse Courses",icon: BookOpen,  path: "/browse" },
-                { label: "My Learning",   icon: BookOpen,  path: "/my-learning" },
-              ].map(({ label, icon: Icon, path }) => (
-                <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
-                  className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
-                  <Icon className="w-4 h-4 mr-3 text-indigo-500" />
-                  {label}
-                </Button>
-              ))}
-
-              <div className="flex items-center gap-2 w-full">
-                <Button variant="ghost" onClick={() => { navigate("/wishlist"); setMobileMenuOpen(false); }}
-                  className="flex-1 justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
-                  <Heart className="w-4 h-4 mr-3 text-rose-500" />
-                  Wishlist
-                  {wishlistCount > 0 && (
-                    <Badge variant="secondary" className={`ml-auto text-xs transition-transform duration-200 ${wishBump ? 'scale-110' : 'scale-100'}`}>{wishlistCount}</Badge>
-                  )}
-                </Button>
-                <Button variant="ghost" onClick={() => { navigate("/cart"); setMobileMenuOpen(false); }}
-                  className="flex-1 justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
-                  <ShoppingCart className="w-4 h-4 mr-3 text-orange-500" />
-                  Cart
-                  {cartCount > 0 && (
-                    <Badge variant="secondary" className={`ml-auto text-xs transition-transform duration-200 ${cartBump ? 'scale-110' : 'scale-100'}`}>{cartCount}</Badge>
-                  )}
-                </Button>
-              </div>
-
-              {/* ── Progress & Rewards ── */}
-              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Progress &amp; Rewards</p>
-              {[
-                { label: "Leaderboard",        icon: Trophy,    path: "/leaderboard",               iconClass: "text-yellow-500" },
-                { label: "Progress Milestones", icon: TrendingUp,path: "/progress",                  iconClass: "text-teal-500" },
-                { label: "Achievements",        icon: Award,     path: "/progress?tab=achievements", iconClass: "text-indigo-500" },
-              ].map(({ label, icon: Icon, path, iconClass }) => (
-                <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
-                  className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
-                  <Icon className={`w-4 h-4 mr-3 ${iconClass}`} />
-                  {label}
-                </Button>
-              ))}
-
-              {/* ── Account ── */}
-              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Account</p>
-              <Button variant="ghost" onClick={() => { navigate("/profile"); setMobileMenuOpen(false); }}
-                className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
-                <User className="w-4 h-4 mr-3 text-gray-500" />
-                Profile
-              </Button>
-              <Button variant="ghost" onClick={() => { navigate("/settings"); setMobileMenuOpen(false); }}
-                className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
-                <Settings className="w-4 h-4 mr-3 text-gray-500" />
-                Settings
-              </Button>
-              <Button variant="ghost" onClick={toggleTheme}
-                className="w-full justify-start text-sm h-10 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30">
-                {theme === 'dark'
-                  ? <><Sun className="w-4 h-4 mr-3 text-yellow-400" /> Light Mode</>
-                  : <><Moon className="w-4 h-4 mr-3 text-indigo-400" /> Dark Mode</>}
-              </Button>
-
-              <div className="pt-2 pb-2">
-                <Button variant="ghost" onClick={() => { setShowLogoutDialog(true); setMobileMenuOpen(false); }}
-                  className="w-full justify-start text-sm h-10 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-700">
-                  <LogOut className="w-4 h-4 mr-3" />
-                  Log Out
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </header>
+
+    {/* Mobile Navigation Sheet — slides in from right */}
+    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+      <SheetContent side="right" className="w-[300px] sm:w-[340px] p-0 flex flex-col">
+        {/* Sheet Header — user info + grade */}
+        <div className="px-4 py-5 bg-gradient-to-br from-indigo-600 to-purple-700 flex-shrink-0">
+          <div className="flex items-center gap-3 mb-4">
+            <Avatar className="h-12 w-12 ring-2 ring-white/40">
+              <AvatarFallback className="bg-white/20 text-white font-bold text-sm">
+                {getInitials(displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-white truncate">{displayName}</p>
+              <p className="text-xs text-indigo-200 truncate">{user?.email}</p>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-indigo-200 mb-1.5 block">Current Grade</label>
+            <Select value={currentGrade} onValueChange={handleGradeChange} disabled={updatingGrade}>
+              <SelectTrigger className="w-full h-9 bg-white/15 border-white/30 text-white text-sm placeholder:text-white/60">
+                <SelectValue placeholder="Select grade..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Grade 1</SelectItem>
+                <SelectItem value="2">Grade 2</SelectItem>
+                <SelectItem value="3">Grade 3</SelectItem>
+                <SelectItem value="4">Grade 4</SelectItem>
+                <SelectItem value="5">Grade 5</SelectItem>
+                <SelectItem value="6">Grade 6</SelectItem>
+                <SelectItem value="Common Entrance">Common Entrance</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Scrollable Nav Items */}
+        <ScrollArea className="flex-1">
+          <div className="py-2 px-3 space-y-0.5">
+            {/* ── Learning ── */}
+            <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Learning</p>
+            {[
+              { label: "Dashboard",      icon: Home,       path: "/dashboard",   active: location.pathname === "/dashboard" },
+              { label: "Browse lessonss", icon: BookOpen,   path: "/browse",      active: location.pathname === "/browse" },
+              { label: "My Learning",    icon: GraduationCap, path: "/my-learning", active: location.pathname === "/my-learning" },
+            ].map(({ label, icon: Icon, path, active }) => (
+              <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
+                className={`w-full justify-start text-sm h-11 rounded-lg font-medium ${active ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-muted'}`}>
+                <Icon className={`w-4 h-4 mr-3 ${active ? 'text-indigo-500' : 'text-muted-foreground'}`} />
+                {label}
+                {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+              </Button>
+            ))}
+
+            {/* Wishlist + Cart row */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button variant="ghost" onClick={() => { navigate("/wishlist"); setMobileMenuOpen(false); }}
+                className="justify-start text-sm h-11 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20">
+                <Heart className="w-4 h-4 mr-2 text-rose-500" />
+                Wishlist
+                {wishlistCount > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">{wishlistCount}</Badge>
+                )}
+              </Button>
+              <Button variant="ghost" onClick={() => { navigate("/cart"); setMobileMenuOpen(false); }}
+                className="justify-start text-sm h-11 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/20">
+                <ShoppingCart className="w-4 h-4 mr-2 text-orange-500" />
+                Cart
+                {cartCount > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">{cartCount}</Badge>
+                )}
+              </Button>
+            </div>
+
+            {/* ── Progress & Rewards ── */}
+            <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Progress &amp; Rewards</p>
+            {[
+              { label: "Leaderboard",         icon: Trophy,     path: "/leaderboard",               iconClass: "text-yellow-500" },
+              { label: "Progress Milestones",  icon: TrendingUp, path: "/progress",                  iconClass: "text-teal-500" },
+              { label: "Achievements",         icon: Award,      path: "/progress?tab=achievements", iconClass: "text-indigo-500" },
+            ].map(({ label, icon: Icon, path, iconClass }) => (
+              <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
+                className="w-full justify-start text-sm h-11 rounded-lg font-medium hover:bg-muted">
+                <Icon className={`w-4 h-4 mr-3 ${iconClass}`} />
+                {label}
+              </Button>
+            ))}
+
+            {/* ── Account ── */}
+            <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Account</p>
+            <Button variant="ghost" onClick={() => { navigate("/profile"); setMobileMenuOpen(false); }}
+              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-muted">
+              <User className="w-4 h-4 mr-3 text-muted-foreground" />
+              Profile
+            </Button>
+            <Button variant="ghost" onClick={() => { navigate("/settings"); setMobileMenuOpen(false); }}
+              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-muted">
+              <Settings className="w-4 h-4 mr-3 text-muted-foreground" />
+              Settings
+            </Button>
+            <Button variant="ghost" onClick={toggleTheme}
+              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-muted">
+              {theme === 'dark'
+                ? <><Sun className="w-4 h-4 mr-3 text-yellow-400" />Light Mode</>
+                : <><Moon className="w-4 h-4 mr-3 text-indigo-400" />Dark Mode</>}
+            </Button>
+          </div>
+        </ScrollArea>
+
+        {/* Sticky Logout at Bottom */}
+        <div className="p-4 border-t border-border flex-shrink-0 bg-background">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-sm h-11 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-700 font-semibold"
+            onClick={() => { setShowLogoutDialog(true); setMobileMenuOpen(false); }}
+          >
+            <LogOut className="w-4 h-4 mr-3" />
+            Log Out
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
 
     {/* Logout Confirmation Dialog */}
     <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
@@ -815,7 +827,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    {/* Height sentinel: pushes page body below the fixed header on all screen sizes */}
+    {/* Height sentinel: pushes page body below the fixed header */}
     <div aria-hidden="true" className="h-[116px] md:h-16" />
     </TooltipProvider>
     </>

@@ -292,7 +292,7 @@ const BundleManagement = () => {
               Create and manage subject bundles for each grade
             </p>
           </div>
-          <Button onClick={() => handleOpenDialog()} className="gap-2">
+          <Button size="sm" onClick={() => handleOpenDialog()} className="gap-2">
             <Plus className="w-4 h-4" />
             Create Bundle
           </Button>

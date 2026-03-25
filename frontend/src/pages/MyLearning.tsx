@@ -108,19 +108,39 @@ const MyLearning = () => {
         setUserProgress(progress);
         setEnrollments(enrollmentsData);
 
-        // Filter lessons to only include enrolled courses
+        // Filter lessons to only include enrolled ones.
+        // Per-lesson enrollments (enrollment.lessonId is set) only grant access to that specific
+        // lesson; subject-level enrollments grant access to all lessons in the subject.
         const enrolledLessons = lessons.filter(lesson => {
-          return enrollmentsData.some(enrollment => 
-            isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term)
-          );
+          return enrollmentsData.some(enrollment => {
+            if (enrollment.lessonId) {
+              return isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term, lesson.id);
+            }
+            return isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term);
+          });
         });
 
-        // Group lessons by subject/grade/term to create "courses"
+        // Helper: determine the course map key for a lesson.
+        // Per-lesson enrollments get their own card (keyed by lessonId) so the student only
+        // sees the lessons they actually purchased, not every lesson in the subject.
+        const courseKeyForLesson = (lesson: { id: string; subject: string; grade: string; term?: string }) => {
+          const perLesson = enrollmentsData.find(e =>
+            e.lessonId && isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term, lesson.id)
+          );
+          return perLesson
+            ? `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}-${lesson.id}`
+            : `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
+        };
+
+        // Group lessons by subject/grade/term (or lessonId for per-lesson purchases) to create "courses"
         const courseMap = new Map<string, EnrolledCourse>();
         
-        // First, create entries for all enrollments (even if no lessons exist yet)
+        // First, create entries for all enrollments (even if no lessons exist yet).
+        // Per-lesson enrollments use a lessonId-suffixed key so they appear as separate cards.
         for (const enrollment of enrollmentsData) {
-          const key = `${enrollment.subject}-${enrollment.grade}-${enrollment.term || 'general'}`;
+          const key = enrollment.lessonId
+            ? `${enrollment.subject}-${enrollment.grade}-${enrollment.term || 'general'}-${enrollment.lessonId}`
+            : `${enrollment.subject}-${enrollment.grade}-${enrollment.term || 'general'}`;
           
           if (!courseMap.has(key)) {
             courseMap.set(key, {
@@ -143,7 +163,7 @@ const MyLearning = () => {
 
         // Then add lesson data to existing enrollments
         for (const lesson of enrolledLessons) {
-          const key = `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
+          const key = courseKeyForLesson(lesson);
 
           // Only process if this enrollment exists (it should, from the loop above)
           if (courseMap.has(key)) {
@@ -156,13 +176,10 @@ const MyLearning = () => {
                 course.lessonsCompleted += 1;
                 progressWeights.set(key, (progressWeights.get(key) || 0) + 1);
               } else {
+                course.lessonsInProgress += 1;
                 const watchPct = (lessonProgress.videoWatchPercent || 0) / 100;
-                const hasStarted = watchPct > 0 || (lessonProgress.videoPosition || 0) > 2;
-                if (hasStarted) {
-                  course.lessonsInProgress += 1;
-                  // Cap partial credit at 99% (only mark complete when fully complete)
-                  progressWeights.set(key, (progressWeights.get(key) || 0) + Math.min(watchPct, 0.99));
-                }
+                // Cap partial credit at 99% (only mark complete when fully complete)
+                progressWeights.set(key, (progressWeights.get(key) || 0) + Math.min(watchPct, 0.99));
               }
 
               // Track last accessed
@@ -207,7 +224,6 @@ const MyLearning = () => {
             : 0;
         });
 
-        // Show all enrolled courses (even if not started yet)
         const enrolledCourses = Array.from(courseMap.values());
 
         setEnrolled(enrolledCourses);
@@ -303,9 +319,20 @@ const MyLearning = () => {
 
       <main className="pt-24 pb-16 container mx-auto px-4">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Lessons Courses</h1>
-          <p className="text-muted-foreground">View all your purchased lessons and track your learning progress</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Learning</h1>
+            <p className="text-muted-foreground mt-1">View all your purchased lessons and track your learning progress</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate('/browse')}
+            className="gap-2 self-start"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            Browse Lessons
+          </Button>
         </div>
 
         {/* Quick Stats Section */}
@@ -318,8 +345,8 @@ const MyLearning = () => {
                     <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-300" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-2xl md:text-3xl font-bold">{enrolled.length}</p>
-                    <p className="text-xs md:text-sm text-muted-foreground truncate">Purchased Subjects</p>
+                    <p className="text-2xl md:text-3xl font-bold">{enrollments.length}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground truncate">Purchased Lessons</p>
                   </div>
                 </div>
               </CardContent>
@@ -393,9 +420,9 @@ const MyLearning = () => {
               className="max-w-md"
             />
           </div>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Select value={filterSubject} onValueChange={setFilterSubject}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="All Subjects" />
               </SelectTrigger>
               <SelectContent>
@@ -406,7 +433,7 @@ const MyLearning = () => {
               </SelectContent>
             </Select>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -420,7 +447,7 @@ const MyLearning = () => {
 
         {/* Courses Grid */}
         {filteredAndSorted().length === 0 ? (
-          <Card className="p-16">
+          <Card className="p-8 sm:p-16">
             <div className="text-center">
               <BookOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">
@@ -434,13 +461,13 @@ const MyLearning = () => {
                     : "Start learning by exploring available lessons"}
               </p>
               <Button onClick={() => navigate("/browse")}>
-                Browse Lessons expertly crafted lessons across all grades
+                Browse Lessons
               </Button>
             </div>
           </Card>
         ) : (
           <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredAndSorted()
                 .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                 .map((course, index) => (
@@ -485,7 +512,7 @@ const MyLearning = () => {
                       <div className="absolute top-3 left-3">
                         <Badge className="bg-blue-600 text-white border-0 shadow-md">
                           <TrendingUp className="w-3 h-3 mr-1" />
-                          {course.lessonsInProgress} In Progress
+                          In Progress
                         </Badge>
                       </div>
                     )}
@@ -518,10 +545,7 @@ const MyLearning = () => {
                           {course.progress}% complete
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {course.lessonsCompleted}/{course.lessonsTotal} done
-                          {course.lessonsInProgress > 0 && (
-                            <span className="text-blue-500 ml-1">· {course.lessonsInProgress} in progress</span>
-                          )}
+                          {course.lessonsCompleted} completed
                         </span>
                       </div>
                       <Progress

@@ -113,81 +113,76 @@ const sendMailWithRetry = async (mailOptions, retries = 2) => {
  */
 export const sendEmailVerifiedEmail = async (email, name) => {
   const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 40px 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .success-icon { font-size: 64px; margin: 20px 0; }
-        .highlight-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; margin: 25px 0; border-radius: 8px; text-align: center; }
-        .features { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; }
-        .feature-item { padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
-        .feature-item:last-child { border-bottom: none; }
-        .btn { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="success-icon">🎉</div>
-          <h1 style="margin: 0;">Congratulations!</h1>
-          <p style="margin: 10px 0 0 0; font-size: 18px; opacity: 0.95;">Your Email is Verified</p>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:52px;line-height:1;margin-bottom:16px;">🎉</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Email Verified!</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">Your account is now fully activated</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${name}</strong>,</p>
+        <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.7;">
+          Welcome to <strong>Mindsta</strong>! Your email has been verified and you now have full access to all features. Your learning journey starts here.
+        </p>
+        <!-- Feature grid (2×2) -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+          <tr>
+            <td width="50%" style="padding:0 6px 10px 0;vertical-align:top;">
+              <div style="background:#f0f4ff;border-radius:10px;padding:16px;">
+                <p style="margin:0 0 6px;font-size:22px;">📚</p>
+                <p style="margin:0 0 4px;color:#1e40af;font-weight:700;font-size:13px;">Browse lessonss</p>
+                <p style="margin:0;color:#6b7280;font-size:12px;">Grade 1–6 &amp; Common Entrance</p>
+              </div>
+            </td>
+            <td width="50%" style="padding:0 0 10px 6px;vertical-align:top;">
+              <div style="background:#f0fdf4;border-radius:10px;padding:16px;">
+                <p style="margin:0 0 6px;font-size:22px;">🎯</p>
+                <p style="margin:0 0 4px;color:#065f46;font-weight:700;font-size:13px;">Track Progress</p>
+                <p style="margin:0;color:#6b7280;font-size:12px;">Detailed analytics &amp; insights</p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td width="50%" style="padding:0 6px 0 0;vertical-align:top;">
+              <div style="background:#fefce8;border-radius:10px;padding:16px;">
+                <p style="margin:0 0 6px;font-size:22px;">💰</p>
+                <p style="margin:0 0 4px;color:#713f12;font-weight:700;font-size:13px;">Refer &amp; Earn</p>
+                <p style="margin:0;color:#6b7280;font-size:12px;">Share your code, earn commissions</p>
+              </div>
+            </td>
+            <td width="50%" style="padding:0 0 0 6px;vertical-align:top;">
+              <div style="background:#fdf4ff;border-radius:10px;padding:16px;">
+                <p style="margin:0 0 6px;font-size:22px;">🏆</p>
+                <p style="margin:0 0 4px;color:#701a75;font-weight:700;font-size:13px;">Earn Rewards</p>
+                <p style="margin:0;color:#6b7280;font-size:12px;">Challenges, badges &amp; leaderboard</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <!-- CTA -->
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="https://mindsta.com.ng" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:15px 44px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Start Learning Now →</a>
         </div>
-        <div class="content">
-          <p>Hi ${name},</p>
-          <p><strong>Welcome to Mindsta!</strong> Your email has been successfully verified and your account is now fully activated.</p>
-          
-          <div class="highlight-box">
-            <h2 style="margin: 0 0 10px 0;">✨ Your Learning Journey Starts Now!</h2>
-            <p style="margin: 0; opacity: 0.95;">You now have full access to all Mindsta features</p>
-          </div>
-          
-          <div class="features">
-            <h3 style="margin-top: 0; color: #667eea;">What You Can Do:</h3>
-            <div class="feature-item">
-              <strong>📚 Explore Courses</strong><br>
-              <span style="color: #666; font-size: 14px;">Browse our comprehensive library of subjects and lessons</span>
-            </div>
-            <div class="feature-item">
-              <strong>🎯 Track Your Progress</strong><br>
-              <span style="color: #666; font-size: 14px;">Monitor your performance with detailed analytics and reports</span>
-            </div>
-            <div class="feature-item">
-              <strong>📝 Take Quizzes</strong><br>
-              <span style="color: #666; font-size: 14px;">Test your knowledge and earn certificates</span>
-            </div>
-            <div class="feature-item">
-              <strong>💰 Refer Friends</strong><br>
-              <span style="color: #666; font-size: 14px;">Share your referral code and earn commissions on purchases</span>
-            </div>
-            <div class="feature-item">
-              <strong>🏆 Earn Rewards</strong><br>
-              <span style="color: #666; font-size: 14px;">Complete challenges and climb the leaderboard</span>
-            </div>
-          </div>
-          
-          <div style="text-align: center;">
-            <a href="https://mindsta.com.ng" class="btn">Start Learning Now</a>
-          </div>
-          
-          <p style="margin-top: 30px; padding: 20px; background: #fef3c7; border-left: 4px solid #fbbf24; border-radius: 5px;">
-            <strong>💡 Pro Tip:</strong> Complete your profile to get personalized course recommendations and track your progress more effectively!
-          </p>
-          
-          <p style="color: #666;">If you have any questions or need assistance, our support team is always here to help.</p>
-          
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Mindsta. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
+        <p style="margin:0;color:#9ca3af;font-size:13px;text-align:center;">Questions? <a href="mailto:support@mindsta.com.ng" style="color:#6366f1;text-decoration:none;">support@mindsta.com.ng</a></p>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · Empowering minds through quality education</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
 
   const textContent = `
@@ -252,57 +247,62 @@ If you have any questions or need assistance, our support team is always here to
  */
 export const sendReferralSignupEmail = async (referrerEmail, referrerName, referredName, referralCode) => {
   const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .highlight-box { background: white; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; border-radius: 5px; }
-        .user-name { font-size: 20px; font-weight: bold; color: #667eea; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🎉 New Referral Signup!</h1>
-        </div>
-        <div class="content">
-          <p>Hi ${referrerName},</p>
-          <p>Great news! Someone just signed up using your referral code.</p>
-          
-          <div class="highlight-box">
-            <p style="margin: 0; color: #666;">New User:</p>
-            <div class="user-name">${referredName}</div>
-            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Used code: <strong>${referralCode}</strong></p>
-          </div>
-          
-          <p>You'll earn commission when they make their first purchase!</p>
-          <p>Keep sharing your referral code to earn more rewards.</p>
-          
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Mindsta. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:48px;line-height:1;margin-bottom:16px;">🎉</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">New Referral Signup!</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">Someone joined via your referral link</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${referrerName}</strong>,</p>
+        <p style="margin:0 0 24px;color:#4b5563;font-size:15px;line-height:1.7;">
+          Great news! Someone just joined Mindsta using your referral code.
+        </p>
+        <!-- New user box -->
+        <div style="background:#f0f4ff;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center;">
+          <p style="margin:0 0 8px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">New Member</p>
+          <p style="margin:0 0 8px;color:#1e40af;font-size:22px;font-weight:800;">${referredName}</p>
+          <div style="display:inline-block;background:#e0e7ff;border-radius:6px;padding:6px 16px;">
+            <p style="margin:0;color:#4338ca;font-size:13px;font-weight:600;">Code used: <strong>${referralCode}</strong></p>
           </div>
         </div>
-      </div>
-    </body>
-    </html>
+        <div style="background:#f0fdf4;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+          <p style="margin:0;color:#065f46;font-size:14px;line-height:1.6;">
+            💰 <strong>You'll earn a commission</strong> when ${referredName} makes their first purchase. Keep sharing your code to unlock more earnings!
+          </p>
+        </div>
+        <div style="text-align:center;">
+          <a href="https://mindsta.com.ng/referral/dashboard" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">View Referral Dashboard →</a>
+        </div>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · All rights reserved</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
 
   const textContent = `
 Hi ${referrerName},
 
-Great news! Someone just signed up using your referral code.
+Great news! ${referredName} just joined Mindsta using your referral code (${referralCode}).
 
-New User: ${referredName}
-Used code: ${referralCode}
+You'll earn a commission when they make their first purchase.
 
-You'll earn commission when they make their first purchase!
-Keep sharing your referral code to earn more rewards.
+View your dashboard: https://mindsta.com.ng/referral/dashboard
 
 © ${new Date().getFullYear()} Mindsta. All rights reserved.
   `.trim();
@@ -333,60 +333,65 @@ Keep sharing your referral code to earn more rewards.
 export const sendPasswordResetEmail = async (email, name, resetUrl) => {
   try {
     const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .btn { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-        .warning { background: #fef2f2; border-left: 4px solid #f43f5e; padding: 15px; margin: 20px 0; border-radius: 5px; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🔒 Reset Your Password</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:48px;line-height:1;margin-bottom:16px;">🔒</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Reset Your Password</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">We received a password reset request</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${name}</strong>,</p>
+        <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.7;">
+          We received a request to reset the password for your Mindsta account. Click the button below to choose a new password.
+        </p>
+        <!-- CTA button -->
+        <div style="text-align:center;margin-bottom:28px;">
+          <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:16px 48px;border-radius:8px;font-weight:700;font-size:16px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Reset Password →</a>
         </div>
-        <div class="content">
-          <p>Hi ${name},</p>
-          <p>We received a request to reset your password for your Mindsta account.</p>
-          
-          <div style="text-align: center;">
-            <a href="${resetUrl}" class="btn">Reset Password</a>
-          </div>
-          
-          <p>Or copy and paste this link into your browser:</p>
-          <p style="background: white; padding: 10px; border-radius: 5px; word-break: break-all; font-size: 12px; color: #667eea;">${resetUrl}</p>
-          
-          <div class="warning">
-            <p style="margin: 0;"><strong>⚠️ Security Notice:</strong></p>
-            <p style="margin: 5px 0 0 0;">This link will expire in <strong>1 hour</strong>. If you didn't request this password reset, please ignore this email or contact support if you have concerns.</p>
-          </div>
-          
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Mindsta. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
-          </div>
+        <!-- Fallback URL -->
+        <p style="margin:0 0 6px;color:#6b7280;font-size:13px;">Or copy and paste this link into your browser:</p>
+        <div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin-bottom:24px;word-break:break-all;">
+          <a href="${resetUrl}" style="color:#6366f1;font-size:12px;text-decoration:none;">${resetUrl}</a>
         </div>
-      </div>
-    </body>
-    </html>
-  `;
+        <!-- Security notice -->
+        <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:0 8px 8px 0;padding:16px 20px;">
+          <p style="margin:0 0 4px;color:#991b1b;font-weight:700;font-size:14px;">⚠️ Security Notice</p>
+          <p style="margin:0;color:#7f1d1d;font-size:13px;line-height:1.6;">
+            This link expires in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email — your password will not change.
+          </p>
+        </div>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · All rights reserved</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
+    `;
 
   const textContent = `
 Hi ${name},
 
-We received a request to reset your password for your Mindsta account.
+We received a request to reset your Mindsta password.
 
-Reset your password by clicking this link:
+Reset your password here:
 ${resetUrl}
 
-⚠️ Security Notice:
-This link will expire in 1 hour. If you didn't request this password reset, please ignore this email or contact support if you have concerns.
+This link expires in 1 hour.
+
+If you did not request this, please ignore this email.
 
 © ${new Date().getFullYear()} Mindsta. All rights reserved.
   `.trim();
@@ -413,83 +418,100 @@ This link will expire in 1 hour. If you didn't request this password reset, plea
  */
 export const sendWelcomeEmail = async (email, name) => {
   const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .features { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; }
-        .feature-item { padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
-        .feature-item:last-child { border-bottom: none; }
-        .btn { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🎓 Welcome to Mindsta!</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:52px;line-height:1;margin-bottom:16px;">🎓</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Welcome to Mindsta!</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">Your gateway to quality education</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${name}</strong>,</p>
+        <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.7;">
+          We're thrilled to have you join the <strong>Mindsta</strong> community! You now have access to interactive lessons, quizzes, and learning tools designed to help every student excel.
+        </p>
+        <!-- Steps -->
+        <div style="margin-bottom:28px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td style="width:40px;font-size:22px;vertical-align:middle;">🔍</td>
+                <td style="vertical-align:middle;padding-left:12px;">
+                  <p style="margin:0 0 2px;color:#111827;font-weight:700;font-size:14px;">Explore Courses</p>
+                  <p style="margin:0;color:#6b7280;font-size:13px;">Browse subjects across Grade 1–6 and Common Entrance</p>
+                </td>
+              </tr></table>
+            </td></tr>
+            <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td style="width:40px;font-size:22px;vertical-align:middle;">🎯</td>
+                <td style="vertical-align:middle;padding-left:12px;">
+                  <p style="margin:0 0 2px;color:#111827;font-weight:700;font-size:14px;">Track Your Progress</p>
+                  <p style="margin:0;color:#6b7280;font-size:13px;">See detailed analytics and quiz scores in your dashboard</p>
+                </td>
+              </tr></table>
+            </td></tr>
+            <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td style="width:40px;font-size:22px;vertical-align:middle;">💰</td>
+                <td style="vertical-align:middle;padding-left:12px;">
+                  <p style="margin:0 0 2px;color:#111827;font-weight:700;font-size:14px;">Refer &amp; Earn</p>
+                  <p style="margin:0;color:#6b7280;font-size:13px;">Share your referral code and earn commission on purchases</p>
+                </td>
+              </tr></table>
+            </td></tr>
+            <tr><td style="padding:12px 0;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td style="width:40px;font-size:22px;vertical-align:middle;">🏆</td>
+                <td style="vertical-align:middle;padding-left:12px;">
+                  <p style="margin:0 0 2px;color:#111827;font-weight:700;font-size:14px;">Win Rewards</p>
+                  <p style="margin:0;color:#6b7280;font-size:13px;">Complete quizzes and climb the leaderboard</p>
+                </td>
+              </tr></table>
+            </td></tr>
+          </table>
         </div>
-        <div class="content">
-          <p>Hi ${name},</p>
-          <p>Welcome to <strong>Mindsta</strong> - your gateway to quality education and learning excellence!</p>
-          <p>We're thrilled to have you join our community of learners.</p>
-          
-          <div class="features">
-            <h3 style="margin-top: 0; color: #667eea;">Get Started:</h3>
-            <div class="feature-item">
-              <strong>📚 Browse Courses</strong><br>
-              <span style="color: #666; font-size: 14px;">Explore our wide range of subjects and lessons</span>
-            </div>
-            <div class="feature-item">
-              <strong>🎯 Track Progress</strong><br>
-              <span style="color: #666; font-size: 14px;">Monitor your learning journey with detailed analytics</span>
-            </div>
-            <div class="feature-item">
-              <strong>💰 Refer & Earn</strong><br>
-              <span style="color: #666; font-size: #666; font-size: 14px;">Share your referral code and earn commissions</span>
-            </div>
-            <div class="feature-item">
-              <strong>✅ Get Certified</strong><br>
-              <span style="color: #666; font-size: 14px;">Complete courses and earn certificates</span>
-            </div>
-          </div>
-          
-          <div style="text-align: center;">
-            <a href="https://mindsta.com.ng" class="btn">Start Learning</a>
-          </div>
-          
-          <p style="margin-top: 30px; color: #666;">Need help? Our support team is here for you!</p>
-          
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Mindsta. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
-          </div>
+        <!-- CTA -->
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="https://mindsta.com.ng" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:15px 44px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Explore Courses →</a>
         </div>
-      </div>
-    </body>
-    </html>
+        <p style="margin:0;color:#9ca3af;font-size:13px;text-align:center;">Need help? Contact us at <a href="mailto:support@mindsta.com.ng" style="color:#6366f1;text-decoration:none;">support@mindsta.com.ng</a></p>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · Empowering minds through quality education</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
 
   const textContent = `
 Hi ${name},
 
-Welcome to Mindsta - your gateway to quality education and learning excellence!
+Welcome to Mindsta — your gateway to quality education!
 
 We're thrilled to have you join our community of learners.
 
-Get Started:
-📚 Browse Courses - Explore our wide range of subjects and lessons
-🎯 Track Progress - Monitor your learning journey with detailed analytics
-💰 Refer & Earn - Share your referral code and earn commissions
-✅ Get Certified - Complete courses and earn certificates
+Get started:
+• Explore Courses — Browse subjects across Grade 1–6 and Common Entrance
+• Track Progress — Detailed analytics and quiz scores in your dashboard
+• Refer & Earn — Share your code and earn commissions
+• Win Rewards — Complete quizzes and climb the leaderboard
 
-Start learning at: https://mindsta.com.ng
+Start learning: https://mindsta.com.ng
 
-Need help? Our support team is here for you!
+Need help? Contact us at support@mindsta.com.ng
 
 © ${new Date().getFullYear()} Mindsta. All rights reserved.
   `.trim();
@@ -520,28 +542,44 @@ Need help? Our support team is here for you!
 export const sendPayoutRequestEmail = async (referrerEmail, referrerName, amount) => {
   const formattedAmount = Number(amount).toLocaleString();
   const htmlContent = `
-    <!DOCTYPE html><html><head><style>
-      body { font-family: Arial, sans-serif; color: #333; }
-      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-      .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-      .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-      .amount { font-size: 28px; font-weight: bold; color: #667eea; text-align: center; padding: 20px; background: white; border-radius: 8px; margin: 20px 0; }
-    </style></head><body>
-      <div class="container">
-        <div class="header"><h2>Payout Request Received</h2></div>
-        <div class="content">
-          <p>Hi <strong>${referrerName}</strong>,</p>
-          <p>We have received your payout request. Our team will review and process it within 2–5 business days.</p>
-          <div class="amount">₦${formattedAmount}</div>
-          <p>You will receive a confirmation email once the payment has been processed.</p>
-          <p>Thank you for being a valued Mindsta partner!</p>
-          <p>– The Mindsta Team</p>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:48px;line-height:1;margin-bottom:16px;">💸</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Payout Request Received</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">We'll process your request within 2–5 business days</p>
+      </td></tr>
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${referrerName}</strong>,</p>
+        <p style="margin:0 0 24px;color:#4b5563;font-size:15px;line-height:1.7;">Your payout request has been received. Here's a summary:</p>
+        <div style="background:#f0f4ff;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+          <p style="margin:0 0 8px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Requested Amount</p>
+          <p style="margin:0;color:#6366f1;font-size:36px;font-weight:800;">₦${formattedAmount}</p>
         </div>
-      </div>
-    </body></html>
+        <div style="background:#fef9c3;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+          <p style="margin:0;color:#713f12;font-size:14px;line-height:1.6;">
+            ⏳ <strong>Processing Time:</strong> Our team will review and process your request within 2–5 business days. You'll receive an email confirmation once payment is sent.
+          </p>
+        </div>
+        <p style="margin:0;color:#9ca3af;font-size:13px;text-align:center;">Thank you for being a valued Mindsta partner! 🙏</p>
+      </td></tr>
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · All rights reserved</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
   return sendMailWithRetry({
-    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com.ng>',
+    from: process.env.EMAIL_FROM || FROM_ADDRESS,
     to: referrerEmail,
     subject: 'Payout Request Received – Mindsta',
     html: htmlContent,
@@ -557,28 +595,44 @@ export const sendPayoutRequestEmail = async (referrerEmail, referrerName, amount
 export const sendPayoutProcessedEmail = async (referrerEmail, referrerName, amount) => {
   const formattedAmount = Number(amount).toLocaleString();
   const htmlContent = `
-    <!DOCTYPE html><html><head><style>
-      body { font-family: Arial, sans-serif; color: #333; }
-      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-      .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-      .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-      .amount { font-size: 28px; font-weight: bold; color: #10b981; text-align: center; padding: 20px; background: white; border-radius: 8px; margin: 20px 0; }
-    </style></head><body>
-      <div class="container">
-        <div class="header"><h2>✅ Payout Processed!</h2></div>
-        <div class="content">
-          <p>Hi <strong>${referrerName}</strong>,</p>
-          <p>Great news! Your payout has been successfully processed and sent to your registered bank account.</p>
-          <div class="amount">₦${formattedAmount}</div>
-          <p>Please allow 1–3 business days for the funds to reflect in your account.</p>
-          <p>Keep referring and earning with Mindsta!</p>
-          <p>– The Mindsta Team</p>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <tr><td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:52px;line-height:1;margin-bottom:16px;">✅</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Payout Processed!</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">Your funds are on their way</p>
+      </td></tr>
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${referrerName}</strong>,</p>
+        <p style="margin:0 0 24px;color:#4b5563;font-size:15px;line-height:1.7;">Your payout has been successfully processed and sent to your registered bank account.</p>
+        <div style="background:linear-gradient(135deg,#10b981,#059669);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+          <p style="margin:0 0 8px;color:rgba(255,255,255,0.8);font-size:13px;text-transform:uppercase;letter-spacing:1px;">Amount Sent</p>
+          <p style="margin:0;color:#ffffff;font-size:36px;font-weight:800;">₦${formattedAmount}</p>
         </div>
-      </div>
-    </body></html>
+        <div style="background:#f0fdf4;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+          <p style="margin:0;color:#065f46;font-size:14px;line-height:1.6;">
+            💳 Please allow <strong>1–3 business days</strong> for the funds to reflect in your account depending on your bank.
+          </p>
+        </div>
+        <p style="margin:0;color:#9ca3af;font-size:13px;text-align:center;">Keep referring and earning with Mindsta! 🚀</p>
+      </td></tr>
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · All rights reserved</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
   return sendMailWithRetry({
-    from: process.env.EMAIL_FROM || 'Mindsta <noreply@mindsta.com.ng>',
+    from: process.env.EMAIL_FROM || FROM_ADDRESS,
     to: referrerEmail,
     subject: '✅ Your Payout Has Been Processed – Mindsta',
     html: htmlContent,
@@ -594,68 +648,84 @@ export const sendPayoutProcessedEmail = async (referrerEmail, referrerName, amou
 export const sendPaymentSuccessEmail = async (email, name, paymentDetails) => {
   const { amount, reference, items = [], date = new Date().toLocaleDateString() } = paymentDetails;
   
-  const itemsList = items.map(item => {
+  const itemRows = items.map(item => {
     const courseName = item.name || `${item.subject || 'Course'} - Grade ${item.grade || ''} Term ${item.term || ''}`;
     const price = (item.price || 0).toLocaleString();
     return `
-    <div style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
-      <strong>${courseName}</strong><br>
-      <span style="color: #666; font-size: 14px;">${item.description || `Grade ${item.grade || ''}, Term ${item.term || ''}`}</span>
-      <div style="text-align: right; color: #10b981; font-weight: bold;">₦${price}</div>
-    </div>
+    <tr>
+      <td style="padding:12px 0;border-bottom:1px solid #f3f4f6;color:#374151;font-size:14px;">
+        <strong>${courseName}</strong><br>
+        <span style="color:#9ca3af;font-size:12px;">${item.description || `Grade ${item.grade || ''} ${item.term ? '· ' + item.term : ''}`}</span>
+      </td>
+      <td style="padding:12px 0;border-bottom:1px solid #f3f4f6;text-align:right;color:#10b981;font-weight:700;font-size:14px;white-space:nowrap;">₦${price}</td>
+    </tr>
   `;
   }).join('');
 
   const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .receipt { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border: 2px solid #10b981; }
-        .total { background: #ecfdf5; padding: 15px; margin: 10px 0; border-radius: 5px; font-size: 18px; font-weight: bold; color: #059669; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>✅ Payment Successful!</h1>
-        </div>
-        <div class="content">
-          <p>Hi ${name},</p>
-          <p>Thank you for your payment! Your transaction has been processed successfully.</p>
-          
-          <div class="receipt">
-            <h3 style="margin-top: 0; color: #667eea;">Payment Receipt</h3>
-            <p><strong>Date:</strong> ${date}</p>
-            <p><strong>Reference:</strong> ${reference || 'N/A'}</p>
-            
-            ${items.length > 0 ? `
-              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 15px 0;">
-              <h4 style="color: #666;">Purchased Courses:</h4>
-              ${itemsList}
-            ` : ''}
-            
-            <div class="total">
-              Total Amount Paid: ₦${(amount || 0).toLocaleString()}
-            </div>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:52px;line-height:1;margin-bottom:16px;">✅</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Payment Successful!</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">Your courses are now unlocked</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${name}</strong>,</p>
+        <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.7;">
+          Thank you for your purchase! Your payment has been confirmed and your course${items.length !== 1 ? 's are' : ' is'} now accessible in your dashboard.
+        </p>
+        <!-- Receipt -->
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:24px;margin-bottom:24px;">
+          <h3 style="margin:0 0 16px;color:#111827;font-size:16px;">&#x1F9FE; Payment Receipt</h3>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+            <tr>
+              <td style="padding:6px 0;color:#6b7280;font-size:13px;">Reference</td>
+              <td style="padding:6px 0;text-align:right;color:#374151;font-size:13px;font-weight:600;">${reference || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;color:#6b7280;font-size:13px;">Date</td>
+              <td style="padding:6px 0;text-align:right;color:#374151;font-size:13px;font-weight:600;">${date}</td>
+            </tr>
+          </table>
+          ${items.length > 0 ? `
+          <div style="border-top:1px solid #e5e7eb;padding-top:12px;">
+            <p style="margin:0 0 8px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Items Purchased</p>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              ${itemRows}
+            </table>
+          </div>` : ''}
+          <!-- Total -->
+          <div style="background:linear-gradient(135deg,#10b981,#059669);border-radius:8px;padding:14px 20px;margin-top:16px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="color:rgba(255,255,255,0.9);font-size:14px;">Total Paid</td>
+              <td style="text-align:right;color:#ffffff;font-size:20px;font-weight:800;">₦${(amount || 0).toLocaleString()}</td>
+            </tr></table>
           </div>
-          
-          <p>Your course${items.length > 1 ? 's are' : ' is'} now accessible in your dashboard.</p>
-          <p>Happy learning! 🎓</p>
-          
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Mindsta. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
-          </div>
         </div>
-      </div>
-    </body>
-    </html>
+        <!-- CTA -->
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="https://mindsta.com.ng/my-learning" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:15px 44px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Go to My Learning →</a>
+        </div>
+        <p style="margin:0;color:#9ca3af;font-size:13px;text-align:center;">Happy learning! 🎓</p>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · All rights reserved</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
 
   const textContent = `
@@ -701,68 +771,59 @@ export const sendCommissionEarnedEmail = async (referrerEmail, referrerName, com
   const { referredName = 'A user', totalEarnings = commission } = details;
   
   const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .earnings-box { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; margin: 20px 0; border-radius: 8px; text-align: center; }
-        .amount { font-size: 36px; font-weight: bold; margin: 10px 0; }
-        .stats { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; }
-        .stat-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
-        .stat-item:last-child { border-bottom: none; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>💰 Commission Earned!</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:48px;line-height:1;margin-bottom:16px;">💰</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Commission Earned!</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">A referral purchase just earned you money</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${referrerName}</strong>,</p>
+        <p style="margin:0 0 24px;color:#4b5563;font-size:15px;line-height:1.7;">
+          Congratulations! <strong>${referredName}</strong> made a purchase and you've just earned a commission.
+        </p>
+        <!-- Earnings display -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+          <tr>
+            <td width="50%" style="padding:0 6px 0 0;vertical-align:top;">
+              <div style="background:linear-gradient(135deg,#10b981,#059669);border-radius:12px;padding:20px;text-align:center;">
+                <p style="margin:0 0 6px;color:rgba(255,255,255,0.8);font-size:12px;text-transform:uppercase;letter-spacing:1px;">Commission Earned</p>
+                <p style="margin:0;color:#ffffff;font-size:28px;font-weight:800;">₦${commission.toLocaleString()}</p>
+              </div>
+            </td>
+            <td width="50%" style="padding:0 0 0 6px;vertical-align:top;">
+              <div style="background:#f0f4ff;border-radius:12px;padding:20px;text-align:center;">
+                <p style="margin:0 0 6px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Total Earnings</p>
+                <p style="margin:0;color:#6366f1;font-size:28px;font-weight:800;">₦${totalEarnings.toLocaleString()}</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:0 0 24px;color:#4b5563;font-size:14px;line-height:1.6;">
+          Keep sharing your referral code to earn more! You can request a payout once you reach the minimum threshold.
+        </p>
+        <div style="text-align:center;">
+          <a href="https://mindsta.com.ng/referral/dashboard" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">View Earnings Dashboard →</a>
         </div>
-        <div class="content">
-          <p>Hi ${referrerName},</p>
-          <p>Congratulations! You've just earned a commission from a referral purchase.</p>
-          
-          <div class="earnings-box">
-            <p style="margin: 0; font-size: 16px;">New Commission</p>
-            <div class="amount">₦${commission.toLocaleString()}</div>
-            <p style="margin: 0; opacity: 0.9;">Added to your balance</p>
-          </div>
-          
-          <div class="stats">
-            <h3 style="margin-top: 0; color: #667eea;">Details</h3>
-            <div class="stat-item">
-              <span style="color: #666;">Referred User:</span>
-              <strong>${referredName}</strong>
-            </div>
-            <div class="stat-item">
-              <span style="color: #666;">Commission Earned:</span>
-              <strong style="color: #10b981;">₦${commission.toLocaleString()}</strong>
-            </div>
-            <div class="stat-item">
-              <span style="color: #666;">Total Earnings:</span>
-              <strong style="color: #667eea;">₦${totalEarnings.toLocaleString()}</strong>
-            </div>
-          </div>
-          
-          <p>Keep sharing your referral code to earn more commissions!</p>
-          <p>You can request a payout once you reach the minimum threshold.</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://mindsta.com.ng/referral/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">View Dashboard</a>
-          </div>
-          
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Mindsta. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · All rights reserved</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
 
   const textContent = `
@@ -810,94 +871,58 @@ View your dashboard: https://mindsta.com.ng/referral/dashboard
  */
 export const sendVerificationOTP = async (email, name, otp) => {
   const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 30px;
-          text-align: center;
-          border-radius: 10px 10px 0 0;
-        }
-        .content {
-          background: #f9f9f9;
-          padding: 30px;
-          border-radius: 0 0 10px 10px;
-        }
-        .otp-box {
-          background: white;
-          border: 2px dashed #667eea;
-          border-radius: 8px;
-          padding: 20px;
-          text-align: center;
-          margin: 20px 0;
-        }
-        .otp-code {
-          font-size: 32px;
-          font-weight: bold;
-          color: #667eea;
-          letter-spacing: 8px;
-        }
-        .footer {
-          text-align: center;
-          color: #666;
-          font-size: 12px;
-          margin-top: 20px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Verify Your Email</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
+        <div style="font-size:48px;line-height:1;margin-bottom:16px;">✉️</div>
+        <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Verify Your Email</h1>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">One step away from starting your journey</p>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:36px 36px 30px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${name}</strong>,</p>
+        <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.7;">
+          To complete your registration on <strong>Mindsta</strong>, please use the verification code below. It is valid for <strong>10 minutes</strong>.
+        </p>
+        <!-- OTP Code Box -->
+        <div style="background:#f0f4ff;border:2px dashed #6366f1;border-radius:12px;padding:28px;text-align:center;margin-bottom:28px;">
+          <p style="margin:0 0 8px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your Verification Code</p>
+          <p style="margin:0;font-size:42px;font-weight:800;color:#6366f1;letter-spacing:10px;">${otp}</p>
+          <p style="margin:10px 0 0;color:#9ca3af;font-size:12px;">Expires in 10 minutes</p>
         </div>
-        <div class="content">
-          <p>Hi ${name},</p>
-          <p>Welcome to <strong>Mindsta</strong>! To complete your registration, please verify your email address.</p>
-          
-          <div class="otp-box">
-            <p style="margin: 0; color: #666;">Your verification code is:</p>
-            <div class="otp-code">${otp}</div>
-            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Valid for 10 minutes</p>
-          </div>
-          
-          <p>Enter this code on the verification page to activate your account.</p>
-          <p>If you didn't create an account with Mindsta, please ignore this email.</p>
-          
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Mindsta. All rights reserved.</p>
-            <p>This is an automated email, please do not reply.</p>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
+        <p style="margin:0 0 8px;color:#4b5563;font-size:14px;line-height:1.6;">
+          Enter this code on the verification page to activate your account.
+        </p>
+        <p style="margin:0;color:#ef4444;font-size:13px;">
+          ⚠️ If you did not create a Mindsta account, please ignore this email.
+        </p>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+        <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta · All rights reserved</p>
+        <p style="margin:0;color:#d1d5db;font-size:11px;">This is an automated email — do not reply.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>
   `;
 
   const textContent = `
 Hi ${name},
 
-Welcome to Mindsta! Please verify your email address.
+Verify your Mindsta account with this code: ${otp}
 
-Your verification code is: ${otp}
+This code is valid for 10 minutes.
 
-This code will expire in 10 minutes.
-
-Enter this code on the verification page to activate your account.
-
-If you didn't create an account with Mindsta, please ignore this email.
+If you didn't create an account, please ignore this email.
 
 © ${new Date().getFullYear()} Mindsta. All rights reserved.
   `.trim();

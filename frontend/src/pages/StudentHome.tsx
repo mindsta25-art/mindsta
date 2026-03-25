@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { CompleteProfileModal } from '@/components/CompleteProfileModal';
@@ -41,6 +41,7 @@ import {
   Lightbulb,
   Brain
 } from 'lucide-react';
+import { isEnrolled as isEnrolledUtil } from '@/utils/enrollmentUtils';
 import { getStudentByUserId, updateStreak } from '@/api/students';
 import { getUserProgress, type UserProgress } from '@/api/progress';
 import { getEnrollments, type Enrollment } from '@/api/enrollments';
@@ -60,6 +61,8 @@ import {
   type Achievement
 } from '@/api/gamification';
 import { siteConfig, getWhatsAppUrl } from '@/config/siteConfig';
+
+const MotionLink = motion(Link);
 
 interface StudentInfo {
   id: string;
@@ -142,13 +145,16 @@ const StudentHome = () => {
           }
         });
 
-        // Filter lessons to only show enrolled ones
-        const enrolled = lessonsData.filter(lesson => 
-          enrollmentsData.some(enrollment => 
-            enrollment.subject === lesson.subject &&
-            enrollment.grade === lesson.grade &&
-            enrollment.term === lesson.term
-          )
+        // Filter lessons to only show enrolled ones.
+        // Per-lesson enrollments (enrollment.lessonId set) only grant access to the exact lesson;
+        // subject-level enrollments grant access to all lessons in the subject.
+        const enrolled = lessonsData.filter(lesson =>
+          enrollmentsData.some(enrollment => {
+            if (enrollment.lessonId) {
+              return isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term, lesson.id);
+            }
+            return isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term);
+          })
         ).map(lesson => ({
           ...lesson,
           isEnrolled: true
@@ -273,6 +279,8 @@ const StudentHome = () => {
       subject: string;
       grade: string;
       term?: string;
+      lessonId?: string;
+      enrollmentDate?: Date;
       lessonsTotal: number;
       lessonsCompleted: number;
       progress: number;
@@ -282,12 +290,22 @@ const StudentHome = () => {
     }>();
 
     for (const lesson of enrolledLessons) {
-      const key = `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
+      // Use per-lesson key so each purchased lesson gets its own card
+      const perLessonEnrollment = enrollments.find(e =>
+        e.lessonId && isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term, lesson.id)
+      );
+      const key = perLessonEnrollment
+        ? `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}-${lesson.id}`
+        : `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
       if (!courseMap.has(key)) {
         courseMap.set(key, {
           subject: lesson.subject,
           grade: lesson.grade,
           term: lesson.term,
+          lessonId: perLessonEnrollment ? lesson.id : undefined,
+          enrollmentDate: perLessonEnrollment
+            ? new Date(perLessonEnrollment.purchasedAt || perLessonEnrollment.createdAt)
+            : undefined,
           lessonsTotal: 0,
           lessonsCompleted: 0,
           progress: 0,
@@ -324,10 +342,15 @@ const StudentHome = () => {
 
     return Array.from(courseMap.values())
       .sort((a, b) => {
-        if (!a.lastAccessed && !b.lastAccessed) return 0;
-        if (!a.lastAccessed) return 1;
-        if (!b.lastAccessed) return -1;
-        return b.lastAccessed.getTime() - a.lastAccessed.getTime();
+        // Sort by most recent engagement: use lastAccessed if available, otherwise
+        // fall back to enrollmentDate so newly purchased (not-yet-started) lessons
+        // appear near the top instead of being buried under older accessed courses.
+        const aDate = a.lastAccessed ?? a.enrollmentDate;
+        const bDate = b.lastAccessed ?? b.enrollmentDate;
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+        return bDate.getTime() - aDate.getTime();
       })
       .slice(0, 4);
   })();
@@ -338,7 +361,12 @@ const StudentHome = () => {
       title: 'Resume Learning',
       description: `Continue: ${lastAccessedLesson.title}`,
       gradient: 'from-green-500 to-emerald-500',
-      action: () => navigate(`/subjects/${lastAccessedLesson.grade}/${lastAccessedLesson.subject}${lastAccessedLesson.term ? `?term=${lastAccessedLesson.term}` : ''}`),
+      action: () => {
+        const p = new URLSearchParams();
+        if (lastAccessedLesson.term) p.set('term', lastAccessedLesson.term);
+        p.set('lessonId', lastAccessedLesson.id);
+        navigate(`/subjects/${lastAccessedLesson.grade}/${lastAccessedLesson.subject}?${p.toString()}`);
+      },
     }] : []),
     {
       icon: BookOpen,
@@ -461,27 +489,26 @@ const StudentHome = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <StudentHeader studentName={studentInfo?.fullName} />
-        <main className="pt-2 pb-8 px-4">
-          <div className="container mx-auto max-w-7xl">
-            {/* Loading Skeletons */}
-            <div className="mb-8">
-              <Skeleton className="h-12 w-64 mb-4" />
-              <Skeleton className="h-6 w-96" />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <main className="pt-2 sm:pt-6 pb-12 sm:pb-16">
+          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            {/* Hero skeleton */}
+            <Skeleton className="h-36 sm:h-44 w-full rounded-2xl mb-6 sm:mb-8" />
+            {/* Stats skeleton */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-32" />
+                <Skeleton key={i} className="h-28 sm:h-32 rounded-xl" />
               ))}
             </div>
-            <div className="grid lg:grid-cols-3 gap-6">
+            {/* Content skeleton */}
+            <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               <div className="lg:col-span-2 space-y-6">
-                <Skeleton className="h-64" />
-                <Skeleton className="h-96" />
+                <Skeleton className="h-72 rounded-xl" />
+                <Skeleton className="h-80 rounded-xl" />
               </div>
               <div className="space-y-6">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-64" />
-                ))}
+                <Skeleton className="h-48 rounded-xl" />
+                <Skeleton className="h-48 rounded-xl" />
+                <Skeleton className="h-32 rounded-xl" />
               </div>
             </div>
           </div>
@@ -516,7 +543,7 @@ const StudentHome = () => {
                   variant="outline" 
                   onClick={() => navigate('/browse')}
                 >
-                  Browse Courses
+                  Browse lessonss
                 </Button>
               </div>
             </CardContent>
@@ -545,116 +572,86 @@ const StudentHome = () => {
         <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
           {/* Welcome Section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.4 }}
             className="mb-6 sm:mb-8"
           >
-            <motion.div 
-              className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 rounded-2xl p-8 sm:p-10 text-white shadow-2xl relative overflow-hidden group cursor-pointer border border-white/20"
-              whileHover={{ scale: 1.02, boxShadow: "0 25px 50px -12px rgba(99, 102, 241, 0.5)" }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            >
-              {/* Animated background particles */}
-              <div className="absolute inset-0 opacity-20">
-                <motion.div
-                  className="absolute top-10 left-10 w-20 h-20 bg-white rounded-full blur-xl"
-                  animate={{
-                    y: [0, -20, 0],
-                    x: [0, 10, 0],
-                  }}
-                  transition={{ duration: 5, repeat: Infinity }}
-                />
-                <motion.div
-                  className="absolute bottom-10 right-10 w-32 h-32 bg-cyan-300 rounded-full blur-2xl"
-                  animate={{
-                    y: [0, 20, 0],
-                    x: [0, -15, 0],
-                  }}
-                  transition={{ duration: 7, repeat: Infinity }}
-                />
+            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-500 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+              {/* Subtle background decoration */}
+              <div className="absolute inset-0 opacity-10 pointer-events-none" aria-hidden="true">
+                <div className="absolute top-0 right-0 w-72 h-72 bg-white rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-300 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl" />
               </div>
               
-              <div className="relative z-10">
-                <motion.div 
-                  className="flex items-center gap-3 mb-4"
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <motion.div
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                  >
-                    <Sparkles className="w-8 h-8" />
-                  </motion.div>
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-5 h-5 opacity-80" />
+                    <span className="text-sm font-medium opacity-80">{studentInfo?.schoolName} · Grade {studentInfo?.grade}</span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-1">
                     Welcome back, {studentInfo?.fullName?.split(' ')[0] || 'Student'}! 👋
                   </h1>
-                </motion.div>
-                <motion.p 
-                  className="text-base sm:text-lg opacity-90 mb-3 sm:mb-4"
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  {studentInfo?.schoolName} • Grade {studentInfo?.grade}
-                </motion.p>
-                <motion.p 
-                  className="text-sm sm:text-base text-white/80 max-w-2xl"
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  Continue your learning journey or explore new topics today!
-                </motion.p>
+                  <p className="text-sm sm:text-base text-white/75 max-w-md">
+                    {lastAccessedLesson
+                      ? `Pick up where you left off in ${lastAccessedLesson.title}`
+                      : 'Start your learning journey — explore subjects and track your progress!'}
+                  </p>
+                </div>
+                {lastAccessedLesson ? (
+                  <button
+                    onClick={() => {
+                      const p = new URLSearchParams();
+                      if (lastAccessedLesson.term) p.set('term', lastAccessedLesson.term);
+                      p.set('lessonId', lastAccessedLesson.id);
+                      navigate(`/subjects/${lastAccessedLesson.grade}/${lastAccessedLesson.subject}?${p.toString()}`);
+                    }}
+                    className="flex-shrink-0 flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm border border-white/20"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    Continue Learning
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/browse')}
+                    className="flex-shrink-0 flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm border border-white/20"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Browse Courses
+                  </button>
+                )}
               </div>
-            </motion.div>
+            </div>
           </motion.div>
 
           {/* Stats Grid */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8"
           >
             {stats.map((stat, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.1 }}
-                whileHover={{ y: -5 }}
+                className="rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow p-4 sm:p-5"
               >
-                <Card className="hover:shadow-2xl transition-all duration-300 group cursor-pointer border-2 border-transparent hover:border-indigo-400 dark:hover:border-indigo-600 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
-                  <CardContent className="p-4 sm:p-6">
-                    <motion.div 
-                      className={`w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg`}
-                      whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.15 }}
-                      transition={{ duration: 0.6 }}
-                    >
-                      <stat.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-lg" />
-                    </motion.div>
-                    <motion.div 
-                      className="text-3xl sm:text-4xl font-bold mb-1 bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.3 + index * 0.1, type: "spring", stiffness: 200 }}
-                    >
-                      {stat.value}
-                    </motion.div>
-                    <div className="text-sm font-medium text-muted-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      {stat.label}
-                    </div>
-                    {stat.subtext && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {stat.subtext}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
+                <div className={`w-10 h-10 bg-gradient-to-br ${stat.gradient} rounded-lg flex items-center justify-center mb-3 shadow-sm`}>
+                  <stat.icon className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-0.5">
+                  {stat.value}
+                </div>
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  {stat.label}
+                </div>
+                {stat.subtext && (
+                  <div className="text-xs text-muted-foreground mt-0.5 opacity-75">
+                    {stat.subtext}
+                  </div>
+                )}
+              </div>
             ))}
           </motion.div>
 
@@ -717,10 +714,10 @@ const StudentHome = () => {
                             <CardContent className="p-3 sm:p-4">
                               <div className="flex flex-col items-center text-center">
                                 <div className="relative mb-2">
-                                  <svg className="w-16 h-16 sm:w-20 sm:h-20">
+                                  <svg className="w-16 h-16 sm:w-20 sm:h-20" viewBox="0 0 80 80">
                                     <circle
-                                      cx="50%"
-                                      cy="50%"
+                                      cx="40"
+                                      cy="40"
                                       r="30"
                                       stroke="currentColor"
                                       strokeWidth="6"
@@ -728,8 +725,8 @@ const StudentHome = () => {
                                       className="text-gray-200 dark:text-gray-700"
                                     />
                                     <circle
-                                      cx="50%"
-                                      cy="50%"
+                                      cx="40"
+                                      cy="40"
                                       r="30"
                                       stroke="currentColor"
                                       strokeWidth="6"
@@ -740,10 +737,18 @@ const StudentHome = () => {
                                       strokeLinecap="round"
                                       transform="rotate(-90 40 40)"
                                     />
+                                    <text
+                                      x="40"
+                                      y="40"
+                                      textAnchor="middle"
+                                      dominantBaseline="central"
+                                      className="fill-current text-foreground"
+                                      fontSize="14"
+                                      fontWeight="700"
+                                    >
+                                      {percentage}%
+                                    </text>
                                   </svg>
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-xs sm:text-sm font-bold">{percentage}%</span>
-                                  </div>
                                 </div>
                                 <h4 className="text-xs sm:text-sm font-semibold mb-1 line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                   {subject}
@@ -810,165 +815,138 @@ const StudentHome = () => {
           <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {/* Quick Actions */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
               className="lg:col-span-2"
             >
-              <Card className="shadow-lg hover:shadow-2xl transition-all duration-300">
-                <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30">
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <Card className="shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3 border-b border-gray-100 dark:border-gray-700">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     Quick Actions
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-4 sm:pt-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <CardContent className="pt-4 sm:pt-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
                     {quickActions.map((action, index) => (
-                      <motion.button
+                      <button
                         key={index}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.2 + index * 0.1 }}
-                        whileHover={{ scale: 1.05, y: -5 }}
-                        whileTap={{ scale: 0.95 }}
                         onClick={action.action}
-                        className="text-left p-5 sm:p-6 rounded-xl sm:rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all group shadow-lg hover:shadow-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
+                        className="text-left p-3.5 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 transition-all group"
                       >
-                        <motion.div 
-                          className={`w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br ${action.gradient} rounded-xl flex items-center justify-center mb-3 shadow-xl`}
-                          whileHover={{ rotate: 360, scale: 1.2 }}
-                          transition={{ duration: 0.7, ease: "easeInOut" }}
-                        >
-                          <action.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-lg" />
-                        </motion.div>
-                        <h3 className="font-semibold text-base sm:text-lg mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-2">
+                        <div className={`w-9 h-9 bg-gradient-to-br ${action.gradient} rounded-lg flex items-center justify-center mb-2.5 shadow-sm group-hover:scale-110 transition-transform`}>
+                          <action.icon className="w-4 h-4 text-white" />
+                        </div>
+                        <h3 className="font-semibold text-sm mb-0.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight">
                           {action.title}
-                          <motion.div
-                            initial={{ x: 0 }}
-                            whileHover={{ x: 5 }}
-                          >
-                            <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </motion.div>
                         </h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground leading-snug line-clamp-2">
                           {action.description}
                         </p>
-                      </motion.button>
+                      </button>
                     ))}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Recent Activity */}
-              {recentCourses.length > 0 && (
-                <Card className="mt-6 shadow-lg hover:shadow-2xl transition-all duration-300">
-                  <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30">
+              {/* Continue Learning */}
+              {recentCourses.length > 0 ? (
+                <Card className="mt-4 sm:mt-5 shadow-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                         Continue Learning
                       </CardTitle>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => navigate('/my-learning')}
-                        className="text-cyan-600 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 group"
+                        className="text-xs text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 h-7 px-2.5"
                       >
                         View All
-                        <motion.div
-                          className="inline-block ml-1"
-                          whileHover={{ x: 5 }}
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </motion.div>
+                        <ChevronRight className="w-3 h-3 ml-0.5" />
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-3">
-                      {recentCourses.map((course, idx) => (
-                        <motion.button
-                          key={`${course.subject}-${course.grade}-${course.term}`}
-                          initial={{ opacity: 0, x: -20 }}
+                  <CardContent className="pt-4">
+                    <div className="space-y-2.5">
+                      {recentCourses.map((course, idx) => {
+                        const continueLessonId = course.nextLesson?.id ?? course.lessonId;
+                        const continueParams = new URLSearchParams();
+                        if (course.term) continueParams.set('term', course.term);
+                        if (continueLessonId) continueParams.set('lessonId', continueLessonId);
+                        const continueHref = `/subjects/${course.grade}/${course.subject}${continueParams.toString() ? `?${continueParams.toString()}` : ''}`;
+
+                        return (
+                        <motion.div
+                          key={`${course.subject}-${course.grade}-${course.term}-${continueLessonId ?? idx}`}
+                          initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          whileHover={{ scale: 1.02, x: 5, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.15)" }}
-                          onClick={() => navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`)}
-                          className="w-full p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-cyan-500 dark:hover:border-cyan-400 transition-all text-left group shadow-lg hover:shadow-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900"
+                          transition={{ delay: idx * 0.06 }}
                         >
-                          <div className="flex items-start gap-4">
-                            {course.thumbnailUrl ? (
-                              <img
-                                src={course.thumbnailUrl}
-                                alt={course.subject}
-                                className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-xl"
-                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                              />
-                            ) : (
-                              <motion.div
-                                className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xl"
-                                whileHover={{ scale: 1.15, rotate: 10 }}
-                                transition={{ type: "spring", stiffness: 400 }}
-                              >
-                                <BookOpen className="w-7 h-7 text-white drop-shadow-lg" />
-                              </motion.div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
-                                {course.subject}
-                              </h4>
-                              <p className="text-sm text-muted-foreground mb-2">
-                                Grade {course.grade}{course.term ? ` · ${course.term}` : ''} · {course.lessonsCompleted}/{course.lessonsTotal} lessons
-                              </p>
-                              {/* Progress bar */}
-                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-2">
+                        <Link
+                          to={continueHref}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-cyan-400 dark:hover:border-cyan-500 hover:bg-cyan-50/40 dark:hover:bg-cyan-900/10 transition-all group block"
+                        >
+                          {course.thumbnailUrl ? (
+                            <img
+                              src={course.thumbnailUrl}
+                              alt={course.subject}
+                              className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                              loading="lazy"
+                              decoding="async"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <BookOpen className="w-5 h-5 text-white" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm truncate group-hover:text-cyan-700 dark:group-hover:text-cyan-400 transition-colors">
+                              {course.nextLesson?.title || course.subject}
+                            </h4>
+                            <p className="text-xs text-muted-foreground mb-1.5">
+                              Grade {course.grade}{course.term ? ` · ${course.term}` : ''}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                                 <div
                                   className="bg-gradient-to-r from-cyan-500 to-blue-500 h-1.5 rounded-full transition-all"
-                                  style={{ width: `${course.progress}%` }}
+                                  style={{ width: `${Math.max(course.progress, 2)}%` }}
                                 />
                               </div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="outline" className="text-xs">
-                                  Grade {course.grade}
-                                </Badge>
-                                {course.term && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {course.term}
-                                  </Badge>
-                                )}
+                              <span className="text-xs text-muted-foreground flex-shrink-0 w-10 text-right">
                                 {course.progress === 100 ? (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ type: "spring" }}
-                                  >
-                                    <Badge className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 border-0 shadow-lg">
-                                      <motion.div
-                                        animate={{ scale: [1, 1.1, 1] }}
-                                        transition={{ duration: 2, repeat: Infinity }}
-                                        className="flex items-center"
-                                      >
-                                        <Award className="w-3 h-3 mr-1" />
-                                        Completed
-                                      </motion.div>
-                                    </Badge>
-                                  </motion.div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">{course.progress}% complete</span>
-                                )}
-                              </div>
+                                  <span className="text-green-600 dark:text-green-400 font-medium">Done</span>
+                                ) : `${course.progress}%`}
+                              </span>
                             </div>
-                            <motion.div
-                              whileHover={{ scale: 1.2 }}
-                              transition={{ type: "spring", stiffness: 400 }}
-                            >
-                              <PlayCircle className="w-5 h-5 text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-                            </motion.div>
                           </div>
-                        </motion.button>
-                      ))}
+                          <PlayCircle className="w-4 h-4 text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                        </Link>
+                        </motion.div>
+                        );
+                      })}
                     </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="mt-4 sm:mt-5 shadow-sm">
+                  <CardContent className="py-10 flex flex-col items-center text-center gap-3">
+                    <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
+                      <BookOpen className="w-6 h-6 text-indigo-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-1">No courses yet</h4>
+                      <p className="text-xs text-muted-foreground max-w-xs">Browse our course catalog to find subjects that match your grade and start learning today.</p>
+                    </div>
+                    <Button size="sm" onClick={() => navigate('/browse')} className="mt-1">
+                      <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                      Browse lessonss
+                    </Button>
                   </CardContent>
                 </Card>
               )}
@@ -976,10 +954,10 @@ const StudentHome = () => {
 
             {/* Sidebar - Gamification Widgets */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="space-y-6"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.25 }}
+              className="space-y-4"
             >
               {/* Weekly Goal Widget */}
               {gamificationStats && (
@@ -1004,41 +982,43 @@ const StudentHome = () => {
 
               {/* Personalized Recommendations */}
               {analyticsData && analyticsData.weakest && analyticsData.weakest.percentage < 70 && (
-                <Card className="shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-blue-200 dark:border-blue-900/30">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-                    <CardTitle className="flex items-center gap-2">
-                      <Lightbulb className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Card className="shadow-sm border border-blue-100 dark:border-blue-900/30">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <Lightbulb className="w-4 h-4 text-amber-500" />
                       Recommended for You
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-3">
-                      <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg">
-                        <h4 className="font-semibold text-sm mb-1">
-                          Focus on {analyticsData.weakest.subject}
-                        </h4>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          You're at {analyticsData.weakest.percentage}% completion. Let's improve!
-                        </p>
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          onClick={() => {
-                            const lesson = enrolledLessons.find(l => l.subject === analyticsData.weakest?.subject);
-                            if (lesson) {
-                              navigate(`/subjects/${lesson.grade}/${lesson.subject}${lesson.term ? `?term=${lesson.term}` : ''}`);
-                            }
-                          }}
-                        >
-                          Continue Learning
-                        </Button>
-                      </div>
+                  <CardContent className="px-4 pb-4">
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-800/30">
+                      <h4 className="font-semibold text-sm mb-0.5">
+                        Focus on {analyticsData.weakest.subject}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {analyticsData.weakest.percentage}% complete — keep going!
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full h-8 text-xs"
+                        onClick={() => {
+                          const lesson = enrolledLessons.find(l => l.subject === analyticsData.weakest?.subject);
+                          if (lesson) {
+                            const perLesson = enrollments.some(e => e.lessonId === lesson.id);
+                            const p = new URLSearchParams();
+                            if (lesson.term) p.set('term', lesson.term);
+                            if (perLesson) p.set('lessonId', lesson.id);
+                            navigate(`/subjects/${lesson.grade}/${lesson.subject}${p.toString() ? `?${p}` : ''}`);
+                          }
+                        }}
+                      >
+                        Continue Learning
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Suggestion Box - below Recommended for You */}
+              {/* Suggestion Box */}
               <SuggestionBox 
                 variant="card" 
                 defaultGrade={studentInfo?.grade}

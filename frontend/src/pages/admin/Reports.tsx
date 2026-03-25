@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,8 @@ import {
   Eye,
   AlertCircle,
   DollarSign,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import {
   generateStudentProgressReport,
@@ -295,57 +297,6 @@ const Reports = () => {
     }
   };
 
-  const generateQuickReport = async (period: 'daily' | 'weekly' | 'monthly' = 'weekly', format: 'pdf' | 'csv' | 'excel' | 'json' = 'pdf') => {
-    try {
-      setGenerating('quick-report');
-      
-      const result = await generateEngagementSummaryReport({ period, format: 'json' });
-      
-      const reportHeader = {
-        title: `${period.charAt(0).toUpperCase() + period.slice(1)} Engagement Summary`,
-        period: period.charAt(0).toUpperCase() + period.slice(1),
-        generatedBy: user?.fullName || 'Admin'
-      };
-      
-      const timestamp = new Date().toISOString().split('T')[0];
-      const baseFilename = `quick-engagement-${period}-${timestamp}`;
-      
-      if (format === 'pdf') {
-        generatePDFReport(reportHeader, result, `${baseFilename}.pdf`, selectedOrientation);
-        toast({
-          title: "✅ Quick Report Downloaded",
-          description: `${period} engagement report downloaded as PDF.`,
-        });
-      } else if (format === 'csv') {
-        generateCSVReport(reportHeader, result, `${baseFilename}.csv`);
-        toast({
-          title: "✅ Quick Report Downloaded",
-          description: `${period} engagement report downloaded as CSV.`,
-        });
-      } else if (format === 'excel') {
-        generateExcelReport(reportHeader, result, `${baseFilename}.xlsx`);
-        toast({
-          title: "✅ Quick Report Downloaded",
-          description: `${period} engagement report downloaded as Excel.`,
-        });
-      } else {
-        generateJSONReport(reportHeader, result, `${baseFilename}.json`);
-        toast({
-          title: "✅ Quick Report Downloaded",
-          description: `${period} engagement report downloaded as JSON.`,
-        });
-      }
-    } catch (err: any) {
-      toast({
-        title: 'Export Failed',
-        description: err?.message || 'Unable to generate report',
-        variant: 'destructive'
-      });
-    } finally {
-      setGenerating(null);
-    }
-  };
-
   const handleQuickReport = async (period: 'daily' | 'weekly' | 'monthly', format: 'pdf' | 'csv' | 'excel' | 'json' = 'pdf') => {
     try {
       setGenerating('quick-report');
@@ -398,6 +349,36 @@ const Reports = () => {
     }
   };
 
+  // Open the JSON viewer modal with live data from the API
+  const handleViewReport = async (report: Report) => {
+    try {
+      setGenerating(report.id);
+      const params = { period: selectedPeriod, format: 'json' };
+      const result = await report.generator(params);
+      setViewingReport({
+        ...result,
+        reportTitle: report.title,
+        generatedAt: new Date().toISOString(),
+      });
+      setReportDialogOpen(true);
+    } catch (err: any) {
+      toast({
+        title: 'View Failed',
+        description: err?.message || 'Unable to load report data',
+        variant: 'destructive',
+      });
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const FORMAT_ICONS: Record<string, React.ElementType> = {
+    pdf: FileText,
+    excel: FileSpreadsheet,
+    csv: FileSpreadsheet,
+    json: FileJson,
+  };
+
   const quickReports = [
     { label: "Daily Overview", period: "daily" as const, icon: Calendar },
     { label: "Weekly Overview", period: "weekly" as const, icon: TrendingUp },
@@ -408,41 +389,82 @@ const Reports = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports & Export</h1>
-          <p className="text-muted-foreground mt-2">
-            Generate detailed reports and export data
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Reports & Export</h1>
+            <p className="text-muted-foreground mt-1">
+              Generate, preview and download detailed platform reports
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted text-sm">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground">Period:</span>
+              <span className="font-medium capitalize">{selectedPeriod}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted text-sm">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+              <span className="text-muted-foreground">Format:</span>
+              <span className="font-medium uppercase">{selectedFormat}</span>
+            </div>
+          </div>
         </div>
 
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-3">
           {quickReports.map((quickReport) => {
             const Icon = quickReport.icon;
+            const isQuickGenerating = generating === 'quick-report';
+            const FormatIcon = FORMAT_ICONS[selectedFormat] || FileText;
             return (
               <Card 
                 key={quickReport.label} 
-                className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => handleQuickReport(quickReport.period)}
+                className="hover:shadow-md transition-shadow cursor-pointer group border-border"
+                onClick={() => !isQuickGenerating && handleQuickReport(quickReport.period, selectedFormat as any)}
               >
-                <CardContent className="pt-6">
-                  <div className="flex flex-col items-center text-center space-y-2">
-                    <div className="p-3 rounded-full bg-primary/10">
+                <CardContent className="pt-5 pb-4">
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
                       <Icon className="w-6 h-6 text-primary" />
                     </div>
-                    <p className="text-sm font-medium">{quickReport.label}</p>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="gap-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleQuickReport(quickReport.period, 'csv');
-                      }}
-                    >
-                      <Download className="w-3 h-3" />
-                      CSV
-                    </Button>
+                    <div>
+                      <p className="text-sm font-semibold">{quickReport.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Engagement summary</p>
+                    </div>
+                    <div className="flex items-center gap-2 w-full pt-1">
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="flex-1 gap-1.5 text-xs"
+                        disabled={isQuickGenerating}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickReport(quickReport.period, selectedFormat as any);
+                        }}
+                      >
+                        {isQuickGenerating ? (
+                          <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <FormatIcon className="w-3 h-3" />
+                            {selectedFormat.toUpperCase()}
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs gap-1"
+                        disabled={isQuickGenerating}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickReport(quickReport.period, 'csv');
+                        }}
+                      >
+                        <FileSpreadsheet className="w-3 h-3" />
+                        CSV
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -534,63 +556,67 @@ const Reports = () => {
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-foreground">Available Reports</h2>
           
-          <div className="grid gap-4">
+            <div className="grid gap-4">
             {reports.map((report) => {
               const Icon = report.icon;
               const isGenerating = generating === report.id;
+              const FormatIcon = FORMAT_ICONS[selectedFormat] || FileText;
               
               return (
-                <Card key={report.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className="p-3 rounded-lg bg-primary/10">
-                          <Icon className="w-6 h-6 text-primary" />
+                <Card key={report.id} className="hover:shadow-md transition-shadow border-l-4 border-l-primary/30 hover:border-l-primary">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4 flex-1 min-w-0">
+                        <div className="p-2.5 rounded-lg bg-primary/10 flex-shrink-0">
+                          <Icon className="w-5 h-5 text-primary" />
                         </div>
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{report.title}</CardTitle>
-                          <CardDescription className="mt-2">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-base">{report.title}</CardTitle>
+                          <CardDescription className="mt-1 text-sm">
                             {report.description}
                           </CardDescription>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         {selectedFormat === 'pdf' && (
                           <Button 
                             variant="outline"
-                            className="gap-2"
+                            size="sm"
+                            className="gap-1.5"
                             onClick={() => handlePreviewReport(report)}
                             disabled={isGenerating}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5" />
                             Preview
                           </Button>
                         )}
                         {selectedFormat === 'json' && (
                           <Button 
                             variant="outline"
-                            className="gap-2"
-                            onClick={() => handleGenerateReport(report)}
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => handleViewReport(report)}
                             disabled={isGenerating}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5" />
                             View
                           </Button>
                         )}
                         <Button 
-                          className="gap-2"
+                          size="sm"
+                          className="gap-1.5"
                           onClick={() => handleGenerateReport(report)}
                           disabled={isGenerating}
                         >
                           {isGenerating ? (
                             <>
-                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                               Generating...
                             </>
                           ) : (
                             <>
-                              <Download className="w-4 h-4" />
-                              Download {selectedFormat.toUpperCase()}
+                              <FormatIcon className="w-3.5 h-3.5" />
+                              {selectedFormat.toUpperCase()}
                             </>
                           )}
                         </Button>

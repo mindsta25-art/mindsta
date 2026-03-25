@@ -27,18 +27,46 @@ import {
   Shield,
   Moon,
   Sun,
+  ChevronRight,
 } from "lucide-react";
 import { signOut } from "@/api";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { formatUserName } from "@/lib/stringUtils";
 import { AdminAlertBell } from "@/components/AdminAlertBell";
+
+const ADMIN_ROUTE_MAP: Record<string, string> = {
+  '/admin': 'Dashboard',
+  '/admin/users': 'User Management',
+  '/admin/newsletter': 'Newsletter',
+  '/admin/content': 'Content Management',
+  '/admin/create-lesson': 'Create Lesson',
+  '/admin/create-quiz': 'Create Quiz',
+  '/admin/lessons': 'Lesson Management',
+  '/admin/subjects': 'Subject Management',
+  '/admin/topics': 'Topic Management',
+  '/admin/referrals': 'Referral Management',
+  '/admin/referral-payouts': 'Referral Payouts',
+  '/admin/analytics': 'Analytics',
+  '/admin/reports': 'Reports',
+  '/admin/financial-report': 'Financial Report',
+  '/admin/settings': 'Settings',
+  '/admin/notifications': 'Notifications',
+  '/admin/suggestions': 'Suggestions',
+  '/admin/questions': 'Questions',
+  '/admin/tickets': 'Support Tickets',
+  '/admin/leaderboard': 'Leaderboard',
+  '/admin/bundles': 'Bundle Management',
+  '/admin/alerts': 'Admin Alerts',
+};
 
 export function AdminHeader() {
   const { user, refreshUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPageLabel = ADMIN_ROUTE_MAP[location.pathname] ?? 'Dashboard';
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
@@ -78,15 +106,19 @@ export function AdminHeader() {
     <>
     {/* Modern top bar: gradient left accent + breadcrumb + actions */}
     <div className="flex items-center justify-between bg-card border-b border-border px-6 py-0 h-14 shadow-sm">
-      {/* Left — brand accent + clock */}
+      {/* Left — brand accent + breadcrumb */}
       <div className="flex items-center gap-4">
         <div className="h-14 w-1 bg-gradient-to-b from-purple-500 to-pink-500 -ml-6 mr-2 flex-shrink-0" />
         <div className="flex flex-col leading-tight">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-            {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          </span>
-          <span className="text-sm font-bold text-foreground tabular-nums">
-            {currentTime.toLocaleTimeString()}
+          {/* Breadcrumb */}
+          <nav aria-label="breadcrumb" className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground font-medium">Admin</span>
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
+            <span className="text-sm font-semibold text-foreground">{currentPageLabel}</span>
+          </nav>
+          {/* Date + time */}
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {currentTime.toLocaleTimeString()}
           </span>
         </div>
       </div>

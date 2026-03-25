@@ -196,10 +196,10 @@ const ProgressPage = () => {
 
           {/* Tabs Content */}
           <Tabs defaultValue={defaultTab} className="space-y-6">
-            <TabsList>
+            <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
-              <TabsTrigger value="mastery">Subject Mastery</TabsTrigger>
+              <TabsTrigger value="mastery">Mastery</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -216,10 +216,10 @@ const ProgressPage = () => {
                     <div className="space-y-4">
                       {analytics.subjectPerformance.slice(0, 5).map((subject: any, index: number) => (
                         <div key={index}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{subject.subject}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {subject.completed}/{subject.total} lessons ({subject.percentage}%)
+                          <div className="flex items-center justify-between mb-2 gap-2">
+                            <span className="font-medium truncate min-w-0 flex-1">{subject.subject}</span>
+                            <span className="text-sm text-muted-foreground flex-shrink-0">
+                              {subject.completed}/{subject.total} ({subject.percentage}%)
                             </span>
                           </div>
                           <ProgressBar value={subject.percentage} className="h-2" />

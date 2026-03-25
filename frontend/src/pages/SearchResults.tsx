@@ -155,9 +155,13 @@ export default function SearchResults() {
     return enrollments.some(e => isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term));
   };
 
+  // Build the same URL that MyLearning uses so clicking a search result opens
+  // the subject page and auto-selects the specific lesson.
   const buildSubjectUrl = (lesson: Lesson): string => {
-    const termSlug = lesson.term ? lesson.term.toLowerCase().replace(/\s+/g, '-') : '';
-    return `/subjects/${lesson.grade}/${encodeURIComponent(lesson.subject)}${termSlug ? `?term=${termSlug}` : ''}`;
+    const p = new URLSearchParams();
+    if (lesson.term) p.set('term', lesson.term);
+    if (lesson.id) p.set('lessonId', lesson.id);
+    return `/subjects/${lesson.grade}/${lesson.subject}${p.toString() ? `?${p}` : ''}`;
   };
 
   const formatPrice = (price?: number) => {

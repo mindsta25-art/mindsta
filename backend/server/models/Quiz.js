@@ -56,6 +56,7 @@ const QuizSchema = new Schema(
 
 // Compound index for efficient querying by subject, grade, and term
 QuizSchema.index({ subject: 1, grade: 1, term: 1 });
-QuizSchema.index({ lessonId: 1 });
+// One quiz per lesson — enforce at DB level
+QuizSchema.index({ lessonId: 1 }, { unique: true });
 
 export default mongoose.models.Quiz || mongoose.model('Quiz', QuizSchema);

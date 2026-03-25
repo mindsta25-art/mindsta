@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Quiz } from "@/components/Quiz";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,9 +103,11 @@ const SubjectLessonsPage = () => {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean>(false);
   const [checkingAccess, setCheckingAccess] = useState<boolean>(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileLessonsOpen, setMobileLessonsOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState("overview");
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<any | null>(null);
@@ -122,16 +125,19 @@ const SubjectLessonsPage = () => {
     if (!hasAccess || !user) return;
     sessionStartRef.current = Date.now();
     minutesRecordedRef.current = 0;
-    // Record 5 min every 5 minutes while actively on the page
+    // Record 5 min every 5 minutes — but only when the tab is visible
     const interval = setInterval(() => {
-      minutesRecordedRef.current += 5;
-      recordStudyTime(5).catch(() => {});
+      if (document.visibilityState !== 'hidden') {
+        minutesRecordedRef.current += 5;
+        recordStudyTime(5).catch(() => {});
+      }
     }, 5 * 60 * 1000);
     return () => {
       clearInterval(interval);
+      // On unmount only credit active time (visible tab elapsed)
       const totalElapsed = Math.round((Date.now() - sessionStartRef.current) / 60000);
       const remaining = totalElapsed - minutesRecordedRef.current;
-      if (remaining > 0 && remaining < 120) {
+      if (remaining > 0 && remaining < 120 && document.visibilityState !== 'hidden') {
         recordStudyTime(remaining).catch(() => {});
       }
     };
@@ -160,9 +166,9 @@ const SubjectLessonsPage = () => {
   const gradeParam = searchParams.get('grade') || grade;
   const lessonIdParam = searchParams.get('lessonId');
   
-  // Decode and use subject name directly - React Router already decodes URL params
-  // So "Computer%20Science" becomes "Computer Science"
-  const subjectName = subject ? decodeURIComponent(subject) : '';
+  // React Router already decodes URL params — do NOT call decodeURIComponent again
+  // (double-decoding would crash on subject names containing literal '%' characters)
+  const subjectName = subject ?? '';
 
   useEffect(() => {
     if (!loading && !user) {
@@ -268,6 +274,7 @@ const SubjectLessonsPage = () => {
         }
       } catch (error) {
         console.error("Error fetching data:", error);
+        setFetchError("Failed to load course content. Please check your connection and try again.");
       } finally {
         setLoadingData(false);
         setCheckingAccess(false);
@@ -730,6 +737,27 @@ const SubjectLessonsPage = () => {
     );
   }
 
+  if (fetchError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <StudentHeader studentName={studentName} />
+        <div className="pt-24 container mx-auto px-4 flex items-center justify-center" style={{minHeight: 'calc(100vh - 96px)'}}>
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">&#9888;&#65039;</span>
+            </div>
+            <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+            <p className="text-muted-foreground mb-6">{fetchError}</p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={() => navigate('/browse')}>Browse lessonss</Button>
+              <Button onClick={() => { setFetchError(null); setLoadingData(true); window.location.reload(); }}>Try Again</Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background">
@@ -761,7 +789,7 @@ const SubjectLessonsPage = () => {
               </div>
               <div className="flex gap-3 justify-center">
                 <Button onClick={() => navigate('/browse')} variant="outline">
-                  Browse Courses
+                  Browse lessonss
                 </Button>
                 <Button onClick={() => navigate('/cart')} className="gap-2">
                   <ShoppingCart className="w-4 h-4" />
@@ -775,8 +803,6 @@ const SubjectLessonsPage = () => {
     );
   }
 
-  const completedCount = lessons.filter(l => isLessonCompleted(l.id)).length;
-  const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
   const totalDuration = lessons.reduce((sum, l) => sum + (l.duration || 30), 0);
 
   // When navigated from a specific lesson card (lessonId in URL), only show that lesson in the sidebar
@@ -786,8 +812,22 @@ const SubjectLessonsPage = () => {
     return filtered.length > 0 ? filtered : lessons;
   })();
 
+  // All stats are scoped to sidebarLessons so that when a specific lesson is selected
+  // counts reflect only the purchased lesson, not the entire subject.
+  const sidebarLessonIds = new Set(sidebarLessons.map(l => l.id));
+  const completedCount = sidebarLessons.filter(l => isLessonCompleted(l.id)).length;
+  const progressPercent = sidebarLessons.length > 0 ? Math.round((completedCount / sidebarLessons.length) * 100) : 0;
+
   // Duration to display in sidebar header — matches what sidebarLessons shows
   const sidebarDuration = sidebarLessons.reduce((sum, l) => sum + (l.duration || 30), 0);
+
+  // Quiz count scoped to whichever lessons are shown in the sidebar.
+  // When a specific lesson is selected via lessonIdParam, use the already-loaded selectedQuiz
+  // (fetched via getQuizByLessonId which is a direct lookup and more reliable than the
+  // filter-based getQuizzesByFilters which can miss quizzes with mismatched metadata).
+  const sidebarQuizCount = lessonIdParam
+    ? (selectedQuiz !== null ? 1 : 0)
+    : quizzes.filter(q => sidebarLessonIds.has(q.lessonId)).length;
 
   // Duration shown in stats / header — per selected lesson when navigating from a card,
   // otherwise the full course total
@@ -823,8 +863,18 @@ const SubjectLessonsPage = () => {
           <div className="flex items-center gap-2">
             <div className="hidden lg:flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md">
               <Award className="w-4 h-4 text-yellow-600" />
-              <span className="text-sm font-medium">{completedCount}/{lessons.length} Completed</span>
+              <span className="text-sm font-medium">{completedCount}/{sidebarLessons.length} Completed</span>
             </div>
+            {/* Mobile lesson list button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="lg:hidden gap-1.5 border-purple-300 text-purple-700 dark:text-purple-300"
+              onClick={() => setMobileLessonsOpen(true)}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="font-semibold">{completedCount}/{sidebarLessons.length}</span>
+            </Button>
           </div>
         </div>
         <Progress value={progressPercent} className="h-1" />
@@ -899,7 +949,7 @@ const SubjectLessonsPage = () => {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            <span>{selectedLesson.duration} minutes</span>
+                            <span>{selectedLesson.duration != null ? `${selectedLesson.duration} min` : 'Duration not set'}</span>
                           </div>
                           {isLessonCompleted(selectedLesson.id) && (
                             <Badge className="bg-green-600 hover:bg-green-700">
@@ -1031,7 +1081,6 @@ const SubjectLessonsPage = () => {
                       
                       <div className="border-t pt-4">
                         <h4 className="font-semibold mb-3">What You'll Learn</h4>
-                        {/* Show first lesson's whatYouWillLearn if available */}
                         {lessons.length > 0 && lessons[0].whatYouWillLearn && lessons[0].whatYouWillLearn.length > 0 ? (
                           <ul className="space-y-2">
                             {lessons[0].whatYouWillLearn.map((item, index) => (
@@ -1087,7 +1136,7 @@ const SubjectLessonsPage = () => {
                     <CardContent>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                         <div className="text-center p-4 bg-muted rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">{lessons.length}</div>
+                          <div className="text-2xl font-bold text-purple-600">{sidebarLessons.length}</div>
                           <div className="text-sm text-muted-foreground">Lessons</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
@@ -1110,7 +1159,7 @@ const SubjectLessonsPage = () => {
                       {/* Progress bar */}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{completedCount} of {lessons.length} lessons completed</span>
+                          <span>{completedCount} of {sidebarLessons.length} lessons completed</span>
                           <span>{progressPercent}%</span>
                         </div>
                         <Progress value={progressPercent} className="h-2" />
@@ -1567,7 +1616,7 @@ const SubjectLessonsPage = () => {
                   <div className="p-6">
                     <h3 className="font-bold text-lg mb-1">Lesson Content</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {quizzes.length} quizzes • {sidebarDuration >= 60 ? `${Math.floor(sidebarDuration / 60)}h ${sidebarDuration % 60}m` : `${sidebarDuration}m`}
+                      {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {sidebarQuizCount} quiz{sidebarQuizCount !== 1 ? 'zes' : ''} • {sidebarDuration >= 60 ? `${Math.floor(sidebarDuration / 60)}h ${sidebarDuration % 60}m` : `${sidebarDuration}m`}
                     </p>
                     <div className="space-y-4">
                       {/* Lessons Section */}
@@ -1649,6 +1698,92 @@ const SubjectLessonsPage = () => {
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Mobile Lesson Drawer */}
+      <Sheet open={mobileLessonsOpen} onOpenChange={setMobileLessonsOpen}>
+        <SheetContent side="bottom" className="h-[75vh] px-0 pb-0 rounded-t-2xl">
+          <SheetHeader className="px-5 pt-5 pb-3 border-b">
+            <SheetTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-purple-600" />
+              Lessons
+            </SheetTitle>
+            <p className="text-sm text-muted-foreground">
+              {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {sidebarQuizCount} quiz{sidebarQuizCount !== 1 ? 'zes' : ''} • {sidebarDuration >= 60 ? `${Math.floor(sidebarDuration / 60)}h ${sidebarDuration % 60}m` : `${sidebarDuration}m`}
+            </p>
+            {/* Mini progress bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{completedCount} of {sidebarLessons.length} completed</span>
+                <span className="font-semibold text-purple-600">{progressPercent}%</span>
+              </div>
+              <Progress value={progressPercent} className="h-1.5" />
+            </div>
+          </SheetHeader>
+          <ScrollArea className="h-full">
+            <div className="p-4 space-y-2 pb-10">
+              {sidebarLessons.map((lesson, index) => {
+                const completed = isLessonCompleted(lesson.id);
+                return (
+                  <div
+                    key={lesson.id}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all active:scale-[0.98] ${
+                      selectedLesson?.id === lesson.id
+                        ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-400'
+                        : completed
+                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
+                        : 'border-transparent bg-muted/50 hover:bg-muted'
+                    }`}
+                    onClick={() => {
+                      handleLessonClick(lesson);
+                      setMobileLessonsOpen(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {lesson.imageUrl ? (
+                        <div className="flex-shrink-0 relative w-14 h-10 rounded-lg overflow-hidden">
+                          <img
+                            src={lesson.imageUrl}
+                            alt={lesson.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          {completed && (
+                            <div className="absolute inset-0 bg-green-600/70 flex items-center justify-center">
+                              <CheckCircle className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${completed ? 'bg-green-600 text-white' : selectedLesson?.id === lesson.id ? 'bg-purple-600 text-white' : 'bg-muted-foreground/20 text-muted-foreground'}`}>
+                          {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-semibold text-sm leading-tight truncate ${
+                          selectedLesson?.id === lesson.id ? 'text-purple-700 dark:text-purple-300' : ''
+                        }`}>
+                          {lesson.title}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          <span>{lesson.duration} min</span>
+                          {completed && <span className="text-green-600 font-medium">• Completed</span>}
+                          {!completed && Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30 && (
+                            <span className="text-blue-500 font-medium">• In progress</span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className={`w-4 h-4 flex-shrink-0 ${
+                        selectedLesson?.id === lesson.id ? 'text-purple-600' : 'text-muted-foreground'
+                      }`} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

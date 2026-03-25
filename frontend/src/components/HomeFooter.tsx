@@ -64,7 +64,7 @@ const HomeFooterComponent = () => {
 
   const quickLinks = [
     { label: "Home", href: "/" },
-    { label: "Browse Courses", href: "/browse" },
+    { label: "Browse lessonss", href: "/browse" },
     { label: "About Us", href: "/about" },
     { label: "FAQs", href: "/faq" },
     { label: "Blog", href: "/blog" },

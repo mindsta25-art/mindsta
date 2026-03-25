@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -98,12 +98,12 @@ const tourSteps: TourStep[] = [
   },
   {
     title: 'You\'re all set! 🚀',
-    description: 'You\'re ready to start learning. Your first step? Browse courses and enroll in a subject you love!',
+    description: 'You\'re ready to start learning. Your first step? Browse lessonss and enroll in a subject you love!',
     icon: <TrendingUp className="w-14 h-14 text-white" />,
     gradient: 'from-emerald-500 to-teal-600',
     features: [
       { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Set your grade in Settings for personalized content' },
-      { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Start with Browse Courses to find your first lesson' },
+      { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Start with Browse lessonss to find your first lesson' },
       { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Come back daily to build your learning streak!' },
     ]
   },
@@ -156,7 +156,8 @@ export const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleComplete(); }}>
-      <DialogContent className="sm:max-w-[520px] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl">
+      <DialogContent className="sm:max-w-[520px] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl" aria-describedby={undefined}>
+        <DialogTitle className="sr-only">Getting Started Tour</DialogTitle>
         {/* Hero gradient section */}
         <div className={`bg-gradient-to-br ${step.gradient} px-8 pt-8 pb-6 text-white relative`}>
           <Button

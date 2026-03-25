@@ -65,7 +65,7 @@ const StudentFooterComponent = () => {
   const quickLinks = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "My Learning", href: "/my-learning" },
-    { label: "Browse Courses", href: "/browse" },
+    { label: "Browse lessonss", href: "/browse" },
     { label: "My Cart", href: "/cart" },
     { label: "Wishlist", href: "/wishlist" },
     { label: "Settings", href: "/settings" },

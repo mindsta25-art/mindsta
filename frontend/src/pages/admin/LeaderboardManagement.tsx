@@ -13,6 +13,8 @@ import {
   Flame,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Minus,
   Search,
   Filter,
@@ -263,6 +265,8 @@ export default function LeaderboardManagement() {
     "rank" | "coins" | "completedLessons" | "streak"
   >("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   // Message dialog
   const [msgDialog, setMsgDialog] = useState<MessageDialogState>({
@@ -320,6 +324,12 @@ export default function LeaderboardManagement() {
       if (sortField === "streak") return (a.streak - b.streak) * dir;
       return 0;
     });
+
+  // Reset to page 1 whenever filters / sort / timeframe change
+  useEffect(() => { setPage(1); }, [searchQuery, gradeFilter, sortField, sortDir, timeframe]);
+
+  const totalPages = Math.ceil(displayed.length / PAGE_SIZE);
+  const paginatedDisplayed = displayed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const top3 = leaderboard.slice(0, 3);
   const grades = Array.from(
@@ -668,7 +678,7 @@ export default function LeaderboardManagement() {
               </div>
 
               {/* Rows */}
-              {displayed.map((entry, idx) => (
+              {paginatedDisplayed.map((entry, idx) => (
                 <div key={entry.userId}>
                   <div
                     className={`grid grid-cols-[56px_1fr_80px_120px_120px_100px_100px] gap-2 px-4 py-3 items-center transition-colors hover:bg-muted/30 ${
@@ -764,11 +774,45 @@ export default function LeaderboardManagement() {
                       </Button>
                     </div>
                   </div>
-                  {idx < displayed.length - 1 && (
+                  {idx < paginatedDisplayed.length - 1 && (
                     <Separator className="mx-4 opacity-50" />
                   )}
                 </div>
               ))}
+
+              {/* Pagination */}
+              {displayed.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, displayed.length)} of {displayed.length} students
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="gap-1 h-8"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Prev
+                    </Button>
+                    <span className="text-sm font-medium px-1 tabular-nums">
+                      {page} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="gap-1 h-8"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

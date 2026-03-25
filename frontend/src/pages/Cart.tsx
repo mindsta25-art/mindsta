@@ -154,7 +154,7 @@ const Cart = () => {
                 </p>
                 <Button onClick={() => navigate("/browse")} size="lg" className="gap-2 w-full sm:w-auto">
                   <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Browse Courses
+                  Browse lessonss
                 </Button>
               </div>
             </Card>
@@ -168,7 +168,7 @@ const Cart = () => {
                     <CardContent className="p-4">
                       <div className="flex gap-4">
                         {/* Course Thumbnail */}
-                        <div className="relative w-28 h-16 sm:w-32 sm:h-18 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded flex-shrink-0 overflow-hidden">
+                        <div className="relative w-28 h-16 sm:w-32 sm:h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded flex-shrink-0 overflow-hidden">
                           <div className="absolute inset-0 flex items-center justify-center">
                             <BookOpen className="w-8 h-8 text-white opacity-90" />
                           </div>

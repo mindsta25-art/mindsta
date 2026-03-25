@@ -1,14 +1,27 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Shield, Gift, Menu, X } from "lucide-react";
 
 export const HomeHeader = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Close mobile menu when user clicks outside the header
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mobileMenuOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-card backdrop-blur-sm shadow-lg border-b-4 border-purple-300">
+    <header ref={headerRef} className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-card backdrop-blur-sm shadow-lg border-b-4 border-purple-300">
       <div className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
           <div 

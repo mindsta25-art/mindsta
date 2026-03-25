@@ -173,7 +173,7 @@ const Profile = () => {
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-cyan-600 rounded-lg blur opacity-25"></div>
               <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
                   My Profile
                 </h1>
                 <p className="text-muted-foreground mt-1">Manage your personal information and preferences</p>
@@ -338,7 +338,7 @@ const Profile = () => {
                   </div>
 
                   {/* Submit Button */}
-                  <div className="flex justify-end gap-3 pt-4">
+                  <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">
                     <Button
                       type="button"
                       variant="outline"

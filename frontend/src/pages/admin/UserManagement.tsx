@@ -638,11 +638,11 @@ const UserManagement = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => setShowCreateAdminModal(true)}>
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowCreateAdminModal(true)}>
               <Shield className="w-4 h-4" />
               New Admin
             </Button>
-            <Button className="gap-2" onClick={() => setShowAddUserModal(true)}>
+            <Button size="sm" className="gap-2" onClick={() => setShowAddUserModal(true)}>
               <UserPlus className="w-4 h-4" />
               Add User
             </Button>

@@ -6,24 +6,31 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get enrollment counts per subject-grade-term (public — used by Browse page)
+// Get enrollment counts per subject-grade-term AND per lesson (public — used by Browse page)
 router.get('/enrollment-counts', async (req, res) => {
   try {
     const counts = await Enrollment.aggregate([
       { $match: { isActive: true } },
       {
         $group: {
-          _id: { subject: '$subject', grade: '$grade', term: '$term' },
+          _id: { subject: '$subject', grade: '$grade', term: '$term', lessonId: '$lessonId' },
           count: { $sum: 1 }
         }
       }
     ]);
 
-    // Convert to a map keyed by "subject|grade|term"
+    // Build result map with two types of keys:
+    //   "subject|grade|term"          → total enrollments for the subject-grade-term (backward compat)
+    //   "lesson|<lessonId>"           → enrollments for a specific lesson
     const result = {};
     for (const entry of counts) {
-      const key = `${entry._id.subject}|${entry._id.grade}|${entry._id.term}`;
-      result[key] = entry.count;
+      const subjectKey = `${entry._id.subject}|${entry._id.grade}|${entry._id.term}`;
+      result[subjectKey] = (result[subjectKey] || 0) + entry.count;
+
+      if (entry._id.lessonId) {
+        const lessonKey = `lesson|${entry._id.lessonId}`;
+        result[lessonKey] = (result[lessonKey] || 0) + entry.count;
+      }
     }
 
     res.json(result);
@@ -160,6 +167,10 @@ router.delete('/:id', requireAdmin, async (req, res) => {
         error: `Cannot delete subject with ${lessonCount} associated lessons. Please delete or reassign lessons first.` 
       });
     }
+
+    // Remove all enrollment records for this subject so students no longer see
+    // ghost cards for a subject that has been removed from the platform
+    await Enrollment.deleteMany({ subject: subject.name });
 
     await subject.deleteOne();
     res.json({ message: 'Subject deleted successfully' });

@@ -20,7 +20,16 @@ import {
   Package,
   RefreshCw,
   AlertCircle,
-  Circle
+  Circle,
+  Bell,
+  Trophy,
+  Mail,
+  Share2,
+  Wallet,
+  FileText,
+  ChevronRight,
+  CheckCircle2,
+  type LucideIcon,
 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading";
 import { 
@@ -380,28 +389,31 @@ const AdminDashboard = () => {
                     Common administrative tasks
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <button onClick={() => navigate('/admin/notifications')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                    Send Notifications
-                  </button>
-                  <button onClick={() => navigate('/admin/leaderboard')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                     View Leaderboard
-                  </button>
-                  <button onClick={() => navigate('/admin/newsletter')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                    Newsletter Subscribers
-                  </button>
-                  <button onClick={() => navigate('/admin/referrals')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                    Referral Management
-                  </button>
-                  <button onClick={() => navigate('/admin/referral-payouts')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                    Referral Payouts
-                  </button>
-                  <button onClick={() => navigate('/admin/reports')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                    Generate Report
-                  </button>
-                  <button onClick={() => navigate('/admin/users')} className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors">
-                    Manage Users
-                  </button>
+                <CardContent className="space-y-0.5 -mx-1">
+                  {([
+                    { icon: Bell,      label: 'Send Notifications',   desc: 'Push alerts to users',           path: '/admin/notifications',    color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-50 dark:bg-purple-900/30' },
+                    { icon: Trophy,    label: 'View Leaderboard',      desc: 'Top performing students',        path: '/admin/leaderboard',      color: 'text-amber-600 dark:text-amber-400',    bg: 'bg-amber-50 dark:bg-amber-900/30' },
+                    { icon: Mail,      label: 'Newsletter',             desc: 'Manage subscribers',             path: '/admin/newsletter',       color: 'text-sky-600 dark:text-sky-400',        bg: 'bg-sky-50 dark:bg-sky-900/30' },
+                    { icon: Share2,    label: 'Referral Management',   desc: 'Track referral partners',        path: '/admin/referrals',        color: 'text-green-600 dark:text-green-400',    bg: 'bg-green-50 dark:bg-green-900/30' },
+                    { icon: Wallet,    label: 'Referral Payouts',      desc: 'Process pending payouts',        path: '/admin/referral-payouts', color: 'text-teal-600 dark:text-teal-400',      bg: 'bg-teal-50 dark:bg-teal-900/30' },
+                    { icon: FileText,  label: 'Generate Report',       desc: 'Export system data',             path: '/admin/reports',          color: 'text-rose-600 dark:text-rose-400',      bg: 'bg-rose-50 dark:bg-rose-900/30' },
+                    { icon: Users,     label: 'Manage Users',          desc: 'View and edit user accounts',    path: '/admin/users',            color: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-50 dark:bg-indigo-900/30' },
+                  ] as { icon: LucideIcon; label: string; desc: string; path: string; color: string; bg: string }[]).map(({ icon: Icon, label, desc, path, color, bg }) => (
+                    <button
+                      key={path}
+                      onClick={() => navigate(path)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors group text-left"
+                    >
+                      <div className={`w-8 h-8 rounded-md ${bg} flex items-center justify-center flex-shrink-0 transition-colors`}>
+                        <Icon className={`w-4 h-4 ${color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-tight">{label}</p>
+                        <p className="text-xs text-muted-foreground leading-tight mt-0.5">{desc}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
+                    </button>
+                  ))}
                 </CardContent>
               </Card>
 
@@ -412,23 +424,19 @@ const AdminDashboard = () => {
                     Current system health and performance
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Database</span>
-                    <span className="text-sm font-medium text-green-500">●  Operational</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">API Server</span>
-                    <span className="text-sm font-medium text-green-500">●  Operational</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Storage</span>
-                    <span className="text-sm font-medium text-green-500">●  Operational</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Authentication</span>
-                    <span className="text-sm font-medium text-green-500">●  Operational</span>
-                  </div>
+                <CardContent className="space-y-1">
+                  {(['Database', 'API Server', 'Storage', 'Authentication'] as const).map((service) => (
+                    <div key={service} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="text-sm">{service}</span>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full px-2 py-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        Operational
+                      </span>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             </div>

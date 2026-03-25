@@ -284,8 +284,8 @@ export default function TopicManagement() {
             <h1 className="text-3xl font-bold text-foreground">Topic Management</h1>
             <p className="text-muted-foreground mt-1">Create and manage learning topics</p>
           </div>
-          <Button onClick={() => setShowDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
+          <Button size="sm" onClick={() => setShowDialog(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
             Create Topic
           </Button>
         </div>

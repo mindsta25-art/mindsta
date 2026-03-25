@@ -435,7 +435,7 @@ const NewsletterSubscribers = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Newsletter Subscribers</h2>
+            <h1 className="text-3xl font-bold tracking-tight">Newsletter Subscribers</h1>
             <p className="text-muted-foreground">
               Manage all newsletter subscriptions and subscribers
             </p>

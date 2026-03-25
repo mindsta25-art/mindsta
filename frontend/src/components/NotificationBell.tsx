@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, X, Check, Info, AlertTriangle, CheckCircle, Megaphone, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -17,6 +17,11 @@ import {
 } from '@/api/notifications';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+
+// Max consecutive network failures before stopping automatic polling.
+// Polling resumes when the component remounts (page navigation / re-login).
+const MAX_FAILURES = 3;
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -25,29 +30,41 @@ const NotificationBell = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // Circuit-breaker: tracks consecutive failures so we stop hammering a down server
+  const failureCount = useRef(0);
 
-  // Fetch notifications
+  // Fetch notifications — silently fails; apiClient already logs network errors
   const fetchNotifications = async () => {
+    if (!user || failureCount.current >= MAX_FAILURES) return;
     try {
       const data = await getNotifications();
       setNotifications(data);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
+      failureCount.current = 0;
+    } catch {
+      failureCount.current += 1;
     }
   };
 
-  // Fetch unread count
+  // Fetch unread count — silently fails; apiClient already logs network errors
   const fetchUnreadCount = async () => {
+    if (!user || failureCount.current >= MAX_FAILURES) return;
     try {
       const data = await getUnreadNotificationCount();
       setUnreadCount(data.count);
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
+      failureCount.current = 0;
+    } catch {
+      failureCount.current += 1;
     }
   };
 
-  // Initial fetch
+  // Initial fetch + polling — only runs when the user is logged in
   useEffect(() => {
+    if (!user) return;
+
+    // Reset circuit-breaker on each new login / component mount
+    failureCount.current = 0;
+
     fetchNotifications();
     fetchUnreadCount();
 
@@ -58,7 +75,7 @@ const NotificationBell = () => {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   // Fetch full notifications when panel opens
   useEffect(() => {
@@ -75,8 +92,8 @@ const NotificationBell = () => {
         n._id === notificationId ? { ...n, isRead: true } : n
       ));
       setUnreadCount(Math.max(0, unreadCount - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
+    } catch {
+      // apiClient already logs the error
     }
   };
 
@@ -90,8 +107,7 @@ const NotificationBell = () => {
       toast({
         title: 'All notifications marked as read',
       });
-    } catch (error) {
-      console.error('Error marking all as read:', error);
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to mark all notifications as read',
@@ -128,8 +144,7 @@ const NotificationBell = () => {
         const wasUnread = notifications.find(n => n._id === notificationId && !n.isRead);
         return wasUnread ? Math.max(0, prev - 1) : prev;
       });
-    } catch (error) {
-      console.error('Error dismissing notification:', error);
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to dismiss notification',

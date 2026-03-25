@@ -465,8 +465,8 @@ const Index = () => {
               </p>
               <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
                 Thousands of kids are already having fun while learning. 
-                Join them now and unlock a world of exciting lessons, games, and prizes! 
-                It's 100% FREE! ✨
+                Join them now and unlock a world of exciting lessons, games, and prizes!
+                Sign up is completely free — courses are affordable and tailored for every grade! ✨
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
                 <Button 

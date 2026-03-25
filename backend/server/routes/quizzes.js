@@ -118,6 +118,15 @@ router.post('/', requireAdmin, async (req, res) => {
       }
     }
 
+    // Enforce one quiz per lesson — reject if a quiz already exists for this lesson
+    const existingQuiz = await Quiz.findOne({ lessonId: payload.lessonId });
+    if (existingQuiz) {
+      return res.status(409).json({
+        error: 'A quiz already exists for this lesson. Please edit the existing quiz instead.',
+        existingQuizId: existingQuiz._id.toString(),
+      });
+    }
+
     const quiz = await Quiz.create(payload);
     res.status(201).json({
       id: quiz._id.toString(),

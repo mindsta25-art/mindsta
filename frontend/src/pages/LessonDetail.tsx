@@ -189,6 +189,16 @@ const LessonDetail = () => {
         );
         setHasAccess(accessCheck.hasAccess);
 
+        // Record lesson access so My Learning can track lessons in progress
+        if (user && lessonId && accessCheck.hasAccess) {
+          upsertProgress({
+            userId: user.id,
+            lessonId,
+            completed: false,
+            lastAccessedAt: new Date(),
+          }).catch(() => {});
+        }
+
         // Set initial lecture if curriculum exists
         if (lessonData.curriculum && lessonData.curriculum.length > 0) {
           const firstSection = lessonData.curriculum[0];
@@ -319,7 +329,7 @@ const LessonDetail = () => {
               </div>
               <div className="flex gap-3 justify-center">
                 <Button onClick={() => navigate('/browse')} variant="outline">
-                  Browse Courses
+                  Browse lessonss
                 </Button>
                 <Button onClick={() => navigate('/cart')} className="gap-2">
                   <ShoppingCart className="w-4 h-4" />

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getDetailedAnalytics, exportAnalytics, type DetailedAnalytics, getAdminStudentStudyTime, type StudentStudyTime } from '@/api/analytics';
 import { useToast } from '@/hooks/use-toast';
-import { Download, RefreshCw, TrendingUp, Users, BookOpen, Award, Clock } from 'lucide-react';
+import { Download, RefreshCw, TrendingUp, Users, BookOpen, Award, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import { LoadingScreen } from '@/components/ui/loading';
 
@@ -19,7 +19,9 @@ const Analytics = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [studyTimeData, setStudyTimeData] = useState<StudentStudyTime[]>([]);
   const [studyTimeLoading, setStudyTimeLoading] = useState(false);
+  const [studyTimePage, setStudyTimePage] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
+  const STUDY_TIME_PAGE_SIZE = 25;
   const { toast } = useToast();
 
   const fetchAnalytics = async (isRefresh = false) => {
@@ -114,6 +116,7 @@ const Analytics = () => {
 
   const fetchStudyTime = async () => {
     setStudyTimeLoading(true);
+    setStudyTimePage(1);
     try {
       const data = await getAdminStudentStudyTime();
       setStudyTimeData(data);
@@ -449,9 +452,11 @@ const Analytics = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {studyTimeData.map((student, idx) => (
+                      {studyTimeData
+                        .slice((studyTimePage - 1) * STUDY_TIME_PAGE_SIZE, studyTimePage * STUDY_TIME_PAGE_SIZE)
+                        .map((student, idx) => (
                         <tr key={student.userId} className="border-b hover:bg-muted/50 transition-colors">
-                          <td className="py-3 px-2 text-muted-foreground">{idx + 1}</td>
+                          <td className="py-3 px-2 text-muted-foreground">{(studyTimePage - 1) * STUDY_TIME_PAGE_SIZE + idx + 1}</td>
                           <td className="py-3 px-2 font-medium">{student.name}</td>
                           <td className="py-3 px-2 text-muted-foreground">{student.email}</td>
                           <td className="py-3 px-2 text-right">
@@ -482,6 +487,38 @@ const Analytics = () => {
                       ))}
                     </tbody>
                   </table>
+                  {studyTimeData.length > STUDY_TIME_PAGE_SIZE && (
+                    <div className="flex items-center justify-between px-2 pt-4 pb-2">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {(studyTimePage - 1) * STUDY_TIME_PAGE_SIZE + 1}–{Math.min(studyTimePage * STUDY_TIME_PAGE_SIZE, studyTimeData.length)} of {studyTimeData.length} students
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setStudyTimePage(p => Math.max(1, p - 1))}
+                          disabled={studyTimePage === 1}
+                          className="gap-1 h-8"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Prev
+                        </Button>
+                        <span className="text-sm font-medium px-2 tabular-nums">
+                          {studyTimePage} / {Math.ceil(studyTimeData.length / STUDY_TIME_PAGE_SIZE)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setStudyTimePage(p => Math.min(Math.ceil(studyTimeData.length / STUDY_TIME_PAGE_SIZE), p + 1))}
+                          disabled={studyTimePage >= Math.ceil(studyTimeData.length / STUDY_TIME_PAGE_SIZE)}
+                          className="gap-1 h-8"
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

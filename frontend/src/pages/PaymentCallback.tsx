@@ -10,6 +10,7 @@ interface PurchasedCourse {
   subject: string;
   grade: string;
   term?: string;
+  lessonId?: string | null;
 }
 
 const PaymentCallback = () => {
@@ -39,7 +40,8 @@ const PaymentCallback = () => {
             setPurchasedCourses(res.enrollments.map((e: any) => ({
               subject: e.subject,
               grade: e.grade,
-              term: e.term
+              term: e.term,
+              lessonId: e.lessonId || null,
             })));
           }
           
@@ -121,7 +123,12 @@ const PaymentCallback = () => {
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${encodeURIComponent(course.term)}` : ''}`)}
+                        onClick={() => {
+                          const p = new URLSearchParams();
+                          if (course.term) p.set('term', course.term);
+                          if (course.lessonId) p.set('lessonId', course.lessonId);
+                          navigate(`/subjects/${course.grade}/${course.subject}${p.toString() ? `?${p}` : ''}`);
+                        }}
                         className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-xs flex-shrink-0"
                       >
                         Start
@@ -143,7 +150,10 @@ const PaymentCallback = () => {
                         onClick={() => {
                           if (purchasedCourses.length === 1) {
                             const c = purchasedCourses[0];
-                            navigate(`/subjects/${c.grade}/${c.subject}${c.term ? `?term=${encodeURIComponent(c.term)}` : ''}`);
+                            const p = new URLSearchParams();
+                            if (c.term) p.set('term', c.term);
+                            if (c.lessonId) p.set('lessonId', c.lessonId);
+                            navigate(`/subjects/${c.grade}/${c.subject}${p.toString() ? `?${p}` : ''}`);
                           } else {
                             navigate('/my-learning');
                           }

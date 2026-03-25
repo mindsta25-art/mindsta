@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
-import { createLesson, type Section } from "@/api/lessons";
+import { createLesson, getLessonById, updateLesson, type Section } from "@/api/lessons";
 import { getAllSubjects, type Subject } from "@/api/subjects";
 import { BookOpen, CheckCircle, Plus, X, Link, ArrowLeft } from "lucide-react";
 
@@ -19,6 +19,9 @@ const CURRICULUM_DRAFT_KEY = "mindsta_curriculum_draft";
 
 const CreateLesson = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEditing = !!editId;
   const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,16 +55,52 @@ const CreateLesson = () => {
 
   useEffect(() => {
     getAllSubjects().then(setSubjects).catch(console.error);
-    // Load draft if exists
-    try {
-      const draftStr = localStorage.getItem(DRAFT_KEY);
-      if (draftStr) {
-        const draft = JSON.parse(draftStr);
-        setForm(draft.lessonForm);
-        setCurriculum(draft.curriculum || []);
-      }
-    } catch (_) {}
-  }, []);
+    if (isEditing && editId) {
+      // Load existing lesson for editing
+      getLessonById(editId).then((lesson) => {
+        if (!lesson) {
+          toast({ title: 'Lesson not found', description: 'Could not load the lesson to edit.', variant: 'destructive' });
+          return;
+        }
+        setForm({
+          title: lesson.title || '',
+          subtitle: (lesson as any).subtitle || '',
+          description: lesson.description || '',
+          content: (lesson as any).content || '',
+          overview: (lesson as any).overview || '',
+          subject: lesson.subject || '',
+          grade: lesson.grade || '',
+          term: lesson.term || '',
+          difficulty: lesson.difficulty || '',
+          videoUrl: lesson.videoUrl || '',
+          imageUrl: lesson.imageUrl || '',
+          imageDisplaySize: (lesson as any).imageDisplaySize || 'full',
+          imageObjectFit: (lesson as any).imageObjectFit || 'cover',
+          order: (lesson as any).order || 0,
+          duration: lesson.duration || 30,
+          price: (lesson as any).price || 0,
+          whatYouWillLearn: (lesson as any).whatYouWillLearn || [],
+          requirements: (lesson as any).requirements || [],
+          targetAudience: (lesson as any).targetAudience || [],
+        });
+        if ((lesson as any).curriculum) {
+          setCurriculum((lesson as any).curriculum);
+        }
+      }).catch(() => {
+        toast({ title: 'Error', description: 'Failed to load lesson', variant: 'destructive' });
+      });
+    } else {
+      // Load draft if exists (skip draft in edit mode)
+      try {
+        const draftStr = localStorage.getItem(DRAFT_KEY);
+        if (draftStr) {
+          const draft = JSON.parse(draftStr);
+          setForm(draft.lessonForm);
+          setCurriculum(draft.curriculum || []);
+        }
+      } catch (_) {}
+    }
+  }, [editId]);
 
   const saveProgressDraft = () => {
     setIsSavingProgress(true);
@@ -133,18 +172,25 @@ const CreateLesson = () => {
     setIsSubmitting(true);
     try {
       const difficultyMap: Record<string, string> = { easy: "beginner", medium: "intermediate", hard: "advanced" };
-      await createLesson({
+      const payload = {
         ...form,
         difficulty: difficultyMap[form.difficulty] || form.difficulty,
         keywords: [],
         learningObjectives: [],
         curriculum,
-      } as any);
-      clearDraft();
-      toast({ title: "Success", description: "Lesson created successfully" });
-      navigate("/admin/content");
+      } as any;
+      if (isEditing && editId) {
+        await updateLesson(editId, payload);
+        toast({ title: "Success", description: "Lesson updated successfully" });
+        navigate("/admin/lessons");
+      } else {
+        await createLesson(payload);
+        clearDraft();
+        toast({ title: "Success", description: "Lesson created successfully" });
+        navigate("/admin/lessons");
+      }
     } catch (error: any) {
-      toast({ title: "Error", description: error?.response?.data?.error || "Failed to create lesson", variant: "destructive" });
+      toast({ title: "Error", description: error?.response?.data?.error || (isEditing ? "Failed to update lesson" : "Failed to create lesson"), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -157,13 +203,13 @@ const CreateLesson = () => {
           {/* Header */}
           <div className="flex items-center justify-between sticky top-0 bg-background py-4 border-b z-10">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Create Lesson</h1>
-              <p className="text-muted-foreground mt-1">Fill in the lesson details below</p>
-              <p className="text-xs text-muted-foreground mt-1">💡 Click "Save Progress" to save your work and return later</p>
+              <h1 className="text-3xl font-bold text-foreground">{isEditing ? 'Edit Lesson' : 'Create Lesson'}</h1>
+              <p className="text-muted-foreground mt-1">{isEditing ? 'Update the lesson details below' : 'Fill in the lesson details below'}</p>
+              {!isEditing && <p className="text-xs text-muted-foreground mt-1">💡 Click "Save Progress" to save your work and return later</p>}
             </div>
-            <Button variant="outline" onClick={() => navigate("/admin/content")} className="gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate("/admin/lessons")} className="gap-2">
               <ArrowLeft className="w-4 h-4" />
-              Back to Content
+              Back to Lessons
             </Button>
           </div>
 
@@ -269,14 +315,14 @@ const CreateLesson = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="order">Order</Label>
+                    <Label htmlFor="duration">Duration (minutes)</Label>
                     <Input
-                      id="order"
+                      id="duration"
                       type="number"
-                      min="0"
-                      value={form.order}
-                      onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
-                      placeholder="0"
+                      min="1"
+                      value={form.duration}
+                      onChange={(e) => setForm({ ...form, duration: parseInt(e.target.value) || 30 })}
+                      placeholder="30"
                     />
                   </div>
                 </div>
@@ -673,14 +719,16 @@ const CreateLesson = () => {
                 </div>
 
                 <div className="flex justify-between items-center pt-4 border-t">
-                  <Button variant="secondary" onClick={saveProgressDraft} disabled={isSavingProgress} className="gap-2">
-                    {isSavingProgress ? "Saving..." : "💾 Save Progress"}
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => navigate("/admin/content")}>Cancel</Button>
+                  {!isEditing && (
+                    <Button variant="secondary" onClick={saveProgressDraft} disabled={isSavingProgress} className="gap-2">
+                      {isSavingProgress ? "Saving..." : "💾 Save Progress"}
+                    </Button>
+                  )}
+                  <div className={`flex gap-2 ${isEditing ? 'ml-auto' : ''}`}>
+                    <Button variant="outline" onClick={() => navigate("/admin/lessons")}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
                       <BookOpen className="w-4 h-4" />
-                      {isSubmitting ? "Creating..." : "Create Lesson"}
+                      {isSubmitting ? (isEditing ? "Updating..." : "Creating...") : (isEditing ? "Update Lesson" : "Create Lesson")}
                     </Button>
                   </div>
                 </div>

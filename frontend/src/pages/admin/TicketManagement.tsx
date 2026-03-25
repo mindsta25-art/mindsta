@@ -234,13 +234,20 @@ const TicketManagement = () => {
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Tickets & Support</h1>
-        <p className="text-muted-foreground">
-          Manage user issues and support requests
-        </p>
-      </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Tickets & Support</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage user issues and support requests
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={fetchData} className="gap-2 self-start sm:self-auto">
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
+        </div>
 
       {/* Statistics */}
       {stats && (

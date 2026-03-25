@@ -232,16 +232,17 @@ const SubjectManagement = () => {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex items-center justify-between mb-6">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Subject Management</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-3xl font-bold text-foreground">Subject Management</h1>
+            <p className="text-muted-foreground mt-1">
               Manage available subjects for all grade levels
             </p>
           </div>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="w-4 h-4 mr-2" />
+          <Button size="sm" onClick={() => handleOpenDialog()} className="gap-2">
+            <Plus className="w-4 h-4" />
             Add Subject
           </Button>
         </div>
