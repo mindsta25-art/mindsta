@@ -8,11 +8,15 @@
   <title>Mindsta - Educational Learning Platform for Grades 1-6</title>
   <meta name="title" content="Mindsta - Educational Learning Platform for Grades 1-6" />
     <meta name="description" content="Safe and engaging learning platform for students grades 1-6. Interactive lessons, quizzes, and progress tracking for students, parents, and educators." />
-    <meta name="keywords" content="education, learning platform, elementary school, grades 1-6, online learning, interactive education, student portal" />
+    <meta name="keywords" content="online learning Nigeria, primary school lessons Nigeria, Grade 1 Grade 2 Grade 3 Grade 4 Grade 5 Grade 6 lessons, Common Entrance prep Nigeria, Mindsta, e-learning kids Nigeria, NERDC curriculum lessons" />
   <meta name="author" content="Mindsta" />
     <meta name="robots" content="index, follow" />
-  <!-- canonical removed: project domain TBD -->
   <link rel="canonical" href="https://mindsta.com.ng" />
+  <!-- Geo targeting -->
+  <meta name="geo.region" content="NG" />
+  <meta name="geo.placename" content="Nigeria" />
+  <meta name="geo.position" content="9.082;8.6753" />
+  <meta name="ICBM" content="9.082, 8.6753" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -30,7 +34,7 @@
   <meta name="twitter:image" content="/mindsta-og.svg" />
 
     <!-- Theme & PWA -->
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#7c3aed" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -58,5 +62,22 @@
     </div> -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Structured Data: Educational Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "name": "Mindsta",
+      "alternateName": "Mindsta Learning",
+      "description": "Curriculum-aligned online learning platform for Nigerian primary school students in Grades 1\u20136 and Common Entrance preparation. Interactive lessons, quizzes, and progress tracking.",
+      "url": "https://mindsta.com.ng",
+      "logo": "https://mindsta.com.ng/assets/icons/favicon.svg",
+      "sameAs": [],
+      "areaServed": {"@type": "Country", "name": "Nigeria"},
+      "audience": {"@type": "EducationalAudience", "educationalRole": "student"},
+      "teaches": "Primary school curriculum Grades 1\u20136, Common Entrance",
+      "inLanguage": "en"
+    }
+    </script>
   </body>
 </html>

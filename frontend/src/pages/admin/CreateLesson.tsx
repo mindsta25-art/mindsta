@@ -11,7 +11,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { createLesson, getLessonById, updateLesson, type Section } from "@/api/lessons";
-import { getAllSubjects, type Subject } from "@/api/subjects";
+import { getAllSubjects, getSubjects, type Subject } from "@/api/subjects";
 import { BookOpen, CheckCircle, Plus, X, Link, ArrowLeft } from "lucide-react";
 
 const DRAFT_KEY = "mindsta_lesson_draft";
@@ -35,7 +35,6 @@ const CreateLesson = () => {
     title: "",
     subtitle: "",
     description: "",
-    content: "",
     overview: "",
     subject: "",
     grade: "",
@@ -48,13 +47,14 @@ const CreateLesson = () => {
     order: 0,
     duration: 30,
     price: 0,
+    isPublished: true,
     whatYouWillLearn: [] as string[],
     requirements: [] as string[],
     targetAudience: [] as string[],
   });
 
   useEffect(() => {
-    getAllSubjects().then(setSubjects).catch(console.error);
+    getSubjects().then(setSubjects).catch(console.error);
     if (isEditing && editId) {
       // Load existing lesson for editing
       getLessonById(editId).then((lesson) => {
@@ -66,7 +66,6 @@ const CreateLesson = () => {
           title: lesson.title || '',
           subtitle: (lesson as any).subtitle || '',
           description: lesson.description || '',
-          content: (lesson as any).content || '',
           overview: (lesson as any).overview || '',
           subject: lesson.subject || '',
           grade: lesson.grade || '',
@@ -79,6 +78,7 @@ const CreateLesson = () => {
           order: (lesson as any).order || 0,
           duration: lesson.duration || 30,
           price: (lesson as any).price || 0,
+          isPublished: (lesson as any).isPublished ?? true,
           whatYouWillLearn: (lesson as any).whatYouWillLearn || [],
           requirements: (lesson as any).requirements || [],
           targetAudience: (lesson as any).targetAudience || [],
@@ -101,6 +101,23 @@ const CreateLesson = () => {
       } catch (_) {}
     }
   }, [editId]);
+
+  // Auto-fill duration from direct video files
+  useEffect(() => {
+    const url = form.videoUrl?.trim();
+    if (!url) return;
+    if (/^https?:\/\/.+\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        const minutes = Math.ceil(video.duration / 60);
+        if (minutes > 0 && isFinite(minutes)) {
+          setForm(prev => ({ ...prev, duration: minutes }));
+        }
+      };
+      video.src = url;
+    }
+  }, [form.videoUrl]);
 
   const saveProgressDraft = () => {
     setIsSavingProgress(true);
@@ -141,7 +158,6 @@ const CreateLesson = () => {
     const missing: string[] = [];
     if (!form.title) missing.push("Title");
     if (!form.description) missing.push("Description");
-    if (!form.content) missing.push("Content");
     if (!form.subject) missing.push("Subject");
     if (!form.grade) missing.push("Grade");
     if (!form.term) missing.push("Term");
@@ -152,10 +168,6 @@ const CreateLesson = () => {
     }
     if (form.title.length < 5) {
       toast({ title: "Invalid Title", description: "Title must be at least 5 characters.", variant: "destructive" });
-      return;
-    }
-    if (form.content.length < 50) {
-      toast({ title: "Insufficient Content", description: "Please provide more detailed lesson content (at least 50 characters).", variant: "destructive" });
       return;
     }
     if (form.videoUrl?.trim()) {
@@ -171,10 +183,9 @@ const CreateLesson = () => {
 
     setIsSubmitting(true);
     try {
-      const difficultyMap: Record<string, string> = { easy: "beginner", medium: "intermediate", hard: "advanced" };
       const payload = {
         ...form,
-        difficulty: difficultyMap[form.difficulty] || form.difficulty,
+        difficulty: form.difficulty,
         keywords: [],
         learningObjectives: [],
         curriculum,
@@ -308,9 +319,9 @@ const CreateLesson = () => {
                     <Select value={form.difficulty} onValueChange={(v) => setForm({ ...form, difficulty: v })}>
                       <SelectTrigger><SelectValue placeholder="Difficulty" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="easy">🟢 Easy</SelectItem>
-                        <SelectItem value="medium">🟡 Medium</SelectItem>
-                        <SelectItem value="hard">🔴 Hard</SelectItem>
+                        <SelectItem value="beginner">🟢 Beginner</SelectItem>
+                        <SelectItem value="intermediate">🟡 Intermediate</SelectItem>
+                        <SelectItem value="advanced">🔴 Advanced</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -324,28 +335,22 @@ const CreateLesson = () => {
                       onChange={(e) => setForm({ ...form, duration: parseInt(e.target.value) || 30 })}
                       placeholder="30"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      {/^https?:\/\/.+\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(form.videoUrl || '')
+                        ? "⚡ Auto-filled from video file"
+                        : "Enter duration in minutes. Auto-filled for direct video files (not YouTube)."}
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Lesson Content */}
+            {/* Video & Media */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Lesson Content</CardTitle>
+                <CardTitle className="text-lg">Video &amp; Media</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <RichTextEditor
-                    label="Full Lesson Content *"
-                    value={form.content}
-                    onChange={(v) => setForm({ ...form, content: v })}
-                    placeholder="Write your complete lesson content here..."
-                    minHeight="400px"
-                  />
-                  <p className="text-xs text-muted-foreground">💡 Use the toolbar to format your content</p>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="videoUrl">Video URL (Optional)</Label>
@@ -719,12 +724,26 @@ const CreateLesson = () => {
                 </div>
 
                 <div className="flex justify-between items-center pt-4 border-t">
-                  {!isEditing && (
-                    <Button variant="secondary" onClick={saveProgressDraft} disabled={isSavingProgress} className="gap-2">
-                      {isSavingProgress ? "Saving..." : "💾 Save Progress"}
-                    </Button>
-                  )}
-                  <div className={`flex gap-2 ${isEditing ? 'ml-auto' : ''}`}>
+                  <div className="flex items-center gap-4">
+                    {!isEditing && (
+                      <Button variant="secondary" onClick={saveProgressDraft} disabled={isSavingProgress} className="gap-2">
+                        {isSavingProgress ? "Saving..." : "💾 Save Progress"}
+                      </Button>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="isPublished"
+                        type="checkbox"
+                        checked={form.isPublished}
+                        onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 accent-primary"
+                      />
+                      <label htmlFor="isPublished" className="text-sm font-medium cursor-pointer select-none">
+                        {form.isPublished ? "Published" : "Draft (hidden from students)"}
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
                     <Button variant="outline" onClick={() => navigate("/admin/lessons")}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
                       <BookOpen className="w-4 h-4" />

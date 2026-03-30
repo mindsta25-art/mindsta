@@ -50,7 +50,7 @@ export interface AppearanceSettings {
 
 export interface AdvancedSettings {
   backupFrequency: BackupFrequency;
-  coursesPerPage: number;
+  lessonsPerPage: number;
   leaderboardPerPage: number;
   myLearningPerPage: number;
   paystackPublicKey?: string;
@@ -94,4 +94,4 @@ export const updateSettingsSection = <K extends SettingsSection>(section: K, dat
   api.put(`/settings/${section}`, data) as Promise<SystemSettingsDoc>;
 
 export const getPublicAdvancedSettings = () =>
-  api.get('/settings/public/advanced') as Promise<{ coursesPerPage: number; leaderboardPerPage: number; myLearningPerPage: number }>;
+  api.get('/settings/public/advanced') as Promise<{ lessonsPerPage: number; leaderboardPerPage: number; myLearningPerPage: number }>;

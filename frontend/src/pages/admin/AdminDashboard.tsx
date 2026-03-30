@@ -296,7 +296,7 @@ const AdminDashboard = () => {
       title: "Total Enrollments",
       value: stats.totalEnrollments || 0,
       icon: Package,
-      description: "Courses purchased",
+      description: "lessons purchased",
       color: "text-orange-500",
     },
     {

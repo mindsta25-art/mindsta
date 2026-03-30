@@ -163,7 +163,7 @@ const About = () => {
                   size="lg"
                   variant="outline"
                 >
-                  Explore Courses
+                  Explore lessons
                 </Button>
               </div>
             </div>

@@ -635,11 +635,9 @@ router.post('/me/payout', requireAuth, async (req, res) => {
       const user = await User.findById(req.user.id);
       if (user) {
         await sendPayoutRequestEmail(
+          user.email,
           user.fullName || user.email,
-          totalCommission,
-          profile.accountNumber,
-          profile.bankName,
-          batchId
+          totalCommission
         );
       }
     } catch (emailError) {

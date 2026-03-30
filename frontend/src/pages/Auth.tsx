@@ -293,12 +293,12 @@ const Auth = () => {
           <div className="w-full max-w-md">
 
             {/* Tab Switch */}
-            <div className="flex bg-gray-100 dark:bg-muted rounded-xl p-1 mb-8">
+            <div className="flex bg-gray-100 dark:bg-muted rounded-xl p-1 mb-4 sm:mb-8">
               {["Log In", "Create Account"].map((label, i) => {
                 const active = i === 0 ? isLogin : !isLogin;
                 return (
                   <button key={label} onClick={() => setIsLogin(i === 0)}
-                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                    className={`flex-1 py-3 text-sm font-semibold rounded-lg transition-all ${
                       active
                         ? 'bg-white dark:bg-card shadow'
                         : 'text-gray-500 dark:text-muted-foreground hover:text-gray-700'
@@ -519,7 +519,7 @@ const Auth = () => {
                       ))}
                     </div>
                     <div className="flex items-center justify-between">
-                      <div className="flex gap-3 text-xs text-gray-400">
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400">
                         <span className={/[A-Z]/.test(watchedPassword) ? "text-green-500" : ""}>
                           {/[A-Z]/.test(watchedPassword) ? "✓" : "·"} Uppercase
                         </span>
@@ -625,7 +625,7 @@ const Auth = () => {
             </div>
 
             {/* Trust badges */}
-            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-border flex items-center justify-center gap-5 text-xs text-gray-400">
+            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-border flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-gray-400">
               <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Secure & Encrypted</span>
               <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-green-500" /> No Spam</span>
               <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-green-500" /> Free to Try</span>

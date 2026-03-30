@@ -63,6 +63,7 @@ interface Lesson {
 interface Progress {
   lessonId: string;
   completed: boolean;
+  videoWatchPercent?: number;
 }
 
 interface QuizUIQuestion {
@@ -211,6 +212,7 @@ const SubjectLessonsPage = () => {
         setProgress(progressData.map(p => ({
           lessonId: p.lessonId,
           completed: p.completed,
+          videoWatchPercent: p.videoWatchPercent,
         })));
         
         // Auto-select first lesson and pre-load its quiz so the Complete button is correctly gated
@@ -546,6 +548,11 @@ const SubjectLessonsPage = () => {
     return progress.some((p) => p.lessonId === lessonId && p.completed);
   };
 
+  const getLessonWatchPercent = (lessonId: string): number => {
+    const p = progress.find(p => p.lessonId === lessonId);
+    return p?.videoWatchPercent || 0;
+  };
+
   // Start a quiz by ID — fetches full quiz (with questions) from the API
   const handleStartQuiz = async (quizId: string) => {
     setLoadingQuiz(true);
@@ -588,6 +595,16 @@ const SubjectLessonsPage = () => {
     setSelectedLesson(lesson);
     setCurrentTab("content");
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Record lesson access immediately (Udemy-style: progress tracked the moment a student opens a lesson)
+    if (lesson.id && user?.id) {
+      upsertProgress({
+        userId: user.id,
+        lessonId: lesson.id,
+        completed: false,
+        lastAccessedAt: new Date(),
+      }).catch(() => {});
+    }
     
     // Fetch quiz for the selected lesson
     if (lesson.id) {
@@ -655,6 +672,7 @@ const SubjectLessonsPage = () => {
         const progressMap = userProgress.map((p: any) => ({
           lessonId: p.lessonId,
           completed: p.completed || false,
+          videoWatchPercent: p.videoWatchPercent,
         }));
         setProgress(progressMap);
       }
@@ -913,7 +931,7 @@ const SubjectLessonsPage = () => {
                                 completedAt: new Date(),
                               });
                               const updated = await getUserProgress(user.id);
-                              setProgress(updated.map((p: any) => ({ lessonId: p.lessonId, completed: p.completed || false })));
+                              setProgress(updated.map((p: any) => ({ lessonId: p.lessonId, completed: p.completed || false, videoWatchPercent: p.videoWatchPercent })));
                               toast({ title: "Lesson completed! 🎉", description: "Great work — keep it up!" });
                             } catch {
                               toast({ title: "Could not save progress", variant: "destructive" });
@@ -1095,20 +1113,7 @@ const SubjectLessonsPage = () => {
                 <TabsContent value="content">
                   {selectedLesson ? (
                     <div className="space-y-4">
-                      {/* Full lesson content (rich text HTML) */}
-                      {selectedLesson.content && selectedLesson.content.trim().length > 10 ? (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Lesson Content</CardTitle>
-                          </CardHeader>
-                          <CardContent className="overflow-hidden">
-                            <div
-                              className="prose prose-sm dark:prose-invert max-w-none leading-relaxed break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
-                              dangerouslySetInnerHTML={{ __html: selectedLesson.content }}
-                            />
-                          </CardContent>
-                        </Card>
-                      ) : null}
+
 
                       {/* Brief description — skip if it looks like a plain URL */}
                       {(() => {
@@ -1130,8 +1135,8 @@ const SubjectLessonsPage = () => {
                         );
                       })()}
 
-                      {/* Fallback if neither content nor description is useful */}
-                      {!selectedLesson.content && (() => {
+                      {/* Fallback if no description is useful */}
+                      {(() => {
                         const raw = (selectedLesson.description || '').replace(/<[^>]*>/g, '').trim();
                         const isUrl = /^https?:\/\//.test(raw) || /^www\./.test(raw);
                         if (!raw || isUrl) {
@@ -1247,7 +1252,7 @@ const SubjectLessonsPage = () => {
                       <CardContent className="py-16 text-center">
                         <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                         <p className="text-xl font-bold text-muted-foreground mb-2">No quizzes available</p>
-                        <p className="text-muted-foreground">This course doesn't have any quizzes yet.</p>
+                        <p className="text-muted-foreground">This lesson doesn't have any quizzes yet.</p>
                       </CardContent>
                     </Card>
                   )}
@@ -1557,13 +1562,23 @@ const SubjectLessonsPage = () => {
                                             <span className="text-green-600">Completed</span>
                                           </>
                                         )}
-                                        {!completed && Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30 && (
+                                        {!completed && (getLessonWatchPercent(lesson.id) > 0 || Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30) && (
                                           <>
                                             <span>•</span>
-                                            <span className="text-blue-500">In progress</span>
+                                            <span className="text-blue-500">
+                                              {getLessonWatchPercent(lesson.id) > 0 ? `${getLessonWatchPercent(lesson.id)}% watched` : 'In progress'}
+                                            </span>
                                           </>
                                         )}
                                       </div>
+                                      {!completed && getLessonWatchPercent(lesson.id) > 0 && (
+                                        <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+                                          <div
+                                            className="h-full bg-blue-500 rounded-full transition-all"
+                                            style={{ width: `${getLessonWatchPercent(lesson.id)}%` }}
+                                          />
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>

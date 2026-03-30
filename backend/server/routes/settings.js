@@ -23,9 +23,9 @@ router.get('/public/contact', async (req, res) => {
 router.get('/public/advanced', async (req, res) => {
   try {
     const settings = await SystemSettings.getSingleton();
-    const { coursesPerPage, leaderboardPerPage, myLearningPerPage } = settings.advanced || {};
+    const { lessonsPerPage, leaderboardPerPage, myLearningPerPage } = settings.advanced || {};
     res.json({
-      coursesPerPage: coursesPerPage ?? 12,
+      lessonsPerPage: lessonsPerPage ?? 12,
       leaderboardPerPage: leaderboardPerPage ?? 10,
       myLearningPerPage: myLearningPerPage ?? 9,
     });

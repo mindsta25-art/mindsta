@@ -22,7 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { BookOpen, Settings, LogOut, LayoutDashboard, Sun, Moon } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import { BookOpen, Settings, LogOut, LayoutDashboard, Sun, Moon, Menu } from 'lucide-react';
 import { signOut } from '@/api/auth';
 import NotificationBell from '@/components/NotificationBell';
 
@@ -32,6 +38,7 @@ const ReferralHeader = () => {
   const { user, refreshUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     signOut();
@@ -106,10 +113,21 @@ const ReferralHeader = () => {
               {/* Notifications */}
               <NotificationBell />
 
+              {/* Mobile hamburger — shown below md */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden hover:bg-purple-100 dark:hover:bg-purple-950/40"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+
               {/* User menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 px-2">
+                  <Button variant="ghost" className="gap-2 px-2 hover:bg-purple-100 dark:hover:bg-purple-950/40">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-semibold">
                         {getInitials(user?.fullName)}
@@ -147,6 +165,76 @@ const ReferralHeader = () => {
           </div>
         </div>
       </header>
+
+      {/* Mobile Nav Sheet */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="right" className="w-[280px] p-0 flex flex-col">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+          <SheetDescription className="sr-only">Referral partner navigation</SheetDescription>
+          {/* Header */}
+          <div className="bg-gradient-to-br from-purple-600 to-pink-600 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar className="w-10 h-10">
+                <AvatarFallback className="bg-white/20 text-white font-semibold">
+                  {getInitials(user?.fullName)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm font-semibold text-white truncate">{user?.fullName || 'Partner'}</p>
+                <p className="text-xs text-purple-200 truncate">{user?.email}</p>
+              </div>
+            </div>
+          </div>
+          {/* Nav items */}
+          <div className="flex flex-col gap-1 p-3 flex-1">
+            <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Navigation</p>
+            <Button
+              variant="ghost"
+              onClick={() => { navigate('/referral/dashboard'); setMobileMenuOpen(false); }}
+              className={`w-full justify-start h-11 rounded-lg font-medium ${
+                isActive('/referral/dashboard')
+                  ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400'
+                  : 'hover:bg-purple-100 dark:hover:bg-purple-950/40'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4 mr-3" />
+              Dashboard
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => { navigate('/referral/settings'); setMobileMenuOpen(false); }}
+              className={`w-full justify-start h-11 rounded-lg font-medium ${
+                isActive('/referral/settings')
+                  ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400'
+                  : 'hover:bg-purple-100 dark:hover:bg-purple-950/40'
+              }`}
+            >
+              <Settings className="w-4 h-4 mr-3" />
+              Settings
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={toggleTheme}
+              className="w-full justify-start h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40"
+            >
+              {theme === 'dark'
+                ? <><Sun className="w-4 h-4 mr-3 text-yellow-400" />Light Mode</>
+                : <><Moon className="w-4 h-4 mr-3 text-indigo-400" />Dark Mode</>}
+            </Button>
+          </div>
+          {/* Logout */}
+          <div className="p-3 border-t">
+            <Button
+              variant="ghost"
+              onClick={() => { setMobileMenuOpen(false); setShowLogoutDialog(true); }}
+              className="w-full justify-start h-11 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+            >
+              <LogOut className="w-4 h-4 mr-3" />
+              Log Out
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>

@@ -73,7 +73,7 @@ import { getEnrollments, type Enrollment } from "@/api/enrollments";
 import { getSystemSettings } from "@/api/settings";
 import { formatCurrency } from "@/config/siteConfig";
 import { recordSearch, getSearchKeywords } from "@/api/search-history";
-import { getReviewStats } from "@/api/courseReviews";
+import { getRatingStats } from "@/api/reviews";
 
 interface Course {
   id: string;
@@ -117,17 +117,17 @@ const CATEGORY_COLOR_PALETTE: string[] = [
   'from-violet-500 to-purple-600',
 ];
 
-const BrowseCourses = () => {
+const Browselessons = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { addToCart, isInCart } = useCart();
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { wishlist, addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
-  const [displayedCourses, setDisplayedCourses] = useState<Course[]>([]);
+  const [lessons, setlessons] = useState<Course[]>([]);
+  const [filteredlessons, setFilteredlessons] = useState<Course[]>([]);
+  const [displayedlessons, setDisplayedlessons] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedGrade, setSelectedGrade] = useState(searchParams.get('grade') || 'all');
@@ -139,7 +139,7 @@ const BrowseCourses = () => {
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>(() => {
     // Seed from localStorage cache so the FIRST render already has correct enrolled flags
-    // (prevents the stale-closure downgrade from fetchCoursesForGrade)
+    // (prevents the stale-closure downgrade from fetchlessonsForGrade)
     try {
       const cached = localStorage.getItem('user_enrollments');
       return cached ? (JSON.parse(cached) as Enrollment[]) : [];
@@ -166,7 +166,7 @@ const BrowseCourses = () => {
   
   // Smart recommendation state
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
-  const [previewedCourses, setPreviewedCourses] = useState<string[]>([]);
+  const [previewedlessons, setPreviewedlessons] = useState<string[]>([]);
   const [userInterests, setUserInterests] = useState<string[]>([]);
 
   // Topic + free-only filter state
@@ -176,6 +176,9 @@ const BrowseCourses = () => {
   // Sidebar category filter
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  // Mobile filter panel toggle
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Students also bought — shown after adding a course to cart
   const [justAddedCourse, setJustAddedCourse] = useState<Course | null>(null);
@@ -203,7 +206,7 @@ const BrowseCourses = () => {
   const isFetchingRef = useRef(false);
   // Ref-based loadedGrades so async callbacks always read the current set (avoids stale closures)
   const loadedGradesRef = useRef<Set<string>>(new Set());
-  // Always-current enrollment ref — used inside fetchCoursesForGrade to avoid stale closures
+  // Always-current enrollment ref — used inside fetchlessonsForGrade to avoid stale closures
   const enrollmentsRef = useRef<Enrollment[]>((() => {
     try {
       const cached = localStorage.getItem('user_enrollments');
@@ -232,7 +235,7 @@ const BrowseCourses = () => {
 
   // Helper functions
   const isNewCourse = (lessonCount: number) => {
-    // Consider courses added in last 7 days as "new" (simplified check)
+    // Consider lessons added in last 7 days as "new" (simplified check)
     return lessonCount < 5; // Placeholder logic
   };
 
@@ -241,82 +244,104 @@ const BrowseCourses = () => {
     return totalContent > 10 || course.studentCount > 50;
   };
 
-  const getTrendingCourses = () => {
-    return courses
+  const getTrendinglessons = () => {
+    return lessons
       .filter(c => c.studentCount > 20)
       .sort((a, b) => b.studentCount - a.studentCount)
       .slice(0, 6);
   };
 
   // Returns enriched recommendation objects with reason labels
-  const getRecommendedCourses = (): Array<{ course: Course; score: number; reason: string; reasonType: 'search' | 'enrolled' | 'previewed' | 'popular' | 'grade' | 'trending' }> => {
-    if (courses.length === 0) return [];
+  const getRecommendedlessons = (): Array<{ course: Course; score: number; reason: string; reasonType: 'search' | 'enrolled' | 'previewed' | 'popular' | 'grade' | 'trending' }> => {
+    if (lessons.length === 0) return [];
 
     const recommendedSet = new Map<string, { course: Course; score: number; reason: string; reasonType: 'search' | 'enrolled' | 'previewed' | 'popular' | 'grade' | 'trending' }>();
 
-    courses.forEach(course => {
+    // Pre-compute enrolled and previewed data once outside the loop
+    const enrolledCourses = lessons.filter(c => c.enrolled);
+    const enrolledSubjects = enrolledCourses.map(c => c.subject.toLowerCase());
+    const enrolledTerms    = enrolledCourses.map(c => c.term.toLowerCase());
+
+    // Time-decayed previewed subjects: index 0 = most-recently-previewed = highest weight
+    const previewedWithRecency = previewedlessons.map((id, idx) => ({
+      subject: lessons.find(c => c.id === id)?.subject.toLowerCase() ?? '',
+      weight: Math.max(0.3, 1 - idx * 0.1),
+    }));
+
+    // Last 10 search terms, index 0 = most recent
+    const recentSearchTerms = searchHistory.slice(0, 10).map(s => s.toLowerCase());
+
+    lessons.forEach(course => {
       if (course.enrolled) return;
 
       let score = 0;
       let topReason = '';
       let topReasonType: 'search' | 'enrolled' | 'previewed' | 'popular' | 'grade' | 'trending' = 'popular';
+      const subjectLower = course.subject.toLowerCase();
 
-      const purchasedSubjects = courses.filter(c => c.enrolled).map(c => c.subject.toLowerCase());
-      const matchesPurchased = purchasedSubjects.some(s =>
-        course.subject.toLowerCase().includes(s) || s.includes(course.subject.toLowerCase())
-      );
-      if (matchesPurchased) {
-        score += 30;
-        if (!topReason) { topReason = 'Similar to your courses'; topReasonType = 'enrolled'; }
-      }
-
-      const previewedSubjects = previewedCourses
-        .map(id => courses.find(c => c.id === id)?.subject.toLowerCase())
-        .filter(Boolean) as string[];
-      const matchesPreviewed = previewedSubjects.some(s =>
-        course.subject.toLowerCase().includes(s) || s.includes(course.subject.toLowerCase())
-      );
-      if (matchesPreviewed) {
-        score += 25;
-        if (!topReason) { topReason = 'You previewed something similar'; topReasonType = 'previewed'; }
-      }
-
-      const searchTerms = searchHistory.map(s => s.toLowerCase());
-      const courseSubject = course.subject.toLowerCase();
-      const matchingTerm = searchTerms.find(term => {
+      // 1. Search history — time-decayed, highest priority signal
+      let bestSearchScore = 0;
+      let bestSearchTerm = '';
+      recentSearchTerms.forEach((term, idx) => {
+        const decay = Math.max(0.4, 1 - idx * 0.07);
         const words = term.split(/\s+/).filter(w => w.length > 2);
-        return words.some(w => courseSubject.includes(w) || w.includes(courseSubject));
+        const wordHits = words.filter(w => subjectLower.includes(w) || w.includes(subjectLower));
+        const exactBonus = subjectLower === term ? 20 : (subjectLower.includes(term) || term.includes(subjectLower) ? 10 : 0);
+        const s = ((wordHits.length / Math.max(words.length, 1)) * 45 + exactBonus) * decay;
+        if (s > bestSearchScore) { bestSearchScore = s; bestSearchTerm = term; }
       });
-      if (matchingTerm) {
-        score += 40;
-        topReason = `Based on "${matchingTerm.length > 20 ? matchingTerm.slice(0, 20) + '…' : matchingTerm}"`;
+      if (bestSearchScore > 0) {
+        score += bestSearchScore;
+        topReason = `Based on "${bestSearchTerm.length > 22 ? bestSearchTerm.slice(0, 22) + '\u2026' : bestSearchTerm}"`;
         topReasonType = 'search';
       }
 
-      if (course.studentCount > 50) {
-        score += 15;
-        if (!topReason) { topReason = 'Popular with students'; topReasonType = 'popular'; }
+      // 2. Previewed subjects — recency-weighted
+      let bestPreviewScore = 0;
+      for (const p of previewedWithRecency) {
+        if (!p.subject) continue;
+        if (subjectLower.includes(p.subject) || p.subject.includes(subjectLower)) {
+          bestPreviewScore = Math.max(bestPreviewScore, 35 * p.weight);
+        }
+      }
+      if (bestPreviewScore > 0) {
+        score += bestPreviewScore;
+        if (!topReason) { topReason = 'You previewed something similar'; topReasonType = 'previewed'; }
       }
 
-      if (course.rating >= 4.5) {
-        score += 10;
-        if (!topReason) { topReason = 'Highly rated'; topReasonType = 'trending'; }
+      // 3. Enrolled subject affinity
+      if (enrolledSubjects.some(s => subjectLower.includes(s) || s.includes(subjectLower))) {
+        score += 30;
+        if (!topReason) { topReason = 'Similar to your lessons'; topReasonType = 'enrolled'; }
       }
+      if (enrolledTerms.includes(course.term.toLowerCase())) score += 8;
 
+      // 4. Grade match
       if (course.grade === studentGrade) {
-        score += 5;
+        score += 12;
         if (!topReason) { topReason = 'Matches your grade'; topReasonType = 'grade'; }
       }
 
-      const completedInGrade = courses.filter(c => c.enrolled && c.grade === studentGrade && c.completionRate > 80).length;
-      if (completedInGrade > 2) {
+      // 5. Ready for next level
+      const completedInGrade = enrolledCourses.filter(c => c.grade === studentGrade && c.completionRate > 80).length;
+      if (completedInGrade >= 2) {
         const nextGrade = studentGrade === 'Common Entrance' ? '6' :
           studentGrade === '6' ? 'Common Entrance' : String(Number(studentGrade) + 1);
         if (course.grade === nextGrade) {
-          score += 8;
+          score += 15;
           if (!topReason) { topReason = 'Ready for next level'; topReasonType = 'grade'; }
         }
       }
+
+      // 6. Popularity and rating signals
+      if (course.studentCount > 100) { score += 18; if (!topReason) { topReason = 'Trending now'; topReasonType = 'popular'; } }
+      else if (course.studentCount > 50) { score += 12; if (!topReason) { topReason = 'Popular with students'; topReasonType = 'popular'; } }
+      if (course.rating >= 4.7) { score += 12; if (!topReason) { topReason = 'Highly rated'; topReasonType = 'trending'; } }
+      else if (course.rating >= 4.5) { score += 8; if (!topReason) { topReason = 'Highly rated'; topReasonType = 'trending'; } }
+
+      // 7. Content richness
+      if (course.lessonCount >= 8) score += 5;
+      if (course.quizCount >= 3)   score += 3;
 
       if (score > 0) {
         if (!topReason) topReason = 'Recommended for you';
@@ -329,12 +354,12 @@ const BrowseCourses = () => {
       .slice(0, 8);
   };
 
-  // Debounced search with better suggestions - shows actual courses
+  // Debounced search with better suggestions - shows actual lessons
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.length > 1) {
         const query = searchQuery.toLowerCase();
-        const suggestions = courses
+        const suggestions = lessons
           .filter(c => 
             c.subject.toLowerCase().includes(query) ||
             c.description.toLowerCase().includes(query) ||
@@ -377,9 +402,14 @@ const BrowseCourses = () => {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, courses, user, selectedGrade, selectedSubject, selectedTerm]);
+  }, [searchQuery, lessons, user, selectedGrade, selectedSubject, selectedTerm]);
 
   // Close suggestions when clicking outside
+  useEffect(() => {
+    document.title = 'Browse Lessons | Mindsta';
+    return () => { document.title = 'Mindsta'; };
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -449,10 +479,10 @@ const BrowseCourses = () => {
       setSearchHistory(JSON.parse(savedSearchHistory));
     }
     
-    // Load previewed courses
-    const savedPreviewed = localStorage.getItem('previewedCourses');
+    // Load previewed lessons
+    const savedPreviewed = localStorage.getItem('previewedlessons');
     if (savedPreviewed) {
-      setPreviewedCourses(JSON.parse(savedPreviewed));
+      setPreviewedlessons(JSON.parse(savedPreviewed));
     }
     
     // Extract user interests from enrollments
@@ -463,8 +493,8 @@ const BrowseCourses = () => {
   }, [enrollments]);
 
   // Define callback functions first before useEffects
-  const filterAndSortCourses = useCallback(() => {
-    let filtered = [...courses];
+  const filterAndSortlessons = useCallback(() => {
+    let filtered = [...lessons];
 
     // Category sidebar filter
     if (selectedCategory) {
@@ -545,24 +575,24 @@ const BrowseCourses = () => {
       }
     });
 
-    setFilteredCourses(filtered);
-  }, [courses, showOnlyPurchased, showFreeOnly, searchQuery, selectedTopic, selectedGrade, selectedSubject, selectedTerm, sortBy, selectedDifficulties, minRating, priceRange, selectedCategory]);
+    setFilteredlessons(filtered);
+  }, [lessons, showOnlyPurchased, showFreeOnly, searchQuery, selectedTopic, selectedGrade, selectedSubject, selectedTerm, sortBy, selectedDifficulties, minRating, priceRange, selectedCategory]);
 
   const updateAvailableSubjects = useCallback(() => {
-    // Filter courses by selected grade first, then extract unique subjects
-    let coursesToCheck = [...courses];
+    // Filter lessons by selected grade first, then extract unique subjects
+    let lessonsToCheck = [...lessons];
     
     // If a specific grade is selected, only get subjects for that grade
     if (selectedGrade !== 'all') {
-      coursesToCheck = coursesToCheck.filter(course => course.grade === selectedGrade);
+      lessonsToCheck = lessonsToCheck.filter(course => course.grade === selectedGrade);
     }
     
-    // Extract unique subjects from the filtered courses
-    const subjectsSet = new Set(coursesToCheck.map(course => course.subject));
+    // Extract unique subjects from the filtered lessons
+    const subjectsSet = new Set(lessonsToCheck.map(course => course.subject));
     const sortedSubjects = Array.from(subjectsSet).sort();
     
-    // Only update if we have subjects OR if courses are loaded
-    if (sortedSubjects.length > 0 || courses.length > 0) {
+    // Only update if we have subjects OR if lessons are loaded
+    if (sortedSubjects.length > 0 || lessons.length > 0) {
       setAvailableSubjects(prev => {
         const prevStr = prev.join(',');
         const newStr = sortedSubjects.join(',');
@@ -575,7 +605,7 @@ const BrowseCourses = () => {
     if (selectedSubject !== 'all' && sortedSubjects.length > 0 && !sortedSubjects.includes(selectedSubject)) {
       setSelectedSubject('all');
     }
-  }, [courses, selectedGrade, selectedSubject]);
+  }, [lessons, selectedGrade, selectedSubject]);
 
   const fetchStudentInfo = useCallback(async () => {
     if (!user?.id) return;
@@ -591,18 +621,18 @@ const BrowseCourses = () => {
       
       // Cache enrollments to localStorage for faster subsequent loads
       localStorage.setItem('user_enrollments', JSON.stringify(enrollmentsData));
-      // Keep enrollmentsRef in sync immediately so any in-flight fetchCoursesForGrade
-      // calls pick up the real data before they call setCourses.
+      // Keep enrollmentsRef in sync immediately so any in-flight fetchlessonsForGrade
+      // calls pick up the real data before they call setlessons.
       enrollmentsRef.current = enrollmentsData;
 
       setStudentGrade(studentData.grade);
       setUserProgress(progress);
       setEnrollments(enrollmentsData);
 
-      // Re-stamp any courses already in state with the fresh enrollments
-      setCourses(prevCourses => {
-        if (prevCourses.length === 0) return prevCourses;
-        return prevCourses.map(course => ({
+      // Re-stamp any lessons already in state with the fresh enrollments
+      setlessons(prevlessons => {
+        if (prevlessons.length === 0) return prevlessons;
+        return prevlessons.map(course => ({
           ...course,
           enrolled: enrollmentsData.some(e => isEnrolledUtil(e, course.subject, course.grade, course.term, course.lessonId)),
         }));
@@ -673,7 +703,7 @@ const BrowseCourses = () => {
     };
   }, [user, fetchStudentInfo]);
 
-  // Keep enrollmentsRef always current so fetchCoursesForGrade never reads stale data
+  // Keep enrollmentsRef always current so fetchlessonsForGrade never reads stale data
   useEffect(() => {
     enrollmentsRef.current = enrollments;
   }, [enrollments]);
@@ -694,8 +724,8 @@ const BrowseCourses = () => {
     if (enrollmentsKey === enrollmentsKeyRef.current) return;
     enrollmentsKeyRef.current = enrollmentsKey;
 
-    // Use functional update to always work on the latest courses list (avoids stale closure)
-    setCourses(prev => {
+    // Use functional update to always work on the latest lessons list (avoids stale closure)
+    setlessons(prev => {
       if (prev.length === 0) return prev;
       const updated = prev.map(course => ({
         ...course,
@@ -704,7 +734,7 @@ const BrowseCourses = () => {
       const changed = updated.some((c, i) => c.enrolled !== prev[i].enrolled);
       return changed ? updated : prev;
     });
-  }, [enrollments]); // courses no longer needed as dep since we use functional update
+  }, [enrollments]); // lessons no longer needed as dep since we use functional update
 
   useEffect(() => {
     // Load ALL grades on initial load only after enrollments have been fetched
@@ -717,45 +747,45 @@ const BrowseCourses = () => {
           ...enrolledGrades.filter(g => grades.includes(g)),
           ...grades.filter(g => !enrolledGrades.includes(g)),
         ];
-        console.log('[BrowseCourses] Loading grades in priority order:', orderedGrades);
+        console.log('[Browselessons] Loading grades in priority order:', orderedGrades);
         for (const grade of orderedGrades) {
-          await fetchCoursesForGrade(grade);
+          await fetchlessonsForGrade(grade);
         }
       };
       loadAllGrades();
     }
   }, [enrollments]);
 
-  // Separate effect for fetching courses when grade changes
+  // Separate effect for fetching lessons when grade changes
   useEffect(() => {
     if (selectedGrade !== 'all' && !loadedGrades.has(selectedGrade) && loadedGrades.size > 0) {
-      fetchCoursesForGrade(selectedGrade);
+      fetchlessonsForGrade(selectedGrade);
     }
   }, [selectedGrade]);
 
-  // Fetch review stats in background once courses are loaded (batch, 3 at a time)
+  // Fetch review stats in background once lessons are loaded (batch, 3 at a time)
   useEffect(() => {
-    if (courses.length === 0) return;
-    const uncached = courses.filter(c => reviewCache[c.id] === undefined);
+    if (lessons.length === 0) return;
+    const uncached = lessons.filter(c => reviewCache[c.id] === undefined);
     if (uncached.length === 0) return;
 
     const fetchBatch = async () => {
       // Take first 6 uncached to avoid too many parallel requests
       const batch = uncached.slice(0, 6);
       const results = await Promise.allSettled(
-        batch.map(c => getReviewStats(c.subject, c.grade, c.term))
+        batch.map(c => getRatingStats(c.id))
       );
       const updates: Record<string, { avg: number; total: number }> = {};
       results.forEach((r, i) => {
-        if (r.status === 'fulfilled') {
-          updates[batch[i].id] = { avg: r.value.averageRating, total: r.value.totalReviews };
+        if (r.status === 'fulfilled' && r.value) {
+          updates[batch[i].id] = { avg: r.value.averageRating ?? r.value.average ?? 0, total: r.value.totalReviews ?? r.value.total ?? 0 };
         } else {
           updates[batch[i].id] = { avg: 0, total: 0 };
         }
       });
       setReviewCache(prev => ({ ...prev, ...updates }));
       // Also update the rating on the course objects
-      setCourses(prev => prev.map(c => {
+      setlessons(prev => prev.map(c => {
         if (updates[c.id]) {
           return { ...c, rating: updates[c.id].avg || c.rating, reviewCount: updates[c.id].total };
         }
@@ -765,11 +795,11 @@ const BrowseCourses = () => {
 
     fetchBatch();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courses.length]); // only re-run when course count changes
+  }, [lessons.length]); // only re-run when course count changes
 
   useEffect(() => {
-    filterAndSortCourses();
-  }, [filterAndSortCourses]);
+    filterAndSortlessons();
+  }, [filterAndSortlessons]);
 
   useEffect(() => {
     updateAvailableSubjects();
@@ -778,21 +808,21 @@ const BrowseCourses = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filteredCourses]);
+  }, [filteredlessons]);
 
-  // Update displayed courses when page or filtered courses change
+  // Update displayed lessons when page or filtered lessons change
   // When a search query is active, show ALL results on one page (no pagination)
   useEffect(() => {
     if (searchQuery.trim()) {
-      setDisplayedCourses(filteredCourses);
+      setDisplayedlessons(filteredlessons);
     } else {
       const startIndex = (currentPage - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
-      setDisplayedCourses(filteredCourses.slice(startIndex, endIndex));
+      setDisplayedlessons(filteredlessons.slice(startIndex, endIndex));
       // Scroll to top smoothly when page changes
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [currentPage, filteredCourses, itemsPerPage, searchQuery]);
+  }, [currentPage, filteredlessons, itemsPerPage, searchQuery]);
 
   // Ctrl+K / Cmd+K keyboard shortcut to focus search
   useEffect(() => {
@@ -819,7 +849,7 @@ const BrowseCourses = () => {
     setSearchParams(params);
   }, [searchQuery, selectedGrade, selectedSubject, selectedTerm, selectedTopic, selectedCategory, setSearchParams]);
 
-  const fetchCoursesForGrade = async (grade: string) => {
+  const fetchlessonsForGrade = async (grade: string) => {
     if (loadedGradesRef.current.has(grade) || isFetchingRef.current) return; // Already loaded or currently fetching
     
     try {
@@ -828,7 +858,7 @@ const BrowseCourses = () => {
       setLoading(loadedGradesRef.current.size === 0);
       
       const gradeValue = grade === "Common Entrance" ? "Common Entrance" : grade;
-      const newCourses: Course[] = [];
+      const newlessons: Course[] = [];
       const subjectsSet = new Set<string>();
 
       const terms = await getTermsByGrade(gradeValue);
@@ -843,7 +873,7 @@ const BrowseCourses = () => {
             setEnrollmentCounts(counts);
           }
         } catch (err) {
-          console.error('[BrowseCourses] Could not fetch enrollment counts:', err);
+          console.error('[Browselessons] Could not fetch enrollment counts:', err);
         }
       }
 
@@ -869,7 +899,7 @@ const BrowseCourses = () => {
             .then(([lessons, quizzes]) => ({ subject, term, lessons, quizzes, gradeValue }))
             .catch(err => {
               console.error(`Error fetching data for ${subject.name}:`, err);
-              return { subject, term, lessons: [], quizzes: [] as typeof quizzes, gradeValue };
+              return { subject, term, lessons: [], quizzes: [], gradeValue };
             })
         )
       );
@@ -904,7 +934,7 @@ const BrowseCourses = () => {
               : `${lessonDuration}m`;
             const lessonCompleted = userProgress.some(p => p.lessonId === lesson.id && p.completed);
 
-            newCourses.push({
+            newlessons.push({
               id: lesson.id,
               subject: subject.name,
               grade: grade,
@@ -937,12 +967,12 @@ const BrowseCourses = () => {
         return Array.from(merged).sort();
       });
       
-      // Merge courses while preserving / correcting enrolled status
-      setCourses(prev => {
+      // Merge lessons while preserving / correcting enrolled status
+      setlessons(prev => {
         const existingCourseMap = new Map(prev.map(c => [c.id, c]));
-        const updatedCourses = [...prev];
+        const updatedlessons = [...prev];
         
-        newCourses.forEach(newCourse => {
+        newlessons.forEach(newCourse => {
           // Always re-check via the ref — this is the ONLY source of truth for enrolled status
           // regardless of what value was computed in the stale closure above.
           const isEnrolledNow = enrollmentsRef.current.some(e =>
@@ -952,14 +982,14 @@ const BrowseCourses = () => {
 
           const existing = existingCourseMap.get(newCourse.id);
           if (existing) {
-            const index = updatedCourses.findIndex(c => c.id === newCourse.id);
-            updatedCourses[index] = courseWithCorrectStatus;
+            const index = updatedlessons.findIndex(c => c.id === newCourse.id);
+            updatedlessons[index] = courseWithCorrectStatus;
           } else {
-            updatedCourses.push(courseWithCorrectStatus);
+            updatedlessons.push(courseWithCorrectStatus);
           }
         });
         
-        return updatedCourses;
+        return updatedlessons;
       });
       
       setLoadedGrades(prev => new Set([...prev, grade]));
@@ -968,10 +998,10 @@ const BrowseCourses = () => {
       // Mark initial load done so subsequent grade fetches don't show the full-screen spinner
       isInitialLoad.current = false;
     } catch (error) {
-      console.error(`Error fetching courses for grade ${grade}:`, error);
+      console.error(`Error fetching lessons for grade ${grade}:`, error);
       toast({
         title: "Error",
-        description: `Failed to load courses for grade ${grade}.`,
+        description: `Failed to load lessons for grade ${grade}.`,
         variant: "destructive"
       });
     } finally {
@@ -986,7 +1016,7 @@ const BrowseCourses = () => {
     const remainingGrades = grades.filter(g => g !== excludeGrade && !loadedGradesRef.current.has(g));
     
     for (const grade of remainingGrades) {
-      await fetchCoursesForGrade(grade);
+      await fetchlessonsForGrade(grade);
       // Small delay to prevent overwhelming the server
       await new Promise(resolve => setTimeout(resolve, 50));
     }
@@ -994,17 +1024,17 @@ const BrowseCourses = () => {
     setIsLoadingBackground(false);
   };
 
-  const fetchCourses = async () => {
+  const fetchlessons = async () => {
     // Legacy function - redirect to new implementation
     if (studentGrade) {
-      await fetchCoursesForGrade(studentGrade);
+      await fetchlessonsForGrade(studentGrade);
     } else {
-      await fetchCoursesForGrade(grades[0]);
+      await fetchlessonsForGrade(grades[0]);
     }
   };
 
   const handleAddToCart = (course: Course) => {
-    // Prevent adding purchased courses to cart
+    // Prevent adding purchased lessons to cart
     if (course.enrolled) {
       toast({
         title: "Already Purchased",
@@ -1044,23 +1074,14 @@ const BrowseCourses = () => {
   };
 
   const handleToggleWishlist = (course: Course) => {
-    const itemId = `${course.subject}-${course.grade}-${course.term}`;
     if (isInWishlist(course.subject, course.grade, course.term)) {
-      removeFromWishlist(itemId);
-      toast({
-        title: "Removed from wishlist",
-        description: `${course.subject} has been removed from your wishlist.`
-      });
+      // Find the actual MongoDB subdocument _id so the backend can remove the right item
+      const item = wishlist?.items.find(
+        i => i.subject === course.subject && i.grade === course.grade && i.term === course.term
+      );
+      if (item) removeFromWishlist(item._id);
     } else {
-      addToWishlist({ 
-        subject: course.subject, 
-        grade: course.grade, 
-        term: course.term
-      });
-      toast({
-        title: "Added to wishlist",
-        description: `${course.subject} has been saved to your wishlist.`
-      });
+      addToWishlist({ subject: course.subject, grade: course.grade, term: course.term });
     }
   };
 
@@ -1082,9 +1103,9 @@ const BrowseCourses = () => {
     setLoadingPreviewId(course.id);
     
     // Track this preview for recommendations
-    setPreviewedCourses(prev => {
+    setPreviewedlessons(prev => {
       const updated = [course.id, ...prev.filter(id => id !== course.id)].slice(0, 30);
-      localStorage.setItem('previewedCourses', JSON.stringify(updated));
+      localStorage.setItem('previewedlessons', JSON.stringify(updated));
       return updated;
     });
     
@@ -1143,7 +1164,7 @@ const BrowseCourses = () => {
       } else {
         toast({
           title: "No Content",
-          description: "This course doesn't have any lessons yet.",
+          description: "No lessons yet.",
           variant: "destructive"
         });
       }
@@ -1175,12 +1196,12 @@ const BrowseCourses = () => {
 
   // Returns the enrolled course that was most recently accessed
   const getLastAccessedCourse = (): Course | null => {
-    if (!userProgress.length || !courses.length) return null;
+    if (!userProgress.length || !lessons.length) return null;
     const sorted = [...userProgress]
       .filter(p => p.lastAccessedAt)
       .sort((a, b) => new Date(b.lastAccessedAt).getTime() - new Date(a.lastAccessedAt).getTime());
     if (!sorted.length) return null;
-    return courses.find(c => (c.lessonIds ?? []).includes(sorted[0].lessonId) && c.enrolled) ?? null;
+    return lessons.find(c => (c.lessonIds ?? []).includes(sorted[0].lessonId) && c.enrolled) ?? null;
   };
 
   // Get the last-accessed lesson title for the Continue banner
@@ -1192,17 +1213,17 @@ const BrowseCourses = () => {
     if (!sorted.length) return null;
     // Match lesson id to a topic title from the course
     const lastLessonId = sorted[0].lessonId;
-    for (const c of courses) {
+    for (const c of lessons) {
       const idx = (c.lessonIds ?? []).indexOf(lastLessonId);
       if (idx !== -1 && (c.topics ?? [])[idx]) return (c.topics ?? [])[idx];
     }
     return null;
   };
 
-  // "Students also bought" — unenrolled courses from same grade or subject
+  // "Students also bought" — unenrolled lessons from same grade or subject
   // Scored: same grade + same subject (4pts), same grade only (2pts), same subject only (1pt)
-  const getAlsoBoughtCourses = (source: Course): Course[] => {
-    return courses
+  const getAlsoBoughtlessons = (source: Course): Course[] => {
+    return lessons
       .filter(c =>
         !c.enrolled &&
         !isInCart(c.subject, c.grade, c.term) &&
@@ -1220,10 +1241,10 @@ const BrowseCourses = () => {
       .slice(0, 6);
   };
 
-  // Build a map of subject name → courses for the sidebar (dynamic, from DB)
+  // Build a map of subject name → lessons for the sidebar (dynamic, from DB)
   const getCategoryMap = (): Record<string, Course[]> => {
     const map: Record<string, Course[]> = {};
-    courses.forEach(c => {
+    lessons.forEach(c => {
       if (!map[c.subject]) map[c.subject] = [];
       map[c.subject].push(c);
     });
@@ -1252,78 +1273,46 @@ const BrowseCourses = () => {
       <StudentHeader />
 
       <main className="container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
-        {/* Hero Section - Redesigned */}
+        {/* Compact Hero / Page Header */}
         <motion.div
           initial="hidden"
           animate="visible"
           variants={fadeInUp}
-          transition={{ duration: 0.6 }}
-          className="mb-10 text-center"
+          transition={{ duration: 0.4 }}
+          className="mb-8"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-full mb-6">
-            <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Explore Our Course Library</span>
-          </div>
-          
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4">
-            <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
-              Discover Your
-            </span>
-            <br />
-            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Perfect Course
-            </span>
-          </h1>
-          
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            {loading ? 'Loading amazing lessonss...' : `Choose from ${new Set(courses.map(c => c.subject)).size} Subject${new Set(courses.map(c => c.subject)).size > 1 ? 's' : ''} with ${courses.length}+ expertly crafted lessons across all grades`}
-          </p>
-
-          {/* Quick Stats */}
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 mb-8">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <BookOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-2xl font-bold">{new Set(courses.map(c => c.subject)).size}</p>
-                <p className="text-sm text-muted-foreground">Total Subjects</p>
-              </div>
+          <div className="rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 p-6 sm:p-8 relative overflow-hidden shadow-xl">
+            <div className="absolute inset-0 pointer-events-none opacity-10">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-white rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-pink-300 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl" />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <Trophy className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-indigo-200" />
+                  <span className="text-indigo-200 text-sm font-medium">Course Library</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Browse Lessons</h1>
+                <p className="text-indigo-100 text-sm max-w-lg">
+                  {loading
+                    ? 'Loading lessons…'
+                    : `${new Set(lessons.map(c => c.subject)).size} subjects · ${lessons.length}+ lessons across all grades`}
+                </p>
               </div>
-              <div className="text-left">
-                <p className="text-2xl font-bold">{filteredCourses.length}</p>
-                <p className="text-sm text-muted-foreground">Lessons Available</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-2xl font-bold text-green-600">{enrollments.length}</p>
-                <p className="text-sm text-muted-foreground">Enrolled Lessons</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-2xl font-bold">{totalStudents.toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">Registered Students</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-lg">
-                <Star className="w-5 h-5 text-pink-600 dark:text-pink-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-2xl font-bold">4.8</p>
-                <p className="text-sm text-muted-foreground">Avg Rating</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex gap-4">
+                  {[
+                    { label: 'Subjects', value: new Set(lessons.map(c => c.subject)).size, icon: BookOpen },
+                    { label: 'Enrolled', value: enrollments.length, icon: CheckCircle },
+                    { label: 'Students', value: totalStudents > 0 ? totalStudents.toLocaleString() : '—', icon: Users },
+                  ].map((s, i) => (
+                    <div key={i} className="hidden sm:flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20 min-w-[70px]">
+                      <s.icon className="w-4 h-4 text-indigo-200 mb-1" />
+                      <span className="text-white font-bold text-lg leading-none">{s.value}</span>
+                      <span className="text-indigo-200 text-xs mt-0.5">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1402,13 +1391,13 @@ const BrowseCourses = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <Card className="mb-8 border-2 border-purple-100 dark:border-purple-900/30 shadow-xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
-            <CardContent className="p-6 sm:p-8">
+            <CardContent className="p-4 sm:p-6 md:p-8">
             {/* Quick Filter Tabs */}
             <div className="mb-6">
               <Tabs value={showOnlyPurchased ? "purchased" : "all"} onValueChange={(v) => setShowOnlyPurchased(v === "purchased")} className="w-full">
                 <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 h-12 bg-purple-100 dark:bg-purple-900/30">
                   <TabsTrigger value="all" className="text-base font-semibold data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
-                    All Courses ({courses.length})
+                    All lessons ({lessons.length})
                   </TabsTrigger>
                   <TabsTrigger value="purchased" className="text-base font-semibold data-[state=active]:bg-green-50 dark:data-[state=active]:bg-green-900/20 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-300">
                     <CheckCircle className="w-4 h-4 mr-2" />
@@ -1429,7 +1418,7 @@ const BrowseCourses = () => {
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search subjects, grades, terms…"
+                  placeholder="Search lessons, topics, subjects, grades…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery && searchSuggestions.length > 0 && setShowSuggestions(true)}
@@ -1554,150 +1543,170 @@ const BrowseCourses = () => {
               </AnimatePresence>
             </div>
 
-            {/* Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-purple-600" />
-                  Grade Level
-                </label>
-                <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                  <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Grades ({courses.length})</SelectItem>
-                    {grades.map((grade) => {
-                      const count = courses.filter(c => c.grade === grade).length;
-                      return (
-                        <SelectItem key={grade} value={grade}>
-                          {grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`} ({count})
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-blue-600" />
-                  Subject
-                </label>
-                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                  <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      All Subjects ({availableSubjects.length})
-                    </SelectItem>
-                    {availableSubjects.map((subject) => {
-                      // Count courses for this subject in the current grade
-                      const count = courses.filter(c => 
-                        c.subject === subject && 
-                        (selectedGrade === 'all' || c.grade === selectedGrade)
-                      ).length;
-                      return (
-                        <SelectItem key={subject} value={subject}>
-                          {subject} ({count})
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-green-600" />
-                  Term
-                </label>
-                <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-                  <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Terms</SelectItem>
-                    {terms.map((term) => {
-                      const count = courses.filter(c => 
-                        c.term === term && 
-                        (selectedGrade === 'all' || c.grade === selectedGrade) &&
-                        (selectedSubject === 'all' || c.subject === selectedSubject)
-                      ).length;
-                      return (
-                        <SelectItem key={term} value={term}>
-                          {term} ({count})
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-orange-600" />
-                  Sort By
-                </label>
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                  <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="popular">Most Popular</SelectItem>
-                    <SelectItem value="newest">Most Lessons</SelectItem>
-                    <SelectItem value="alphabetical">Alphabetical (A-Z)</SelectItem>
-                    <SelectItem value="price-low">Price: Low to High</SelectItem>
-                    <SelectItem value="price-high">Price: High to Low</SelectItem>
-                    <SelectItem value="rating">Highest Rated</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* ── Mobile Filter Toggle Row ── */}
+            <div className="flex sm:hidden items-center gap-2 mb-4">
+              <button
+                onClick={() => setShowMobileFilters(v => !v)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all flex-1 justify-center ${
+                  showMobileFilters
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300'
+                    : 'border-gray-200 dark:border-gray-700 text-foreground'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                Filters
+                {(selectedGrade !== 'all' || selectedSubject !== 'all' || selectedTerm !== 'all' || selectedTopic || showFreeOnly) && (
+                  <span className="ml-1 min-w-[20px] h-5 bg-purple-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {[selectedGrade !== 'all', selectedSubject !== 'all', selectedTerm !== 'all', !!selectedTopic, showFreeOnly].filter(Boolean).length}
+                  </span>
+                )}
+                {showMobileFilters ? <ChevronUp className="w-3.5 h-3.5 ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 ml-auto" />}
+              </button>
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="h-10 border-2 border-gray-200 dark:border-gray-700 rounded-xl w-36 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="popular">Popular</SelectItem>
+                  <SelectItem value="newest">Most Lessons</SelectItem>
+                  <SelectItem value="alphabetical">A–Z</SelectItem>
+                  <SelectItem value="price-low">Price ↑</SelectItem>
+                  <SelectItem value="price-high">Price ↓</SelectItem>
+                  <SelectItem value="rating">Top Rated</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Topic Search & Free-Only Toggle */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="flex-1 space-y-2">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-pink-600" />
-                  Search by Topic
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                  <Input
-                    placeholder="e.g. Fractions, Photosynthesis, Algebra…"
-                    value={selectedTopic}
-                    onChange={(e) => setSelectedTopic(e.target.value)}
-                    className="pl-9 h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg"
-                  />
-                  {selectedTopic && (
-                    <button
-                      onClick={() => setSelectedTopic('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={() => setShowFreeOnly(!showFreeOnly)}
-                  className={`h-11 flex items-center gap-2 px-4 rounded-lg border-2 text-sm font-semibold transition-all whitespace-nowrap ${
-                    showFreeOnly
-                      ? 'border-green-500 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300'
-                      : 'border-gray-200 dark:border-gray-700 text-foreground hover:border-green-400 dark:hover:border-green-600'
-                  }`}
+            {/* ── Desktop Filters (always visible) / Mobile Filters (collapsible) ── */}
+            <AnimatePresence initial={false}>
+              {(showMobileFilters || true) && (
+                <motion.div
+                  key="filters-panel"
+                  initial={false}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className={`${showMobileFilters ? 'block' : 'hidden sm:block'}`}
                 >
-                  <Zap className="w-4 h-4" />
-                  Free Only
-                  {showFreeOnly && <X className="w-3 h-3 ml-0.5" onClick={(e) => { e.stopPropagation(); setShowFreeOnly(false); }} />}
-                </button>
-              </div>
-            </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-purple-600" />
+                        Grade Level
+                      </label>
+                      <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+                        <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Grades ({lessons.length})</SelectItem>
+                          {grades.map((grade) => {
+                            const count = lessons.filter(c => c.grade === grade).length;
+                            return (
+                              <SelectItem key={grade} value={grade}>
+                                {grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`} ({count})
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-            {/* View Mode Toggle & Advanced Filters */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-blue-600" />
+                        Subject
+                      </label>
+                      <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                        <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">
+                            All Subjects ({availableSubjects.length})
+                          </SelectItem>
+                          {availableSubjects.map((subject) => {
+                            const count = lessons.filter(c =>
+                              c.subject === subject &&
+                              (selectedGrade === 'all' || c.grade === selectedGrade)
+                            ).length;
+                            return (
+                              <SelectItem key={subject} value={subject}>
+                                {subject} ({count})
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-green-600" />
+                        Term
+                      </label>
+                      <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+                        <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Terms</SelectItem>
+                          {terms.map((term) => {
+                            const count = lessons.filter(c =>
+                              c.term === term &&
+                              (selectedGrade === 'all' || c.grade === selectedGrade) &&
+                              (selectedSubject === 'all' || c.subject === selectedSubject)
+                            ).length;
+                            return (
+                              <SelectItem key={term} value={term}>
+                                {term} ({count})
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-orange-600" />
+                        Sort By
+                      </label>
+                      <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                        <SelectTrigger className="h-11 border-2 border-gray-200 dark:border-gray-700 rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="popular">Most Popular</SelectItem>
+                          <SelectItem value="newest">Most Lessons</SelectItem>
+                          <SelectItem value="alphabetical">Alphabetical (A-Z)</SelectItem>
+                          <SelectItem value="price-low">Price: Low to High</SelectItem>
+                          <SelectItem value="price-high">Price: High to Low</SelectItem>
+                          <SelectItem value="rating">Highest Rated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Free-Only toggle */}
+                  <div className="flex items-center gap-3 mb-6">
+                    <button
+                      onClick={() => setShowFreeOnly(!showFreeOnly)}
+                      className={`flex items-center gap-2 px-4 h-10 rounded-lg border-2 text-sm font-semibold transition-all whitespace-nowrap ${
+                        showFreeOnly
+                          ? 'border-green-500 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300'
+                          : 'border-gray-200 dark:border-gray-700 text-foreground hover:border-green-400 dark:hover:border-green-600'
+                      }`}
+                    >
+                      <Zap className="w-4 h-4" />
+                      Free Only
+                      {showFreeOnly && <X className="w-3 h-3 ml-0.5" onClick={(e) => { e.stopPropagation(); setShowFreeOnly(false); }} />}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* ── View Mode Toggle & Advanced Filters ── */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-2">
                 <Button
@@ -1921,31 +1930,31 @@ const BrowseCourses = () => {
                 </div>
                 <div className="min-w-0">
                   <h2 className="text-xl font-bold flex items-center gap-2 flex-wrap">
-                    {filteredCourses.length === 0
+                    {filteredlessons.length === 0
                       ? 'No results'
-                      : filteredCourses.length === 1
+                      : filteredlessons.length === 1
                         ? '1 result'
-                        : `${filteredCourses.length} results`}
+                        : `${filteredlessons.length} results`}
                     <span className="font-normal text-muted-foreground">for</span>
                     <span className="italic text-purple-600 dark:text-purple-400 truncate max-w-[200px] sm:max-w-none">&ldquo;{searchQuery}&rdquo;</span>
                     {isLoadingBackground && <Loader2 className="w-4 h-4 animate-spin text-purple-500" />}
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    All matching courses are shown below &mdash; no pagination while searching
+                    All matching lessons are shown below &mdash; no pagination while searching
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {filteredCourses.length > 0 && (
+                {filteredlessons.length > 0 && (
                   <div className="flex gap-2">
                     <Badge variant="outline" className="gap-1.5 border-purple-300 text-purple-700">
                       <BookOpen className="w-3 h-3" />
-                      {filteredCourses.filter(c => !c.enrolled).length} available
+                      {filteredlessons.filter(c => !c.enrolled).length} available
                     </Badge>
-                    {filteredCourses.filter(c => c.enrolled).length > 0 && (
+                    {filteredlessons.filter(c => c.enrolled).length > 0 && (
                       <Badge variant="outline" className="gap-1.5 border-green-300 text-green-700">
                         <CheckCircle className="w-3 h-3" />
-                        {filteredCourses.filter(c => c.enrolled).length} owned
+                        {filteredlessons.filter(c => c.enrolled).length} owned
                       </Badge>
                     )}
                   </div>
@@ -1969,24 +1978,24 @@ const BrowseCourses = () => {
               {loading ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
-                  <span className="text-lg font-medium">Loading amazing courses...</span>
+                  <span className="text-lg font-medium">Loading amazing lessons...</span>
                 </div>
               ) : (
                 <div>
                   <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
-                    {filteredCourses.length === 0 ? 'No Courses Found' :
-                     filteredCourses.length === 1 ? '1 Course Available' :
-                     `${filteredCourses.length} Lessons Available`}
+                    {filteredlessons.length === 0 ? 'No lessons Found' :
+                     filteredlessons.length === 1 ? '1 Course Available' :
+                     `${filteredlessons.length} Lessons Available`}
                     {isLoadingBackground && (
-                      <span title="Loading more courses in background">
+                      <span title="Loading more lessons in background">
                         <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
                       </span>
                     )}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    {enrollments.length} enrolled • {filteredCourses.filter(c => !c.enrolled).length} available
-                    {displayedCourses.length < filteredCourses.length && (
-                      <> • Showing {displayedCourses.length} of {filteredCourses.length}</>
+                    {enrollments.length} enrolled • {filteredlessons.filter(c => !c.enrolled).length} available
+                    {displayedlessons.length < filteredlessons.length && (
+                      <> • Showing {displayedlessons.length} of {filteredlessons.length}</>
                     )}
                     {isLoadingBackground && (
                       <> • Loading more grades...</>
@@ -1995,7 +2004,7 @@ const BrowseCourses = () => {
                 </div>
               )}
             </div>
-            {!loading && filteredCourses.length > 0 && (
+            {!loading && filteredlessons.length > 0 && (
               <div className="flex flex-wrap gap-2 items-center">
                 <Badge variant="outline" className="gap-1.5 px-3 py-1.5 border-purple-300 text-purple-700">
                   <Trophy className="w-3 h-3" />
@@ -2024,7 +2033,7 @@ const BrowseCourses = () => {
 
         {/* Category Browse Sidebar Panel */}
         <AnimatePresence>
-          {showSidebar && !loading && courses.length > 0 && (() => {
+          {showSidebar && !loading && lessons.length > 0 && (() => {
             const catMap = getCategoryMap();
             const subjects = Object.keys(catMap).sort();
             return (
@@ -2053,8 +2062,8 @@ const BrowseCourses = () => {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                       {subjects.map((subject, idx) => {
-                        const catCourses = catMap[subject] ?? [];
-                        if (catCourses.length === 0) return null;
+                        const catlessons = catMap[subject] ?? [];
+                        if (catlessons.length === 0) return null;
                         const isActive = selectedCategory === subject;
                         const gradient = CATEGORY_COLOR_PALETTE[idx % CATEGORY_COLOR_PALETTE.length];
                         return (
@@ -2075,7 +2084,7 @@ const BrowseCourses = () => {
                               <p className={`font-bold text-sm leading-tight mb-1 ${
                                 isActive ? `text-transparent bg-clip-text bg-gradient-to-br ${gradient}` : 'text-foreground'
                               }`}>{subject}</p>
-                              <p className="text-xs text-muted-foreground">{catCourses.length} course{catCourses.length !== 1 ? 's' : ''}</p>
+                              <p className="text-xs text-muted-foreground">{catlessons.length} course{catlessons.length !== 1 ? 's' : ''}</p>
                               {isActive && <div className={`mt-1.5 h-1 rounded-full bg-gradient-to-r ${gradient}`} />}
                             </div>
                           </button>
@@ -2091,50 +2100,59 @@ const BrowseCourses = () => {
 
         {/* Students Also Bought — fixed bottom panel (rendered via portal at bottom of page) */}
 
-        {/* Courses Grid - Redesigned */}
+        {/* lessons Grid - Redesigned */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                {/* Shimmer thumbnail */}
-                <div className="relative h-32 sm:h-48 overflow-hidden bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-purple-900/50 dark:via-pink-900/40 dark:to-blue-900/50">
-                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/30 dark:via-white/10 to-transparent" />
-                </div>
-                {/* Mobile compact skeleton */}
-                <div className="sm:hidden p-3 space-y-2">
-                  <div className="h-4 bg-muted rounded w-4/5 animate-pulse" />
-                  <div className="h-3 bg-muted rounded w-3/5 animate-pulse" />
-                  <div className="flex gap-1.5 mt-1">
-                    <div className="h-6 bg-muted rounded-full w-14 animate-pulse" />
-                    <div className="h-6 bg-muted rounded-full w-14 animate-pulse" />
+              <div key={i}>
+                {/* Mobile horizontal skeleton */}
+                <div className="sm:hidden rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex h-[108px]">
+                  <div className="w-[100px] flex-shrink-0 bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-purple-900/50 dark:via-pink-900/40 dark:to-blue-900/50 relative overflow-hidden">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/30 dark:via-white/10 to-transparent" />
                   </div>
-                  <div className="h-8 bg-muted rounded-lg w-full mt-2 animate-pulse" />
+                  <div className="flex-1 p-3 space-y-2">
+                    <div className="h-4 bg-muted rounded w-4/5 animate-pulse" />
+                    <div className="h-3 bg-muted rounded w-2/3 animate-pulse" />
+                    <div className="flex gap-1.5">
+                      <div className="h-5 bg-muted rounded-full w-12 animate-pulse" />
+                      <div className="h-5 bg-muted rounded-full w-12 animate-pulse" />
+                    </div>
+                    <div className="flex gap-2 items-center justify-between mt-auto">
+                      <div className="h-4 bg-muted rounded w-16 animate-pulse" />
+                      <div className="h-7 bg-muted rounded-lg w-20 animate-pulse" />
+                    </div>
+                  </div>
                 </div>
                 {/* Desktop rich skeleton */}
-                <CardContent className="hidden sm:block p-5 space-y-4">
-                  <div className="space-y-2">
-                    <div className="h-5 bg-muted rounded-lg w-3/4 animate-pulse" />
-                    <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
+                <Card className="hidden sm:block overflow-hidden">
+                  <div className="relative h-48 overflow-hidden bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-purple-900/50 dark:via-pink-900/40 dark:to-blue-900/50">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/30 dark:via-white/10 to-transparent" />
                   </div>
-                  <div className="space-y-1.5">
-                    <div className="h-3 bg-muted rounded w-full animate-pulse" />
-                    <div className="h-3 bg-muted rounded w-5/6 animate-pulse" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[...Array(4)].map((_, j) => (
-                      <div key={j} className="h-12 bg-muted rounded-lg animate-pulse" />
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="h-10 bg-muted rounded-lg flex-1 animate-pulse" />
-                    <div className="h-10 bg-muted rounded-lg flex-1 animate-pulse" />
-                  </div>
-                </CardContent>
-              </Card>
+                  <CardContent className="p-5 space-y-4">
+                    <div className="space-y-2">
+                      <div className="h-5 bg-muted rounded-lg w-3/4 animate-pulse" />
+                      <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="h-3 bg-muted rounded w-full animate-pulse" />
+                      <div className="h-3 bg-muted rounded w-5/6 animate-pulse" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[...Array(4)].map((_, j) => (
+                        <div key={j} className="h-12 bg-muted rounded-lg animate-pulse" />
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="h-10 bg-muted rounded-lg flex-1 animate-pulse" />
+                      <div className="h-10 bg-muted rounded-lg flex-1 animate-pulse" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             ))}
           </div>
-        ) : courses.length === 0 && !loading && !isLoadingBackground ? (
-          // No courses in database at all
+        ) : lessons.length === 0 && !loading && !isLoadingBackground ? (
+          // No lessons in database at all
           <motion.div
             initial="hidden"
             animate="visible"
@@ -2155,8 +2173,8 @@ const BrowseCourses = () => {
               </div>
             </Card>
           </motion.div>
-        ) : filteredCourses.length === 0 ? (
-          // Courses exist but filters returned nothing
+        ) : filteredlessons.length === 0 ? (
+          // lessons exist but filters returned nothing
           <motion.div
             initial="hidden"
             animate="visible"
@@ -2171,17 +2189,17 @@ const BrowseCourses = () => {
                   {searchQuery
                     ? `No results for "${searchQuery}"`
                     : showOnlyPurchased
-                      ? "You haven't purchased any courses yet"
-                      : "No Courses Found"}
+                      ? "You haven't purchased any lessons yet"
+                      : "No lessons Found"}
                 </h3>
                 <p className="text-muted-foreground mb-6 text-base">
                   {searchQuery
-                    ? `We couldn't find any courses matching "${searchQuery}". Try searching with different keywords or check your spelling.`
+                    ? `We couldn't find any lessons matching "${searchQuery}". Try searching with different keywords or check your spelling.`
                     : showOnlyPurchased
-                      ? "Browse our available courses and start learning today!"
+                      ? "Browse our available lessons and start learning today!"
                       : selectedGrade !== 'all' || selectedSubject !== 'all' || selectedTerm !== 'all'
-                        ? `No courses found for ${selectedGrade !== 'all' ? `Grade ${selectedGrade}` : ''}${selectedSubject !== 'all' ? ` - ${selectedSubject}` : ''}${selectedTerm !== 'all' ? ` - ${selectedTerm}` : ''}. Try different filters.`
-                        : "We couldn't find any courses matching your criteria. Try adjusting your filters."}
+                        ? `No lessons found for ${selectedGrade !== 'all' ? `Grade ${selectedGrade}` : ''}${selectedSubject !== 'all' ? ` - ${selectedSubject}` : ''}${selectedTerm !== 'all' ? ` - ${selectedTerm}` : ''}. Try different filters.`
+                        : "We couldn't find any lessons matching your criteria. Try adjusting your filters."}
                 </p>
                 <div className="flex gap-3 justify-center">
                   {searchQuery && (
@@ -2201,7 +2219,7 @@ const BrowseCourses = () => {
                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                   >
                     <Filter className="w-4 h-4 mr-2" />
-                    {showOnlyPurchased ? 'View All Courses' : 'Clear All Filters'}
+                    {showOnlyPurchased ? 'View All lessons' : 'Clear All Filters'}
                   </Button>
                 </div>
               </div>
@@ -2210,7 +2228,7 @@ const BrowseCourses = () => {
               {(() => {
                 const grade = studentGrade || selectedGrade;
                 if (!grade || grade === 'all') return null;
-                const suggestions = courses
+                const suggestions = lessons
                   .filter(c => c.grade === grade && !c.enrolled)
                   .sort((a, b) => b.studentCount - a.studentCount)
                   .slice(0, 4);
@@ -2225,15 +2243,48 @@ const BrowseCourses = () => {
                         Suggested for {grade === 'Common Entrance' ? 'Common Entrance' : `Grade ${grade}`} students
                       </p>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {/* Mobile: horizontal card list · Desktop: 4-col grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {suggestions.map(course => (
                         <div
                           key={course.id}
                           className="group cursor-pointer"
                           onClick={() => { clearFilters(); handleViewCourse(course); }}
                         >
-                          <Card className="border hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all overflow-hidden">
-                            <div className={`h-14 flex items-center justify-center bg-gradient-to-br from-purple-400 via-pink-400 to-indigo-400 relative`}>
+                          {/* ── Mobile horizontal card ── */}
+                          <div className="sm:hidden rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-md flex items-stretch active:scale-[0.985] transition-all duration-150">
+                            <div className="relative flex-shrink-0 w-[90px] bg-gradient-to-br from-purple-500 via-pink-500 to-indigo-500 overflow-hidden">
+                              {(course.imageUrl || course.thumbnail) && (
+                                <img src={course.imageUrl || course.thumbnail} alt={course.subject} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                              )}
+                              {!(course.imageUrl || course.thumbnail) && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <BookOpen className="w-6 h-6 text-white/80" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 p-3 flex flex-col gap-1">
+                              <h4 className="font-bold text-[13px] leading-snug line-clamp-2 text-foreground group-hover:text-purple-600 transition-colors">
+                                {course.lessonTitle || course.subject}
+                              </h4>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {course.lessonTitle ? `${course.subject} · ` : ''}{course.grade === 'Common Entrance' ? 'CE' : `Gr. ${course.grade}`} · {course.term.replace(' Term', '')}
+                              </p>
+                              <div className="flex items-center gap-2 mt-auto">
+                                {course.rating > 0 && (
+                                  <div className="flex items-center gap-0.5">
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                    <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">{course.rating.toFixed(1)}</span>
+                                  </div>
+                                )}
+                                <span className="ml-auto text-sm font-extrabold text-purple-600 dark:text-purple-400">{formatCurrency(course.price)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ── Desktop card (unchanged) ── */}
+                          <Card className="hidden sm:block border hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all overflow-hidden">
+                            <div className="h-14 flex items-center justify-center bg-gradient-to-br from-purple-400 via-pink-400 to-indigo-400 relative">
                               {(course.imageUrl || course.thumbnail) ? (
                                 <img src={course.imageUrl || course.thumbnail} alt={course.subject} className="absolute inset-0 w-full h-full object-cover" />
                               ) : (
@@ -2245,11 +2296,12 @@ const BrowseCourses = () => {
                               <p className="text-xs text-muted-foreground">{course.lessonTitle ? `${course.subject} · ` : ''}{course.term}</p>
                               <div className="flex items-center justify-between mt-1">
                                 <p className="text-sm font-bold text-purple-600">{formatCurrency(course.price)}</p>
-                                <div className="flex items-center gap-0.5">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star key={i} className={`w-2.5 h-2.5 ${i < Math.floor(course.rating) ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
-                                  ))}
-                                </div>
+                                {course.rating > 0 && (
+                                  <div className="flex items-center gap-0.5">
+                                    <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                                    <span className="text-[10px] font-semibold text-amber-600">{course.rating.toFixed(1)}</span>
+                                  </div>
+                                )}
                               </div>
                             </CardContent>
                           </Card>
@@ -2273,24 +2325,24 @@ const BrowseCourses = () => {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8 mb-10"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8 mb-10"
           >
-            {displayedCourses.map((course) => (
+            {displayedlessons.map((course) => (
               <motion.div
                 key={course.id}
                 variants={fadeInUp}
               >
-                {/* ── MOBILE: compact horizontal row ── */}
+                {/* ── MOBILE: Horizontal compact card ── */}
                 <div
-                  className={`sm:hidden rounded-xl overflow-hidden cursor-pointer border shadow-sm active:scale-[0.98] transition-transform ${
+                  className={`sm:hidden group rounded-2xl overflow-hidden border flex items-stretch cursor-pointer shadow-sm active:scale-[0.985] transition-all duration-150 ${
                     course.enrolled
-                      ? 'border-green-400 bg-green-50 dark:bg-green-950/20'
-                      : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900'
+                      ? 'border-green-300 dark:border-green-700 bg-gradient-to-r from-green-50 to-white dark:from-green-950/20 dark:to-gray-900'
+                      : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-md'
                   }`}
                   onClick={() => handleViewCourse(course)}
                 >
-                  {/* Thumbnail */}
-                  <div className={`relative w-full aspect-video overflow-hidden ${
+                  {/* Left: Thumbnail */}
+                  <div className={`relative flex-shrink-0 w-[100px] overflow-hidden ${
                     course.enrolled
                       ? 'bg-gradient-to-br from-green-400 to-emerald-500'
                       : 'bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500'
@@ -2305,112 +2357,143 @@ const BrowseCourses = () => {
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                     )}
-                    {/* Badges overlay */}
-                    <div className="absolute top-1.5 left-1.5 flex gap-1">
-                      {isNewCourse(course.lessonCount) && !course.enrolled && (
-                        <span className="bg-amber-400 text-amber-900 text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wide">New</span>
-                      )}
-                      {isPopular(course) && (
-                        <span className="bg-pink-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wide">Hot</span>
-                      )}
-                    </div>
+                    {/* Gradient overlay for enrolled cards */}
                     {course.enrolled && (
-                      <div className="absolute top-1.5 right-1.5">
-                        <CheckCircle className="w-4 h-4 text-white drop-shadow" />
+                      <div className="absolute inset-0 bg-green-600/20" />
+                    )}
+                    {/* Center icon fallback */}
+                    {!(course.imageUrl || course.thumbnail) && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <BookOpen className="w-8 h-8 text-white/80" />
                       </div>
                     )}
-                    {/* Wishlist */}
-                    {!course.enrolled && (
-                      <button
-                        className="absolute bottom-1.5 right-1.5 w-7 h-7 bg-white/80 rounded-full flex items-center justify-center shadow"
-                        onClick={(e) => { e.stopPropagation(); handleToggleWishlist(course); }}
-                      >
-                        <Heart className={`w-3.5 h-3.5 ${isInWishlist(course.subject, course.grade, course.term) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-                      </button>
+                    {/* Status badge */}
+                    {course.enrolled ? (
+                      <div className="absolute top-2 left-2">
+                        <div className="bg-green-600/95 backdrop-blur-sm rounded-full p-0.5 shadow">
+                          <CheckCircle className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      </div>
+                    ) : isNewCourse(course.lessonCount) ? (
+                      <div className="absolute top-2 left-2">
+                        <span className="bg-amber-400 text-amber-900 text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase leading-none">New</span>
+                      </div>
+                    ) : isPopular(course) ? (
+                      <div className="absolute top-2 left-2">
+                        <span className="bg-pink-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase leading-none">Hot</span>
+                      </div>
+                    ) : null}
+                    {/* Progress arc for enrolled */}
+                    {course.enrolled && course.completionRate > 0 && (
+                      <div className="absolute bottom-2 right-2">
+                        <div className="w-8 h-8 relative">
+                          <svg viewBox="0 0 32 32" className="w-full h-full -rotate-90">
+                            <circle cx="16" cy="16" r="12" stroke="rgba(255,255,255,0.3)" strokeWidth="3" fill="none" />
+                            <circle
+                              cx="16" cy="16" r="12"
+                              stroke="white" strokeWidth="3" fill="none"
+                              strokeDasharray={`${2 * Math.PI * 12}`}
+                              strokeDashoffset={`${2 * Math.PI * 12 * (1 - course.completionRate / 100)}`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-white rotate-90">
+                            {course.completionRate}%
+                          </span>
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  {/* Info */}
-                  <div className="p-3">
-                    <h4 className="font-bold text-sm leading-tight line-clamp-2 text-foreground mb-1">
-                      {course.lessonTitle || course.subject}
-                    </h4>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {course.lessonTitle ? `${course.subject} · ` : ''}{course.grade === 'Common Entrance' ? 'CE' : `Gr.${course.grade}`} · {course.term.replace(' Term', '')}
-                    </p>
-                    {/* Stats chips */}
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {course.estimatedHours > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[11px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          {course.estimatedHours}h
-                        </span>
-                      )}
-                      {course.quizCount > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[11px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                          <Trophy className="w-3 h-3" />
-                          {course.quizCount} quiz{course.quizCount !== 1 ? 'zes' : ''}
-                        </span>
-                      )}
-                    </div>
-                    {/* Rating */}
-                    <div className="flex items-center gap-1 mb-2.5">
-                      <span className="text-xs font-bold text-amber-600">{course.rating > 0 ? course.rating.toFixed(1) : '—'}</span>
-                      <div className="flex gap-px">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-2.5 h-2.5 ${i < Math.floor(course.rating) ? 'fill-amber-400 text-amber-400' : 'fill-gray-200 text-gray-200 dark:fill-gray-700 dark:text-gray-700'}`} />
-                        ))}
-                      </div>
-                    </div>
-                    {/* Progress bar for enrolled */}
-                    {course.enrolled && course.completionRate > 0 && (
-                      <div className="mb-2.5">
-                        <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: `${course.completionRate}%` }} />
-                        </div>
-                        <p className="text-[10px] text-purple-600 font-medium mt-0.5">{course.completionRate}% complete</p>
-                      </div>
-                    )}
-                    {/* Price + CTA */}
-                    {course.enrolled ? (
-                      <div className="space-y-1.5">
-                        <p className="text-xs font-semibold text-green-600 flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5" /> Purchased
+                  {/* Right: Content */}
+                  <div className="flex-1 min-w-0 p-3 flex flex-col gap-1.5">
+                    {/* Title row + wishlist */}
+                    <div className="flex items-start gap-1">
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-bold text-[13px] leading-snug line-clamp-2 transition-colors ${
+                          course.enrolled
+                            ? 'text-green-800 dark:text-green-200'
+                            : 'text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400'
+                        }`}>
+                          {course.lessonTitle || course.subject}
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                          {course.lessonTitle ? `${course.subject} · ` : ''}
+                          {course.grade === 'Common Entrance' ? 'CE' : `Gr. ${course.grade}`} · {course.term.replace(' Term', '')}
                         </p>
+                      </div>
+                      {!course.enrolled && (
                         <button
-                          className="w-full text-xs bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg"
+                          className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors -mt-0.5"
+                          onClick={(e) => { e.stopPropagation(); handleToggleWishlist(course); }}
+                          title="Save to wishlist"
+                        >
+                          <Heart className={`w-3.5 h-3.5 transition-colors ${
+                            isInWishlist(course.subject, course.grade, course.term)
+                              ? 'fill-red-500 text-red-500'
+                              : 'text-gray-400 hover:text-red-400'
+                          }`} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {course.rating > 0 && (
+                        <div className="flex items-center gap-0.5">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 flex-shrink-0" />
+                          <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">{course.rating.toFixed(1)}</span>
+                        </div>
+                      )}
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full">
+                        <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                        {course.durationDisplay || '30m'}
+                      </span>
+                      {course.quizCount > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full">
+                          <Trophy className="w-2.5 h-2.5 flex-shrink-0" />
+                          {course.quizCount} quiz
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Price + CTA — pinned to bottom */}
+                    <div className="mt-auto pt-1">
+                      {course.enrolled ? (
+                        <button
+                          className="w-full text-[12px] bg-green-600 hover:bg-green-700 text-white font-semibold py-1.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                           onClick={(e) => { e.stopPropagation(); handleViewCourse(course); }}
                         >
-                          Continue Learning
+                          <PlayCircle className="w-3.5 h-3.5" />
+                          {course.completionRate > 0 ? 'Continue' : 'Start Learning'}
                         </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-extrabold text-gray-900 dark:text-white">{formatCurrency(course.price)}</span>
-                          <span className="text-[10px] text-muted-foreground">{course.studentCount}+ students</span>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-extrabold text-gray-900 dark:text-white leading-none">
+                            {formatCurrency(course.price)}
+                          </span>
+                          <div className="flex gap-1.5">
+                            <button
+                              className="text-[11px] border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 font-semibold px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/30 disabled:opacity-40 transition-colors"
+                              onClick={(e) => { e.stopPropagation(); handlePreviewCourse(course); }}
+                              disabled={loadingPreviewId === course.id}
+                            >
+                              {loadingPreviewId === course.id ? '…' : 'Preview'}
+                            </button>
+                            <button
+                              className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors shadow-sm ${
+                                isInCart(course.subject, course.grade, course.term)
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-300'
+                                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+                              }`}
+                              onClick={(e) => { e.stopPropagation(); handleAddToCart(course); }}
+                            >
+                              {isInCart(course.subject, course.grade, course.term) ? '✓ Added' : 'Add'}
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-1.5">
-                          <button
-                            className="flex-1 text-xs border border-purple-300 text-purple-700 dark:text-purple-300 font-semibold py-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/30 disabled:opacity-50"
-                            onClick={(e) => { e.stopPropagation(); handlePreviewCourse(course); }}
-                            disabled={loadingPreviewId === course.id}
-                          >
-                            {loadingPreviewId === course.id ? '...' : 'Preview'}
-                          </button>
-                          <button
-                            className={`flex-1 text-xs font-bold py-2 rounded-lg ${
-                              isInCart(course.subject, course.grade, course.term)
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-purple-600 hover:bg-purple-700 text-white'
-                            }`}
-                            onClick={(e) => { e.stopPropagation(); handleAddToCart(course); }}
-                          >
-                            {isInCart(course.subject, course.grade, course.term) ? '✓ In Cart' : 'Add to Cart'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2528,7 +2611,7 @@ const BrowseCourses = () => {
                       </div>
                     </div>
 
-                    {/* Progress Bar for Enrolled Courses */}
+                    {/* Progress Bar for Enrolled lessons */}
                     {course.enrolled && course.completionRate > 0 && (
                       <div className="space-y-1 mb-3">
                         <div className="flex items-center justify-between text-xs">
@@ -2675,105 +2758,124 @@ const BrowseCourses = () => {
         )}
 
         {/* Pagination Controls — hidden while search is active */}
-        {!loading && !searchQuery.trim() && filteredCourses.length > itemsPerPage && (
-          <div className="flex flex-col items-center gap-4 pt-6 pb-12 border-t border-purple-100 dark:border-purple-900/30">
-            <p className="text-sm font-medium text-muted-foreground">
-              Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredCourses.length)} of {filteredCourses.length} courses
+        {!loading && !searchQuery.trim() && filteredlessons.length > itemsPerPage && (
+          <div className="flex flex-col items-center gap-3 pt-6 pb-12 border-t border-purple-100 dark:border-purple-900/30">
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredlessons.length)} of {filteredlessons.length} lessons
             </p>
-            <div className="flex justify-center items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            
-            <div className="flex items-center gap-1">
-              {(() => {
-                const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
-                const pages = [];
-                const maxVisible = 7;
-                
-                if (totalPages <= maxVisible) {
-                  // Show all pages if total is small
-                  for (let i = 1; i <= totalPages; i++) {
-                    pages.push(i);
-                  }
-                } else {
-                  // Show smart pagination with ellipsis
-                  if (currentPage <= 4) {
-                    // Near start
-                    for (let i = 1; i <= 5; i++) pages.push(i);
-                    pages.push(-1); // ellipsis
-                    pages.push(totalPages);
-                  } else if (currentPage >= totalPages - 3) {
-                    // Near end
-                    pages.push(1);
-                    pages.push(-1); // ellipsis
-                    for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+            <div className="flex items-center gap-1 sm:gap-2">
+              {/* First page — desktop only */}
+              {Math.ceil(filteredlessons.length / itemsPerPage) > 5 && (
+                <Button
+                  variant="outline" size="sm"
+                  className="hidden sm:flex w-9 h-9 p-0"
+                  onClick={() => { setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage === 1}
+                  aria-label="First page"
+                >
+                  «
+                </Button>
+              )}
+
+              {/* Prev */}
+              <Button
+                variant="outline" size="sm"
+                className="gap-1 h-9 px-2.5 sm:px-3"
+                onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={currentPage === 1}
+              >
+                <span className="sr-only sm:not-sr-only">Prev</span>
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </Button>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const totalPages = Math.ceil(filteredlessons.length / itemsPerPage);
+                  // On mobile: show at most 3 page buttons; on desktop up to 7
+                  // We'll render a responsive set and hide extras via CSS
+                  const pages: number[] = [];
+                  if (totalPages <= 5) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                  } else if (currentPage <= 3) {
+                    pages.push(1, 2, 3, -1, totalPages);
+                  } else if (currentPage >= totalPages - 2) {
+                    pages.push(1, -1, totalPages - 2, totalPages - 1, totalPages);
                   } else {
-                    // Middle
-                    pages.push(1);
-                    pages.push(-1); // ellipsis
-                    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-                    pages.push(-2); // ellipsis
-                    pages.push(totalPages);
+                    pages.push(1, -1, currentPage - 1, currentPage, currentPage + 1, -2, totalPages);
                   }
-                }
-                
-                return pages.map((page, idx) => {
-                  if (page === -1 || page === -2) {
+                  return pages.map((page, idx) => {
+                    if (page < 0) {
+                      return (
+                        <span key={`e-${idx}`} className="hidden sm:inline-flex w-9 h-9 items-center justify-center text-muted-foreground text-sm">…</span>
+                      );
+                    }
+                    const isCurrent = currentPage === page;
+                    // On mobile: only show current page ±1 and first/last
+                    const showOnMobile = Math.abs(page - currentPage) <= 1 || page === 1 || page === totalPages;
                     return (
-                      <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
-                        ...
-                      </span>
+                      <Button
+                        key={page}
+                        variant={isCurrent ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        className={`w-9 h-9 p-0 ${
+                          isCurrent
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 shadow-sm'
+                            : ''
+                        } ${!showOnMobile ? 'hidden sm:inline-flex' : ''}`}
+                        aria-label={`Page ${page}`}
+                        aria-current={isCurrent ? 'page' : undefined}
+                      >
+                        {page}
+                      </Button>
                     );
-                  }
-                  
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className={currentPage === page ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700" : ""}
-                    >
-                      {page}
-                    </Button>
-                  );
-                });
-              })()}
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredCourses.length / itemsPerPage), prev + 1))}
-              disabled={currentPage >= Math.ceil(filteredCourses.length / itemsPerPage)}
-            >
-              Next
-            </Button>
+                  });
+                })()}
+              </div>
+
+              {/* Next */}
+              <Button
+                variant="outline" size="sm"
+                className="gap-1 h-9 px-2.5 sm:px-3"
+                onClick={() => { setCurrentPage(p => Math.min(Math.ceil(filteredlessons.length / itemsPerPage), p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={currentPage >= Math.ceil(filteredlessons.length / itemsPerPage)}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="sr-only sm:not-sr-only">Next</span>
+              </Button>
+
+              {/* Last page — desktop only */}
+              {Math.ceil(filteredlessons.length / itemsPerPage) > 5 && (
+                <Button
+                  variant="outline" size="sm"
+                  className="hidden sm:flex w-9 h-9 p-0"
+                  onClick={() => { setCurrentPage(Math.ceil(filteredlessons.length / itemsPerPage)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage >= Math.ceil(filteredlessons.length / itemsPerPage)}
+                  aria-label="Last page"
+                >
+                  »
+                </Button>
+              )}
             </div>
           </div>
         )}
 
         {/* Results Summary — shown only during search */}
-        {!loading && filteredCourses.length > 0 && searchQuery.trim() && (
+        {!loading && filteredlessons.length > 0 && searchQuery.trim() && (
           <div className="text-center pb-8">
             <p className="text-sm text-muted-foreground">
-              {`Showing all ${filteredCourses.length} result${filteredCourses.length === 1 ? '' : 's'} for "${searchQuery}"`}
+              {`Showing all ${filteredlessons.length} result${filteredlessons.length === 1 ? '' : 's'} for "${searchQuery}"`}
             </p>
           </div>
         )}
 
         {/* Recently Viewed */}
         {!loading && !searchQuery.trim() && recentlyViewed.length > 0 && (() => {
-          const recentCourses = recentlyViewed
-            .map(id => courses.find(c => c.id === id))
+          const recentlessons = recentlyViewed
+            .map(id => lessons.find(c => c.id === id))
             .filter(Boolean) as Course[];
-          if (recentCourses.length === 0) return null;
+          if (recentlessons.length === 0) return null;
           return (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -2787,7 +2889,7 @@ const BrowseCourses = () => {
                 <h2 className="text-xl font-bold">Recently Viewed</h2>
               </div>
               <div className="flex gap-4 overflow-x-auto pb-3 -mx-2 px-2">
-                {recentCourses.slice(0, 8).map((course) => (
+                {recentlessons.slice(0, 8).map((course) => (
                   <div
                     key={course.id}
                     className="flex-shrink-0 w-48 cursor-pointer group"
@@ -2819,8 +2921,8 @@ const BrowseCourses = () => {
           );
         })()}
 
-        {/* Trending Now Section - Now below main courses */}
-        {!loading && !showOnlyPurchased && getTrendingCourses().length > 0 && (
+        {/* Trending Now Section - Now below main lessons */}
+        {!loading && !showOnlyPurchased && getTrendinglessons().length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -2832,12 +2934,12 @@ const BrowseCourses = () => {
               </div>
               <div>
                 <h2 className="text-2xl font-bold">Trending Now</h2>
-                <p className="text-sm text-muted-foreground">Most popular courses this week</p>
+                <p className="text-sm text-muted-foreground">Most popular lessons this week</p>
               </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getTrendingCourses().map((course, index) => (
+              {getTrendinglessons().map((course, index) => (
                 <motion.div
                   key={course.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -2897,12 +2999,11 @@ const BrowseCourses = () => {
           </motion.div>
         )}
 
-        {/* Recommended for You Section - AI-Powered */}
+        {/* Recommended for You Section */}
         {(() => {
-          const recommendations = getRecommendedCourses();
+          const recommendations = getRecommendedlessons();
           if (loading || recommendations.length === 0) return null;
 
-          // Colour palette per recommendation reason type
           const reasonStyles: Record<string, {
             gradient: string;
             headerBg: string;
@@ -2919,9 +3020,6 @@ const BrowseCourses = () => {
             'trending': { gradient: 'from-indigo-600 via-purple-500 to-blue-500',   headerBg: 'from-indigo-400 via-purple-400 to-blue-400',   reasonBadge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',  accentText: 'group-hover:text-indigo-600',  icon: Star,          label: 'Top Rated'      },
           };
 
-          // Match strength: 0–40 pts → 1 dot, 41–70 → 2 dots, 71+ → 3 dots
-          const matchDots = (score: number) => Math.min(3, Math.ceil(score / 30));
-
           return (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -2930,31 +3028,29 @@ const BrowseCourses = () => {
               className="mb-12"
             >
               {/* Section Header */}
-              <div className="relative mb-8">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-100 via-blue-100 to-pink-100 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-pink-950/20 rounded-2xl blur-xl opacity-50"></div>
-                <Card className="relative border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 via-blue-50 to-pink-50 dark:from-purple-950/30 dark:via-blue-950/30 dark:to-pink-950/30 overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="relative">
+              <div className="relative mb-5 sm:mb-8">
+                <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 via-blue-50 to-pink-50 dark:from-purple-950/30 dark:via-blue-950/30 dark:to-pink-950/30 overflow-hidden">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex-shrink-0">
                           <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl blur opacity-50"></div>
-                          <div className="relative p-3 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl">
-                            <Sparkles className="w-8 h-8 text-white" />
+                          <div className="relative p-2 sm:p-3 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl">
+                            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                           </div>
                         </div>
                         <div>
-                          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 bg-clip-text text-transparent">
+                          <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 bg-clip-text text-transparent">
                             Recommended for You
                           </h2>
-                          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-amber-500" />
-                            Personalised based on your searches, activity, and learning progress
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                            Personalised based on your searches &amp; activity
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {/* Reason type legend chips */}
-                        {[...new Set(recommendations.map(r => r.reasonType))].map(type => {
+                      <div className="flex items-center gap-2">
+                        {[...new Set(recommendations.map(r => r.reasonType))].slice(0, 3).map(type => {
                           const s = reasonStyles[type];
                           if (!s) return null;
                           const Icon = s.icon;
@@ -2965,7 +3061,7 @@ const BrowseCourses = () => {
                             </span>
                           );
                         })}
-                        <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 px-4 py-2 text-sm">
+                        <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 px-3 py-1 text-xs sm:text-sm">
                           {recommendations.length} Picks
                         </Badge>
                       </div>
@@ -2974,14 +3070,13 @@ const BrowseCourses = () => {
                 </Card>
               </div>
 
-              {/* Course Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Cards — same mobile horizontal / desktop vertical split as main grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                 {recommendations.map((rec, index) => {
                   const course: Course = rec.course;
-                  const { reason, reasonType, score } = rec;
+                  const { reason, reasonType } = rec;
                   const style = reasonStyles[reasonType] ?? reasonStyles['popular'];
                   const Icon = style.icon;
-                  const dots = matchDots(score);
                   const wishlisted = isInWishlist(course.subject, course.grade, course.term);
                   const inCart = isInCart(course.subject, course.grade, course.term);
                   return (
@@ -2989,100 +3084,138 @@ const BrowseCourses = () => {
                       key={course.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.08, duration: 0.4 }}
-                      whileHover={{ y: -8, scale: 1.02 }}
+                      transition={{ delay: index * 0.07, duration: 0.35 }}
                     >
-                      <Card className={`h-full hover:shadow-2xl transition-all duration-300 border-2 border-transparent group overflow-hidden bg-white dark:bg-gray-900 hover:border-current`}
-                        style={{ '--tw-border-opacity': '0.25' } as React.CSSProperties}
+                      {/* ── MOBILE: horizontal compact card (matches main grid) ── */}
+                      <div
+                        className="sm:hidden group rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-md flex items-stretch cursor-pointer active:scale-[0.985] transition-all duration-150"
+                        onClick={() => handleViewCourse(course)}
                       >
-                        {/* Coloured Header */}
-                        <div className={`relative h-32 bg-gradient-to-br ${style.headerBg} overflow-hidden`}>
-                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors"></div>
-                          <div className="absolute top-1 right-1 w-20 h-20 bg-white/15 rounded-full blur-2xl pointer-events-none"></div>
-
-                          {/* Central Icon */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                              <Icon className="w-7 h-7 text-white" />
+                        {/* Thumbnail strip */}
+                        <div className={`relative flex-shrink-0 w-[100px] overflow-hidden bg-gradient-to-br ${style.headerBg}`}>
+                          {(course.imageUrl || course.thumbnail) && (
+                            <img src={course.imageUrl || course.thumbnail} alt={course.subject} className="absolute inset-0 w-full h-full object-cover" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          )}
+                          {!(course.imageUrl || course.thumbnail) && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Icon className="w-8 h-8 text-white/80" />
                             </div>
+                          )}
+                          {/* Reason badge */}
+                          <div className="absolute top-2 left-1 right-1">
+                            <span className={`block text-center text-[9px] font-bold px-1 py-0.5 rounded-sm uppercase leading-none truncate ${style.reasonBadge}`}>
+                              {reason.length > 14 ? reason.slice(0, 14) + '\u2026' : reason}
+                            </span>
                           </div>
+                          {/* Wishlist */}
+                          <button
+                            className="absolute bottom-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-white/90 hover:bg-white shadow transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleToggleWishlist(course); }}
+                          >
+                            <Heart className={`w-3 h-3 ${wishlisted ? 'fill-rose-500 text-rose-500' : 'text-gray-400 hover:text-rose-500'}`} />
+                          </button>
+                        </div>
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 p-3 flex flex-col gap-1.5">
+                          <h4 className="font-bold text-[13px] leading-snug line-clamp-2 text-foreground group-hover:text-purple-600 transition-colors">
+                            {course.lessonTitle || course.subject}
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {course.grade === 'Common Entrance' ? 'CE' : `Gr. ${course.grade}`} · {course.term.replace(' Term', '')}
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {course.rating > 0 && (
+                              <div className="flex items-center gap-0.5">
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">{course.rating.toFixed(1)}</span>
+                              </div>
+                            )}
+                            <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full">
+                              <Clock className="w-2.5 h-2.5" />
+                              {course.durationDisplay || '30m'}
+                            </span>
+                          </div>
+                          <div className="mt-auto pt-1 flex items-center justify-between gap-2">
+                            <span className="text-sm font-extrabold text-gray-900 dark:text-white">{formatCurrency(course.price)}</span>
+                            <button
+                              className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors shadow-sm ${
+                                inCart ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-300' : 'bg-purple-600 hover:bg-purple-700 text-white'
+                              }`}
+                              onClick={(e) => { e.stopPropagation(); handleAddToCart(course); }}
+                            >
+                              {inCart ? '\u2713 Added' : 'Add'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
 
-                          {/* Reason badge — top left */}
+                      {/* ── DESKTOP: rich vertical card ── */}
+                      <Card
+                        className={`hidden sm:flex flex-col h-full hover:shadow-2xl transition-all duration-300 border-2 border-transparent group overflow-hidden bg-white dark:bg-gray-900`}
+                        onClick={() => handleViewCourse(course)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {/* Coloured header with thumbnail */}
+                        <div className={`relative h-32 bg-gradient-to-br ${style.headerBg} overflow-hidden`}>
+                          {(course.imageUrl || course.thumbnail) ? (
+                            <>
+                              <img src={course.imageUrl || course.thumbnail} alt={course.subject} className="absolute inset-0 w-full h-full object-cover" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                              <div className="absolute inset-0 bg-black/20" />
+                            </>
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-14 h-14 bg-white/25 backdrop-blur-sm rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-all duration-300">
+                                <Icon className="w-7 h-7 text-white" />
+                              </div>
+                            </div>
+                          )}
                           <div className="absolute top-2.5 left-2.5">
                             <Badge className={`${style.reasonBadge} border-0 shadow text-xs font-semibold flex items-center gap-1 px-2 py-0.5`}>
-                              <Icon className="w-3 h-3" />
-                              {reason}
+                              <Icon className="w-3 h-3" />{reason}
                             </Badge>
                           </div>
-
-                          {/* Wishlist toggle — top right */}
                           <button
                             className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white shadow transition-colors"
                             onClick={e => { e.stopPropagation(); handleToggleWishlist(course); }}
-                            title={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                           >
                             <Heart className={`w-3.5 h-3.5 transition-colors ${wishlisted ? 'fill-rose-500 text-rose-500' : 'text-gray-400 hover:text-rose-500'}`} />
                           </button>
-
-                          {/* Match-strength dots — bottom right */}
-                          <div className="absolute bottom-2 right-2 flex gap-0.5">
-                            {[1, 2, 3].map(d => (
-                              <span key={d} className={`block w-1.5 h-1.5 rounded-full ${d <= dots ? 'bg-white' : 'bg-white/30'}`} />
-                            ))}
-                            <span className="text-white/70 text-[9px] ml-1 leading-[6px] self-end">match</span>
-                          </div>
                         </div>
-
-                        {/* Card Body */}
-                        <CardContent className="p-4 flex flex-col gap-3">
+                        <CardContent className="p-4 flex flex-col gap-3 flex-1">
                           <div>
-                            <h3 className={`font-bold text-base mb-0.5 line-clamp-1 transition-colors ${style.accentText}`}>
+                            <h3 className={`font-bold text-sm mb-0.5 line-clamp-2 transition-colors ${style.accentText}`}>
                               {course.lessonTitle || course.subject}
                             </h3>
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <span>{course.grade === 'Common Entrance' ? 'Common Entrance' : `Grade ${course.grade}`}</span>
-                              <span>·</span>
-                              <span>{course.term}</span>
-                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {course.grade === 'Common Entrance' ? 'Common Entrance' : `Grade ${course.grade}`} · {course.term}
+                            </p>
                           </div>
-
-                          {/* Stats row */}
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center gap-1.5 text-xs bg-muted/50 px-2 py-1.5 rounded-lg">
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <div className="flex items-center gap-1 text-xs bg-muted/50 px-2 py-1 rounded-lg">
                               <BookOpen className="w-3 h-3 text-muted-foreground" />
                               <span className="font-medium">{course.lessonCount} lessons</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs bg-muted/50 px-2 py-1.5 rounded-lg">
+                            <div className="flex items-center gap-1 text-xs bg-muted/50 px-2 py-1 rounded-lg">
                               <Users className="w-3 h-3 text-muted-foreground" />
-                              <span className="font-medium">{course.studentCount}+ students</span>
+                              <span className="font-medium">{course.studentCount}+</span>
                             </div>
                           </div>
-
-                          {/* Rating + Price */}
-                          <div className="flex items-center justify-between pt-2 border-t">
+                          <div className="flex items-center justify-between pt-2 border-t mt-auto">
                             <div className="flex items-center gap-0.5">
                               {[...Array(5)].map((_, i) => (
                                 <Star key={i} className={`w-3 h-3 ${i < Math.floor(course.rating) ? 'fill-amber-400 text-amber-400' : 'text-gray-200 dark:text-gray-700'}`} />
                               ))}
                               <span className="text-xs font-semibold ml-1 text-muted-foreground">{course.rating.toFixed(1)}</span>
                             </div>
-                            <span className={`text-base font-bold bg-gradient-to-r ${style.gradient} bg-clip-text text-transparent`}>
+                            <span className={`text-sm font-bold bg-gradient-to-r ${style.gradient} bg-clip-text text-transparent`}>
                               {formatCurrency(course.price)}
                             </span>
                           </div>
-
-                          {/* Action buttons */}
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => handlePreviewCourse(course)}>
-                              <Eye className="w-3 h-3 mr-1" />
-                              Preview
+                            <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={(e) => { e.stopPropagation(); handlePreviewCourse(course); }}>
+                              <Eye className="w-3 h-3 mr-1" />Preview
                             </Button>
-                            <Button
-                              size="sm"
-                              className={`flex-1 text-xs text-white bg-gradient-to-r ${style.gradient} hover:opacity-90 shadow-sm`}
-                              onClick={() => handleAddToCart(course)}
-                              disabled={inCart}
-                            >
+                            <Button size="sm" className={`flex-1 text-xs text-white bg-gradient-to-r ${style.gradient} hover:opacity-90`} onClick={(e) => { e.stopPropagation(); handleAddToCart(course); }} disabled={inCart}>
                               {inCart ? <><CheckCircle className="w-3 h-3 mr-1" />In Cart</> : <><ShoppingCart className="w-3 h-3 mr-1" />Add</>}
                             </Button>
                           </div>
@@ -3101,7 +3234,7 @@ const BrowseCourses = () => {
 
       {/* Floating Wishlist Button */}
       <AnimatePresence>
-        {courses.filter(c => isInWishlist(c.subject, c.grade, c.term)).length > 0 && (
+        {lessons.filter(c => isInWishlist(c.subject, c.grade, c.term)).length > 0 && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -3116,7 +3249,7 @@ const BrowseCourses = () => {
               <div className="relative">
                 <Heart className="w-6 h-6 fill-white text-white" />
                 <Badge className="absolute -top-2 -right-2 bg-white text-pink-600 border-0 text-xs px-1.5 min-w-[20px] h-5">
-                  {courses.filter(c => isInWishlist(c.subject, c.grade, c.term)).length}
+                  {lessons.filter(c => isInWishlist(c.subject, c.grade, c.term)).length}
                 </Badge>
               </div>
             </Button>
@@ -3129,7 +3262,7 @@ const BrowseCourses = () => {
           ═══════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showAlsoBought && justAddedCourse && (() => {
-          const alsoBought = getAlsoBoughtCourses(justAddedCourse);
+          const alsoBought = getAlsoBoughtlessons(justAddedCourse);
           const dismiss = () => {
             setShowAlsoBought(false);
             if (alsoBoughtTimerRef.current) clearInterval(alsoBoughtTimerRef.current);
@@ -3402,4 +3535,4 @@ const BrowseCourses = () => {
   );
 };
 
-export default BrowseCourses;
+export default Browselessons;

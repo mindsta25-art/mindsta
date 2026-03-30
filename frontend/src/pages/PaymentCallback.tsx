@@ -20,7 +20,7 @@ const PaymentCallback = () => {
   const { refreshCart } = useCart();
   const [status, setStatus] = useState<'verifying'|'success'|'failed'>('verifying');
   const [message, setMessage] = useState<string>('Verifying payment...');
-  const [purchasedCourses, setPurchasedCourses] = useState<PurchasedCourse[]>([]);
+  const [purchasedlessons, setPurchasedlessons] = useState<PurchasedCourse[]>([]);
 
   useEffect(() => {
     const run = async () => {
@@ -33,11 +33,11 @@ const PaymentCallback = () => {
         const res = await verifyPayment(reference);
         if (res.status === 'success') {
           setStatus('success');
-          setMessage('Payment verified successfully! Your courses are now accessible.');
+          setMessage('Payment verified successfully! Your lessons are now accessible.');
           
-          // Get the purchased courses from the payment response
+          // Get the purchased lessons from the payment response
           if (res.enrollments && res.enrollments.length > 0) {
-            setPurchasedCourses(res.enrollments.map((e: any) => ({
+            setPurchasedlessons(res.enrollments.map((e: any) => ({
               subject: e.subject,
               grade: e.grade,
               term: e.term,
@@ -101,12 +101,12 @@ const PaymentCallback = () => {
               </p>
             </div>
 
-            {/* Enrolled Courses */}
-            {status === 'success' && purchasedCourses.length > 0 && (
+            {/* Enrolled lessons */}
+            {status === 'success' && purchasedlessons.length > 0 && (
               <div className="mb-6">
-                <h2 className="text-lg font-semibold mb-3">Courses Purchased:</h2>
+                <h2 className="text-lg font-semibold mb-3">lessons Purchased:</h2>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {purchasedCourses.map((course, index) => (
+                  {purchasedlessons.map((course, index) => (
                     <div
                       key={`${course.subject}-${course.grade}-${index}`}
                       className="flex items-center gap-3 p-3 bg-muted rounded-lg"
@@ -148,8 +148,8 @@ const PaymentCallback = () => {
                     <>
                       <Button 
                         onClick={() => {
-                          if (purchasedCourses.length === 1) {
-                            const c = purchasedCourses[0];
+                          if (purchasedlessons.length === 1) {
+                            const c = purchasedlessons[0];
                             const p = new URLSearchParams();
                             if (c.term) p.set('term', c.term);
                             if (c.lessonId) p.set('lessonId', c.lessonId);
@@ -170,7 +170,7 @@ const PaymentCallback = () => {
                         size="lg"
                         className="w-full sm:w-auto"
                       >
-                        Browse More Courses
+                        Browse More lessons
                       </Button>
                     </>
                   ) : (

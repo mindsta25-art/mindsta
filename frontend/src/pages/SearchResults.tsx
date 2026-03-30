@@ -152,7 +152,7 @@ export default function SearchResults() {
   };
 
   const isLessonPurchased = (lesson: Lesson): boolean => {
-    return enrollments.some(e => isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term));
+    return enrollments.some(e => isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term, lesson.id));
   };
 
   // Build the same URL that MyLearning uses so clicking a search result opens

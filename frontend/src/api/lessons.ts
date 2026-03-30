@@ -57,6 +57,7 @@ export interface Lesson {
   curriculum?: Section[];
   quizCount?: number; // Total quizzes for this course
   price?: number; // Price in Naira
+  isPublished?: boolean; // false = draft (only visible to admins)
   rating?: number; // Average rating (0-5)
   ratingsCount?: number; // Number of ratings
   enrolledStudents?: number; // Number of enrolled students

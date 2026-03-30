@@ -121,8 +121,8 @@ const Referral = () => {
             totalReferrals: stats.totalReferrals,
             activeReferrals: stats.activeReferrals,
             pointsEarned: stats.totalReferrals * 30, // 30 points per referral
-            rewards: stats.totalReferrals >= 5 ? ["🎖️ Bronze Referrer", "⭐ 5 Friends Club"] :
-                     stats.totalReferrals >= 1 ? ["🎖️ First Referral!"] : []
+            rewards: stats.totalReferrals >= 5 ? ["Bronze", "5 Friends"] :
+                     stats.totalReferrals >= 1 ? ["First Referral"] : []
           });
         } catch (_) {
           // Fallback to zero stats if fetch fails
@@ -150,8 +150,8 @@ const Referral = () => {
       signOut();
       refreshUser();
       toast({
-        title: "See you later! ",
-        description: "Come back soon for more fun learning!",
+        title: "Signed out",
+        description: "You have been signed out successfully.",
       });
     } catch (error) {
       console.error("Logout error:", error);
@@ -164,7 +164,7 @@ const Referral = () => {
   };
 
   const copyReferralCode = () => {
-    const referralLink = `https://mindsta.com.ng/signup?ref=${referralCode}`;
+    const referralLink = `${window.location.origin}/signup?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     toast({
@@ -175,14 +175,14 @@ const Referral = () => {
   };
 
   const shareViaEmail = () => {
-    const subject = "Join me on Mindsta! 🎓";
-    const body = `Hey! I've been learning on Mindsta and it's super fun! \n\nUse my referral code: ${referralCode}\nOr click here: https://mindsta.com.ng/signup?ref=${referralCode}\n\nLet's learn together! 🌟`;
+    const subject = "Join me on Mindsta";
+    const body = `Hi,\n\nI have been learning on Mindsta and I think you would love it too.\n\nUse my referral code: ${referralCode}\nOr sign up here: ${window.location.origin}/signup?ref=${referralCode}\n\nJoin me and let's learn together!`;
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
   const shareViaSocial = () => {
-    const text = `Join me on Mindsta! Use my code: ${referralCode} `;
-    const url = `https://mindsta.com.ng/signup?ref=${referralCode}`;
+    const text = `Join me on Mindsta! Use my referral code: ${referralCode}`;
+    const url = `${window.location.origin}/signup?ref=${referralCode}`;
     if (navigator.share) {
       navigator.share({
         title: "Join Mindsta",
@@ -265,37 +265,27 @@ const Referral = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-background dark:via-muted dark:to-background flex items-center justify-center">
-        <div className="text-4xl animate-bounce">🎁</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   const rewards = [
-    { points: 50, name: "Bronze Referrer 🥉", description: "Refer 5 friends", unlocked: referralStats.totalReferrals >= 5 },
-    { points: 100, name: "Silver Referrer 🥈", description: "Refer 10 friends", unlocked: referralStats.totalReferrals >= 10 },
-    { points: 200, name: "Gold Referrer 🥇", description: "Refer 20 friends", unlocked: referralStats.totalReferrals >= 20 },
-    { points: 500, name: "Super Star ⭐", description: "Refer 50 friends", unlocked: referralStats.totalReferrals >= 50 },
+    { points: 50, name: "Bronze", description: "Refer 5 friends", unlocked: referralStats.totalReferrals >= 5 },
+    { points: 100, name: "Silver", description: "Refer 10 friends", unlocked: referralStats.totalReferrals >= 10 },
+    { points: 200, name: "Gold", description: "Refer 20 friends", unlocked: referralStats.totalReferrals >= 20 },
+    { points: 500, name: "Champion", description: "Refer 50 friends", unlocked: referralStats.totalReferrals >= 50 },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-background dark:via-muted dark:to-background relative overflow-hidden">
-      {/* Fun Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-10 text-4xl animate-bounce delay-200">🎁</div>
-        <div className="absolute top-20 right-20 text-4xl animate-bounce delay-500">⭐</div>
-        <div className="absolute bottom-20 left-20 text-4xl animate-bounce delay-700">🎉</div>
-        <div className="absolute bottom-32 right-32 text-4xl animate-bounce delay-1000">🏆</div>
-      </div>
-
-      <header className="fixed top-0 left-0 right-0 bg-white/80 dark:bg-card backdrop-blur-sm shadow-lg border-b-4 border-purple-300 z-50">
+    <div className="min-h-screen bg-background">
+      <header className="fixed top-0 left-0 right-0 bg-background/95 dark:bg-card backdrop-blur-sm shadow-sm border-b border-border z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 animate-pulse">
-                <div className="p-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
-                  <BookOpen className="w-3 h-3 text-white" />
-                </div>
+              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600">
+                <BookOpen className="w-4 h-4 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</h1>
@@ -307,7 +297,8 @@ const Referral = () => {
             <div className="hidden md:flex items-center gap-2">
               <Button
                 onClick={() => navigate("/dashboard")}
-                className="gap-2 border-2 border-blue-300 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-bold"
+                variant="outline"
+                className="gap-2"
               >
                 ← Back to Dashboard
               </Button>
@@ -315,10 +306,11 @@ const Referral = () => {
               <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
-                    className="gap-2 border-2 border-green-300 hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 font-bold"
+                    variant="outline"
+                    className="gap-2"
                   >
                     <KeyRound className="w-4 h-4" />
-                    Change Password 
+                    Change Password
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -414,7 +406,7 @@ const Referral = () => {
                   variant="outline"
                   size="icon"
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative border-2 border-orange-300 hover:border-orange-500"
+                    className="relative"
                 >
                   <Bell className="w-4 h-4" />
                   {unreadNotifications > 0 && (
@@ -473,11 +465,12 @@ const Referral = () => {
               </div>
 
               <Button
+                variant="outline"
                 onClick={() => setShowLogoutDialog(true)}
-                className="gap-2 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 font-bold"
+                className="gap-2"
               >
                 <LogOut className="w-4 h-4" />
-                Logout 
+                Logout
               </Button>
             </div>
 
@@ -503,7 +496,8 @@ const Referral = () => {
                   navigate("/dashboard");
                   setMobileMenuOpen(false);
                 }}
-                className="w-full gap-2 border-2 border-blue-300 hover:border-blue-500 font-bold justify-center"
+                variant="outline"
+                className="w-full gap-2 justify-center"
               >
                 ← Back to Dashboard
               </Button>
@@ -513,10 +507,11 @@ const Referral = () => {
                   setPasswordDialogOpen(true);
                   setMobileMenuOpen(false);
                 }}
-                className="w-full gap-2 border-2 border-green-300 hover:border-green-500 font-bold justify-center"
+                variant="outline"
+                className="w-full gap-2 justify-center"
               >
                 <KeyRound className="w-4 h-4" />
-                Change Password 
+                Change Password
               </Button>
 
               <Button
@@ -525,7 +520,7 @@ const Referral = () => {
                   setMobileMenuOpen(false);
                   setShowNotifications(!showNotifications);
                 }}
-                className="w-full gap-2 border-2 border-orange-300 hover:border-orange-500 font-bold justify-center relative"
+                className="w-full gap-2 justify-center relative"
               >
                 <Bell className="w-4 h-4" />
                 Notifications
@@ -537,152 +532,158 @@ const Referral = () => {
               </Button>
               
               <Button
+                variant="outline"
                 onClick={() => {
                   setShowLogoutDialog(true);
                   setMobileMenuOpen(false);
                 }}
-                className="w-full gap-2 border-2 border-purple-300 hover:border-purple-500 font-bold justify-center"
+                className="w-full gap-2 justify-center"
               >
                 <LogOut className="w-4 h-4" />
-                Logout 
+                Logout
               </Button>
             </div>
           )}
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-12 relative z-10 mt-20">
+      <main className="container mx-auto px-4 py-10 relative z-10 mt-20">
         {/* Hero Section */}
-        <div className="text-center mb-12">
-          {/* <div className="text-7xl mb-4 animate-bounce">🎁</div> */}
-          <Badge className="mb-4 px-6 py-3 text-base font-bold bg-gradient-to-r from-yellow-400/30 to-orange-400/30 border-yellow-500/50">
-            <Gift className="w-5 h-5 mr-2 inline animate-pulse" />
-            Refer Friends & Earn Rewards! 
+        <div className="text-center mb-10">
+          <Badge className="mb-4 px-4 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
+            <Gift className="w-4 h-4 mr-2 inline" />
+            Referral Program
           </Badge>
-          <h1 className="text-5xl md:text-6xl font-black text-foreground mb-4">
-            Share the Fun! 🎉
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">
+            Invite Friends, Earn Rewards
           </h1>
-          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 max-w-2xl mx-auto">
-            Invite your friends and earn awesome rewards together! 🚀
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Share Mindsta with your network and earn points for every successful referral.
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12 max-w-6xl mx-auto">
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-blue-200 hover:border-blue-400 bg-gradient-to-br from-white to-blue-50 dark:from-card dark:to-blue-950/20">
-            <CardContent className="p-6">
-              <Users className="w-12 h-12 mx-auto mb-2 text-blue-600" />
-              <div className="text-4xl font-black text-blue-600 mb-2">{referralStats.totalReferrals}</div>
-              <div className="text-sm font-bold text-foreground">Total Referrals 👥</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 max-w-4xl mx-auto">
+          <Card className="text-center hover:shadow-md transition-all duration-200 border-border">
+            <CardContent className="p-5">
+              <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-3">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-foreground mb-1">{referralStats.totalReferrals}</div>
+              <div className="text-sm text-muted-foreground">Total Referrals</div>
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-green-200 hover:border-green-400 bg-gradient-to-br from-white to-green-50 dark:from-card dark:to-green-950/20">
-            <CardContent className="p-6">
-              <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-green-600" />
-              <div className="text-4xl font-black text-green-600 mb-2">{referralStats.activeReferrals}</div>
-              <div className="text-sm font-bold text-foreground">Active Friends ✅</div>
+          <Card className="text-center hover:shadow-md transition-all duration-200 border-border">
+            <CardContent className="p-5">
+              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="text-2xl font-bold text-foreground mb-1">{referralStats.activeReferrals}</div>
+              <div className="text-sm text-muted-foreground">Active Referrals</div>
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-yellow-200 hover:border-yellow-400 bg-gradient-to-br from-white to-yellow-50 dark:from-card dark:to-yellow-950/20">
-            <CardContent className="p-6">
-              <Star className="w-12 h-12 mx-auto mb-2 text-yellow-600" />
-              <div className="text-4xl font-black text-yellow-600 mb-2">{referralStats.pointsEarned}</div>
-              <div className="text-sm font-bold text-foreground">Points Earned ⭐</div>
+          <Card className="text-center hover:shadow-md transition-all duration-200 border-border">
+            <CardContent className="p-5">
+              <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center mx-auto mb-3">
+                <Star className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div className="text-2xl font-bold text-foreground mb-1">{referralStats.pointsEarned}</div>
+              <div className="text-sm text-muted-foreground">Points Earned</div>
             </CardContent>
           </Card>
 
-          <Card className="text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 border-4 border-purple-200 hover:border-purple-400 bg-gradient-to-br from-white to-purple-50 dark:from-card dark:to-purple-950/20">
-            <CardContent className="p-6">
-              <Trophy className="w-12 h-12 mx-auto mb-2 text-purple-600" />
-              <div className="text-4xl font-black text-purple-600 mb-2">{referralStats.rewards.length}</div>
-              <div className="text-sm font-bold text-foreground">Rewards Unlocked 🏆</div>
+          <Card className="text-center hover:shadow-md transition-all duration-200 border-border">
+            <CardContent className="p-5">
+              <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-3">
+                <Trophy className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="text-2xl font-bold text-foreground mb-1">{referralStats.rewards.length}</div>
+              <div className="text-sm text-muted-foreground">Rewards Unlocked</div>
             </CardContent>
           </Card>
         </div>
 
         <div className="max-w-5xl mx-auto space-y-8">
-          {/* Referral Code Card */}
-          <Card className="border-4 border-pink-300 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-pink-900/20 dark:to-purple-900/20 shadow-2xl">
-            <CardHeader className="text-center">
-              <div className="text-6xl mb-4 animate-bounce">💝</div>
-              <CardTitle className="text-3xl font-black">Your Special Referral Code!</CardTitle>
-              <CardDescription className="text-lg font-bold">Share this code with your friends!</CardDescription>
+          {/* Referral Link Card */}
+          <Card className="border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold">Your Referral Link</CardTitle>
+              <CardDescription>Share this link to invite friends to Mindsta</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <Input 
-                  value={`https://mindsta.com.ng/signup?ref=${referralCode}`}
+                  value={`${window.location.origin}/signup?ref=${referralCode}`}
                   readOnly
-                  className="text-center text-lg font-bold border-4 border-purple-300"
+                  className="font-mono text-sm"
                 />
                 <Button
                   onClick={copyReferralCode}
-                  className="gap-2 font-bold bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
+                  className="gap-2 shrink-0 bg-purple-600 hover:bg-purple-700"
                 >
-                  {copied ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                  {copied ? "Copied! 🎉" : "Copy"}
+                  {copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-3 gap-3">
                 <Button
                   onClick={shareViaEmail}
                   variant="outline"
-                  className="gap-2 border-2 border-blue-300 hover:border-blue-500 font-bold"
+                  className="gap-2"
                 >
-                  <Mail className="w-5 h-5" />
-                  Share via Email 📧
+                  <Mail className="w-4 h-4" />
+                  Email
                 </Button>
                 <Button
                   onClick={shareViaSocial}
                   variant="outline"
-                  className="gap-2 border-2 border-green-300 hover:border-green-500 font-bold"
+                  className="gap-2"
                 >
-                  <MessageCircle className="w-5 h-5" />
-                  Share on Social 💬
+                  <MessageCircle className="w-4 h-4" />
+                  Share
                 </Button>
                 <Button
                   onClick={copyReferralCode}
                   variant="outline"
-                  className="gap-2 border-2 border-purple-300 hover:border-purple-500 font-bold"
+                  className="gap-2"
                 >
-                  <Share2 className="w-5 h-5" />
-                  Copy Link 🔗
+                  <Copy className="w-4 h-4" />
+                  Copy Link
                 </Button>
               </div>
             </CardContent>
           </Card>
 
           {/* How It Works */}
-          <Card className="border-4 border-blue-300 shadow-xl">
+          <Card className="border-border shadow-sm">
             <CardHeader>
-              <div className="text-5xl mb-2 text-center">📚</div>
-              <CardTitle className="text-3xl font-black text-center">How It Works</CardTitle>
-              <CardDescription className="text-center font-bold">Super easy! Just 3 steps!</CardDescription>
+              <CardTitle className="text-xl font-semibold">How It Works</CardTitle>
+              <CardDescription>Three simple steps to start earning</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-3 gap-6">
-                <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 rounded-2xl border-2 border-blue-200 dark:border-blue-800">
-                  <div className="text-5xl mb-4">1️⃣</div>
-                  <h3 className="text-xl font-black mb-2">Share Your Code</h3>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Send your referral link to friends via email or social media!
+                <div className="text-center p-5 bg-muted/30 rounded-xl border border-border">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold mx-auto mb-4">1</div>
+                  <h3 className="text-base font-semibold mb-2">Share Your Link</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Send your referral link to friends via email or social media.
                   </p>
                 </div>
-                <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-2xl border-2 border-green-200 dark:border-green-800">
-                  <div className="text-5xl mb-4">2️⃣</div>
-                  <h3 className="text-xl font-black mb-2">Friend Joins</h3>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    When they sign up using your code, you both get rewards!
+                <div className="text-center p-5 bg-muted/30 rounded-xl border border-border">
+                  <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center text-lg font-bold mx-auto mb-4">2</div>
+                  <h3 className="text-base font-semibold mb-2">Friend Signs Up</h3>
+                  <p className="text-sm text-muted-foreground">
+                    When they join using your link, both of you earn rewards.
                   </p>
                 </div>
-                <div className="text-center p-6 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 rounded-2xl border-2 border-yellow-200 dark:border-yellow-800">
-                  <div className="text-5xl mb-4">3️⃣</div>
-                  <h3 className="text-xl font-black mb-2">Earn Together!</h3>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Collect points, unlock badges, and win awesome prizes!
+                <div className="text-center p-5 bg-muted/30 rounded-xl border border-border">
+                  <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center text-lg font-bold mx-auto mb-4">3</div>
+                  <h3 className="text-base font-semibold mb-2">Earn Rewards</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Collect points, unlock milestones, and grow your network.
                   </p>
                 </div>
               </div>
@@ -690,35 +691,38 @@ const Referral = () => {
           </Card>
 
           {/* Rewards & Milestones */}
-          <Card className="border-4 border-yellow-300 shadow-xl">
+          <Card className="border-border shadow-sm">
             <CardHeader>
-              <div className="text-5xl mb-2 text-center">🏆</div>
-              <CardTitle className="text-3xl font-black text-center">Rewards & Milestones</CardTitle>
-              <CardDescription className="text-center font-bold">Unlock amazing badges as you refer more friends!</CardDescription>
+              <CardTitle className="text-xl font-semibold">Milestones</CardTitle>
+              <CardDescription>Unlock rewards as you refer more friends</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {rewards.map((reward, index) => (
                   <div
                     key={index}
-                    className={`p-6 rounded-2xl border-4 transition-all ${
+                    className={`p-4 rounded-lg border transition-all flex items-center justify-between ${
                       reward.unlocked
-                        ? "bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 border-yellow-400 dark:border-yellow-700"
-                        : "bg-gray-50 dark:bg-muted/20 border-gray-300 dark:border-muted opacity-60"
+                        ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
+                        : "bg-muted/30 border-border opacity-60"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="text-4xl">{reward.unlocked ? "✅" : "🔒"}</div>
-                        <div>
-                          <h3 className="text-xl font-black">{reward.name}</h3>
-                          <p className="text-sm font-medium text-muted-foreground">{reward.description}</p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                        reward.unlocked ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'
+                      }`}>
+                        {reward.unlocked
+                          ? <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          : <Lock className="w-4 h-4 text-muted-foreground" />}
                       </div>
-                      <Badge className="text-lg px-4 py-2 font-black">
-                        {reward.points} Points 🌟
-                      </Badge>
+                      <div>
+                        <h3 className="text-sm font-semibold">{reward.name}</h3>
+                        <p className="text-xs text-muted-foreground">{reward.description}</p>
+                      </div>
                     </div>
+                    <Badge variant="outline" className="text-xs px-2 py-1 shrink-0">
+                      {reward.points} pts
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -726,29 +730,28 @@ const Referral = () => {
           </Card>
 
           {/* What You Can Win */}
-          <Card className="border-4 border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 shadow-xl">
-            <CardHeader className="text-center">
-              <div className="text-5xl mb-2">✨</div>
-              <CardTitle className="text-3xl font-black">What You Can Win!</CardTitle>
-              <CardDescription className="font-bold">Amazing prizes await you!</CardDescription>
+          <Card className="border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold">What You Can Win</CardTitle>
+              <CardDescription>Prizes and perks for top referrers</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
-                  <div className="text-3xl">🎖️</div>
-                  <p className="font-bold">Exclusive badges &amp; certificates</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
+                  <p className="text-sm font-medium">Exclusive badges &amp; certificates</p>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
-                  <div className="text-3xl">🎁</div>
-                  <p className="font-bold">Free premium features</p>
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
+                  <p className="text-sm font-medium">Free premium features</p>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
-                  <div className="text-3xl">🏆</div>
-                  <p className="font-bold">Leaderboard recognition</p>
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
+                  <p className="text-sm font-medium">Leaderboard recognition</p>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-white dark:bg-card rounded-xl border-2 border-purple-200 dark:border-purple-800">
-                  <div className="text-3xl">⭐</div>
-                  <p className="font-bold">Special rewards &amp; surprises</p>
+                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
+                  <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
+                  <p className="text-sm font-medium">Special rewards &amp; surprises</p>
                 </div>
               </div>
             </CardContent>

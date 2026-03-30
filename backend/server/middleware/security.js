@@ -52,8 +52,9 @@ export const securityHeaders = helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      // Note: 'unsafe-eval' removed — do not re-add unless a specific dependency requires it
+      scriptSrc: ["'self'"],
+      // Note: 'unsafe-inline' and blanket 'https:' removed — prevents XSS via injected scripts.
+      // 'unsafe-eval' removed — do not re-add unless a specific dependency requires it
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'", 'https:', 'http:', 'wss:', 'ws:'],
       fontSrc: ["'self'", 'data:', 'https:'],

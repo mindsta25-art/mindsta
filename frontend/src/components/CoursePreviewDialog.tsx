@@ -270,7 +270,8 @@ export const CoursePreviewDialog = ({
 
         <Separator />
 
-        {/* Tabs for Different Sections */}
+        {/* px-4 sm:px-6 wrapper gives all tab content + footer breathing room on mobile */}
+        <div className="px-4 sm:px-6">
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -286,14 +287,14 @@ export const CoursePreviewDialog = ({
           </TabsList>
 
           {/* Curriculum Tab */}
-          <TabsContent value="curriculum" className="space-y-4 mt-6">
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-purple-600" />
+          <TabsContent value="curriculum" className="space-y-4 mt-6 pb-2">
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-xl font-bold flex items-center gap-2">
+                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
                 Course Content
               </h3>
-              <p className="text-sm text-muted-foreground">
-                {course.curriculum?.length || 0} lessons • {getTotalLectures()} lectures • {formatDuration(getTotalDuration())} total length
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {course.curriculum?.length || 0} lessons • {getTotalLectures()} lectures • {formatDuration(getTotalDuration())} total
               </p>
             </div>
 
@@ -307,25 +308,25 @@ export const CoursePreviewDialog = ({
                     <Card key={sectionIdx} className="overflow-hidden">
                       <Button
                         variant="ghost"
-                        className="w-full justify-between p-4 h-auto hover:bg-muted/50"
+                        className="w-full justify-between px-3 sm:px-4 py-3 h-auto hover:bg-muted/50"
                         onClick={() => toggleSection(sectionIdx)}
                       >
-                        <div className="flex items-start gap-3 text-left flex-1">
+                        <div className="flex items-start gap-2 sm:gap-3 text-left flex-1 min-w-0">
                           {isExpanded ? (
-                            <ChevronDown className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                            <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0" />
                           ) : (
-                            <ChevronRight className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0" />
                           )}
-                          <div className="flex-1 space-y-1">
-                            <div className="font-semibold">
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <div className="font-semibold text-sm sm:text-base leading-snug">
                               Lesson {sectionIdx + 1}: {section.title}
                             </div>
                             {section.description && (
-                              <div className="text-sm text-muted-foreground font-normal">
+                              <div className="text-xs sm:text-sm text-muted-foreground font-normal line-clamp-2">
                                 {section.description}
                               </div>
                             )}
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span>{section.lectures?.length || 0} lectures</span>
                               <span>•</span>
                               <span>{formatDuration(sectionDuration)}</span>
@@ -335,27 +336,27 @@ export const CoursePreviewDialog = ({
                       </Button>
 
                       {isExpanded && section.lectures && section.lectures.length > 0 && (
-                        <CardContent className="px-4 py-0 pb-4 space-y-0">
+                        <CardContent className="px-2 sm:px-4 py-0 pb-3 space-y-0">
                           {section.lectures.map((lecture, lectureIdx) => {
                             const LectureIcon = getLectureIcon(lecture.type);
                             const isPreview = lecture.isPreview || false;
 
                             return (
                               <div key={lectureIdx}>
-                                <div className="flex items-center justify-between p-3 hover:bg-muted/30 rounded-lg transition-colors">
-                                  <div className="flex items-center gap-3 flex-1">
-                                    <LectureIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                <div className="flex items-start sm:items-center justify-between p-2 sm:p-3 hover:bg-muted/30 rounded-lg transition-colors gap-2">
+                                  <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                    <LectureIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
                                     <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                                        <span>{lecture.title}</span>
+                                      <div className="text-xs sm:text-sm font-medium flex items-center gap-1.5 flex-wrap">
+                                        <span className="leading-snug">{lecture.title}</span>
                                         {isPreview && (
-                                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
+                                          <Badge variant="outline" className="text-[10px] sm:text-xs bg-green-50 text-green-700 border-green-300 flex-shrink-0">
                                             Preview
                                           </Badge>
                                         )}
                                       </div>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                        <Badge variant="outline" className="text-xs">
+                                      <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground mt-0.5 flex-wrap">
+                                        <Badge variant="outline" className="text-[10px] sm:text-xs px-1 py-0">
                                           {lecture.type}
                                         </Badge>
                                         {lecture.duration > 0 && (
@@ -374,11 +375,11 @@ export const CoursePreviewDialog = ({
                                     </div>
                                   </div>
                                   {!isEnrolled && !isPreview && (
-                                    <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                    <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
                                   )}
                                 </div>
                                 {lectureIdx < section.lectures.length - 1 && (
-                                  <Separator className="mx-4" />
+                                  <Separator className="mx-2 sm:mx-4" />
                                 )}
                               </div>
                             );
@@ -391,22 +392,22 @@ export const CoursePreviewDialog = ({
               </div>
             ) : (
               <Card>
-                <CardContent className="py-16 text-center">
-                  <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No curriculum content available</p>
+                <CardContent className="py-12 sm:py-16 text-center">
+                  <BookOpen className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-sm sm:text-base text-muted-foreground">No curriculum content available</p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6 mt-6">
+          <TabsContent value="overview" className="space-y-4 sm:space-y-6 mt-6 pb-2">
             {/* Course Overview/Description */}
             {((course as any).overview || course.description || course.content) && (
               <Card className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border-2 border-purple-200 dark:border-purple-800">
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-purple-600" />
+                <CardContent className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
                     Course Overview
                   </h3>
                   <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -421,15 +422,15 @@ export const CoursePreviewDialog = ({
             {/* What you'll learn */}
             {course.whatYouWillLearn && course.whatYouWillLearn.length > 0 && (
               <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-amber-600" />
+                <CardContent className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0" />
                     What you'll learn
                   </h3>
-                  <div className="grid md:grid-cols-2 gap-3">
+                  <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
                     {course.whatYouWillLearn.map((item, index) => (
-                      <div key={index} className="flex gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                      <div key={index} className="flex gap-2 sm:gap-3">
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                         <span className="text-sm">{item}</span>
                       </div>
                     ))}
@@ -441,9 +442,9 @@ export const CoursePreviewDialog = ({
             {/* Target Audience */}
             {course.targetAudience && course.targetAudience.length > 0 && (
               <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-blue-600" />
+                <CardContent className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
+                    <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
                     Who this course is for
                   </h3>
                   <ul className="space-y-2">
@@ -461,9 +462,9 @@ export const CoursePreviewDialog = ({
             {/* Learning Objectives */}
             {course.learningObjectives && course.learningObjectives.length > 0 && (
               <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-purple-600" />
+                <CardContent className="p-4 sm:p-6">
+                  <h3 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
                     Learning Objectives
                   </h3>
                   <ul className="space-y-2">
@@ -480,14 +481,14 @@ export const CoursePreviewDialog = ({
           </TabsContent>
 
           {/* Reviews Tab */}
-          <TabsContent value="reviews" className="space-y-6 mt-6">
+          <TabsContent value="reviews" className="space-y-4 sm:space-y-6 mt-6 pb-2">
             {/* Rating Statistics */}
             {ratingStats && ratingStats.totalReviews > 0 && (
               <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-6">
-                    <div className="text-center">
-                      <div className="text-5xl font-bold text-purple-600">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+                    <div className="text-center flex-shrink-0">
+                      <div className="text-4xl sm:text-5xl font-bold text-purple-600">
                         {ratingStats.averageRating.toFixed(1)}
                       </div>
                       <div className="flex items-center justify-center gap-1 my-2">
@@ -507,7 +508,7 @@ export const CoursePreviewDialog = ({
                       </p>
                     </div>
                     
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 w-full space-y-2">
                       {[5, 4, 3, 2, 1].map((rating) => {
                         const count = ratingStats.ratingDistribution[rating as 1 | 2 | 3 | 4 | 5] || 0;
                         const percentage = ratingStats.totalReviews > 0 
@@ -515,13 +516,13 @@ export const CoursePreviewDialog = ({
                           : 0;
                         
                         return (
-                          <div key={rating} className="flex items-center gap-3">
-                            <div className="flex items-center gap-1 w-16">
-                              <span className="text-sm font-medium">{rating}</span>
+                          <div key={rating} className="flex items-center gap-2 sm:gap-3">
+                            <div className="flex items-center gap-1 w-12 sm:w-16 flex-shrink-0">
+                              <span className="text-xs sm:text-sm font-medium">{rating}</span>
                               <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                             </div>
                             <Progress value={percentage} className="h-2 flex-1" />
-                            <span className="text-sm text-muted-foreground w-12 text-right">
+                            <span className="text-xs sm:text-sm text-muted-foreground w-8 sm:w-12 text-right flex-shrink-0">
                               {count}
                             </span>
                           </div>
@@ -545,8 +546,8 @@ export const CoursePreviewDialog = ({
               <div className="space-y-4">
                 {allReviews.map((review) => (
                   <Card key={review._id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between gap-4 mb-3">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex items-start justify-between gap-2 sm:gap-4 mb-3 flex-wrap">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold">{review.userName}</span>
@@ -645,46 +646,44 @@ export const CoursePreviewDialog = ({
         </Tabs>
 
         {/* Footer Actions */}
-        <div className="sticky bottom-0 bg-background pt-4 border-t mt-6">
-          <div className="flex items-center justify-between gap-4">
+        <div className="sticky bottom-0 bg-background pt-3 sm:pt-4 pb-3 sm:pb-4 border-t mt-4 sm:mt-6">
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
             <div>
               {isEnrolled ? (
                 <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="font-semibold">You own this course</span>
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="font-semibold text-sm sm:text-base">You own this course</span>
                 </div>
               ) : (
                 <div>
-                  <p className="text-3xl font-bold text-purple-600">{formatCurrency(course.price || 0)}</p>
-                  <p className="text-sm text-muted-foreground">One-time payment</p>
+                  <p className="text-xl sm:text-3xl font-bold text-purple-600">{formatCurrency(course.price || 0)}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">One-time payment</p>
                 </div>
               )}
             </div>
             <div className="flex gap-2">
               {isEnrolled ? (
                 <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-sm sm:text-base"
                   onClick={() => {
                     onOpenChange(false);
                     navigate(`/subjects/${course.grade}/${course.subject}${course.term ? `?term=${course.term}` : ''}`);
                   }}
                 >
-                  <BookOpen className="w-5 h-5 mr-2" />
+                  <BookOpen className="w-4 h-4 mr-2" />
                   Go to Course
                 </Button>
               ) : (
                 <>
                   <Button
                     variant="outline"
-                    size="lg"
+                    className="text-sm sm:text-base hidden sm:inline-flex"
                     onClick={() => onOpenChange(false)}
                   >
                     Close
                   </Button>
                   <Button
-                    size="lg"
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-sm sm:text-base"
                     onClick={() => {
                       onAddToCart?.();
                       onOpenChange(false);
@@ -693,12 +692,12 @@ export const CoursePreviewDialog = ({
                   >
                     {isInCart ? (
                       <>
-                        <CheckCircle className="w-5 h-5 mr-2" />
+                        <CheckCircle className="w-4 h-4 mr-1.5 sm:mr-2" />
                         In Cart
                       </>
                     ) : (
                       <>
-                        <ShoppingCart className="w-5 h-5 mr-2" />
+                        <ShoppingCart className="w-4 h-4 mr-1.5 sm:mr-2" />
                         Add to Cart
                       </>
                     )}
@@ -708,6 +707,7 @@ export const CoursePreviewDialog = ({
             </div>
           </div>
         </div>
+        </div>{/* end px-4 sm:px-6 wrapper */}
       </DialogContent>
     </Dialog>
   );

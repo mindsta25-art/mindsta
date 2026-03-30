@@ -56,7 +56,7 @@ router.get('/lesson/:lessonId', requireAuth, async (req, res) => {
       timeLimit: quiz.timeLimit,
       questions: quiz.questions.map(q => ({
         id: q._id.toString(),
-        question: q.question,
+        question: q.question,        imageUrl: q.imageUrl || null,        imageUrl: q.imageUrl || null,
         options: q.options,
         correctAnswer: q.correctAnswer,
         explanation: q.explanation,
@@ -86,6 +86,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       questions: quiz.questions.map(q => ({
         id: q._id.toString(),
         question: q.question,
+        imageUrl: q.imageUrl || null,
         options: q.options,
         correctAnswer: q.correctAnswer,
         explanation: q.explanation,
@@ -141,6 +142,7 @@ router.post('/', requireAdmin, async (req, res) => {
       questions: quiz.questions.map(q => ({
         id: q._id.toString(),
         question: q.question,
+        imageUrl: q.imageUrl || null,
         options: q.options,
         correctAnswer: q.correctAnswer,
         explanation: q.explanation,
@@ -179,6 +181,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
       questions: quiz.questions.map(q => ({
         id: q._id.toString(),
         question: q.question,
+        imageUrl: q.imageUrl || null,
         options: q.options,
         correctAnswer: q.correctAnswer,
         explanation: q.explanation,

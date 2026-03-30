@@ -45,9 +45,9 @@ const HelpCenter = () => {
       link: '/faq#getting-started',
     },
     {
-      title: 'Courses & Learning',
+      title: 'lessons & Learning',
       icon: Video,
-      description: 'Everything about lessons and courses',
+      description: 'Everything about lessons and lessons',
       articles: [
         'How to access lessons',
         'Understanding course structure',

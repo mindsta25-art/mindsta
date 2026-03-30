@@ -45,7 +45,7 @@ export interface SalesAnalytics {
     revenue: number;
     transactions: number;
   }>;
-  topCourses: Array<{
+  toplessons: Array<{
     subject: string;
     grade: string;
     term: string;

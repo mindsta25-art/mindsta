@@ -46,7 +46,7 @@ const AppearanceSchema = new mongoose.Schema({
 
 const AdvancedSchema = new mongoose.Schema({
   backupFrequency: { type: String, enum: ['hourly', 'daily', 'weekly'], default: 'daily' },
-  coursesPerPage: { type: Number, default: 12, min: 6, max: 48 },
+  lessonsPerPage: { type: Number, default: 12, min: 6, max: 48 },
   leaderboardPerPage: { type: Number, default: 10, min: 5, max: 50 },
   myLearningPerPage: { type: Number, default: 9, min: 3, max: 48 },
   paystackPublicKey: { type: String, default: '' },

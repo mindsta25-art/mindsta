@@ -571,8 +571,8 @@ router.get('/admin/analytics', requireAdmin, async (req, res) => {
       { $sort: { '_id.year': 1, '_id.month': 1 } }
     ]);
 
-    // Top selling courses
-    const topCourses = await Payment.aggregate([
+    // Top selling lessons
+    const toplessons = await Payment.aggregate([
       { $match: { status: 'success' } },
       { $unwind: '$items' },
       {
@@ -607,7 +607,7 @@ router.get('/admin/analytics', requireAdmin, async (req, res) => {
         revenue: m.revenue,
         transactions: m.count
       })),
-      topCourses: topCourses.map(c => ({
+      toplessons: toplessons.map(c => ({
         subject: c._id.subject,
         grade: c._id.grade,
         term: c._id.term,

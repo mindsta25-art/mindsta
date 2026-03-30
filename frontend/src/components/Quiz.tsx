@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 interface QuizQuestion {
   id: string;
   question: string;
+  imageUrl?: string | null;
   options: string[];
   correct_answer: string;
   explanation: string | null;
@@ -429,7 +430,17 @@ export const Quiz = ({ questions, quizTitle, onComplete, onBackToSubject, onBack
           />
         </div>
 
-        <CardTitle className="text-2xl">{question.question}</CardTitle>
+        <CardTitle
+          className="text-2xl"
+          dangerouslySetInnerHTML={{ __html: question.question }}
+        />
+        {question.imageUrl && (
+          <img
+            src={question.imageUrl}
+            alt="Question illustration"
+            className="mt-3 max-h-56 rounded-md border object-contain bg-muted"
+          />
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3">

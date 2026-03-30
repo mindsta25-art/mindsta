@@ -123,7 +123,7 @@ const QuestionManagement = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Question Management</h1>
             <p className="text-muted-foreground mt-1">
-              Manage and respond to student questions across all courses
+              Manage and respond to student questions across all lessons
             </p>
           </div>
         </div>

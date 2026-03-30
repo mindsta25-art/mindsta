@@ -7,6 +7,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import { User, Student, Referral } from '../models/index.js';
 import { sendReferralSignupEmail, sendPasswordResetEmail, sendVerificationOTP, sendEmailVerifiedEmail, sendWelcomeEmail } from '../services/emailService.js';
 import passport from '../config/passport.js';
@@ -236,9 +237,12 @@ router.post('/signup', async (req, res) => {
           if (referralCode.toUpperCase().startsWith('MINDSTA')) {
             const partialId = referralCode.toUpperCase().replace('MINDSTA', '').toLowerCase();
             // Use a regex on the hex ObjectId directly — avoids loading all students into memory
+            // Indexed ObjectId range query — avoids insecure $where (JS eval, unindexed)
+            const lower = new mongoose.Types.ObjectId(partialId + '0000000000000000');
+            const upper = new mongoose.Types.ObjectId(partialId + 'ffffffffffffffff');
             referrer = await User.findOne({
               userType: 'student',
-              $where: `this._id.toString().startsWith("${partialId}")`,
+              _id: { $gte: lower, $lte: upper },
             }) || null;
           }
         }

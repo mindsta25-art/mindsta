@@ -148,7 +148,7 @@ export default function Cookies() {
                   These cookies track your activity to show you relevant advertisements and measure campaign effectiveness.
                 </p>
                 <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                  <li><strong>Advertising:</strong> Display ads for courses you might be interested in</li>
+                  <li><strong>Advertising:</strong> Display ads for lessons you might be interested in</li>
                   <li><strong>Retargeting:</strong> Show you Mindsta ads on other websites</li>
                   <li><strong>Campaign Tracking:</strong> Measure the effectiveness of our marketing</li>
                   <li><strong>Social Media:</strong> Enable sharing features and social media integration</li>

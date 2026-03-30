@@ -1,6 +1,6 @@
 import express from 'express';
 import { Lesson, UserProgress, Enrollment } from '../models/index.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -34,8 +34,8 @@ router.get('/subjects-by-grade/:grade', requireAuth, async (req, res) => {
       return res.json(cached);
     }
     
-    // Build match query
-    const matchQuery = { grade };
+    // Build match query — use $ne:false so legacy lessons without the field still show
+    const matchQuery = { grade, isPublished: { $ne: false } };
     if (term) matchQuery.term = term;
     
     // Use aggregation pipeline for optimal performance (single query instead of N+1)
@@ -94,7 +94,7 @@ router.get('/terms-by-grade/:grade', requireAuth, async (req, res) => {
     
     // Use aggregation pipeline for optimal performance
     const termsWithCount = await Lesson.aggregate([
-      { $match: { grade } },
+      { $match: { grade, isPublished: { $ne: false } } },
       {
         $group: {
           _id: '$term',
@@ -133,8 +133,15 @@ router.get('/', requireAuth, async (req, res) => {
     if (subject) query.subject = subject;
     if (grade) query.grade = grade;
     if (term) query.term = term;
+    // Non-admins only see published lessons.
+    // Use $ne:false (not strict === true) so lessons created before the isPublished field
+    // was added (which have isPublished: undefined) are treated as published.
+    if (req.user?.userType !== 'admin') {
+      query.isPublished = { $ne: false };
+    }
     
     const lessons = await Lesson.find(query).sort({ grade: 1, term: 1, title: 1 });
+    const isAdmin = req.user?.userType === 'admin';
     res.json(lessons.map(l => ({
       id: l._id.toString(),
       subject: l.subject,
@@ -143,8 +150,8 @@ router.get('/', requireAuth, async (req, res) => {
       title: l.title,
       subtitle: l.subtitle,
       description: l.description,
-      content: l.content,
-      videoUrl: l.videoUrl || null,
+      content: isAdmin ? l.content : undefined,
+      videoUrl: isAdmin ? (l.videoUrl || null) : undefined,
       imageUrl: l.imageUrl,
       difficulty: l.difficulty,
       order: l.order,
@@ -156,6 +163,7 @@ router.get('/', requireAuth, async (req, res) => {
       targetAudience: l.targetAudience,
       curriculum: l.curriculum,
       price: l.price,
+      isPublished: l.isPublished ?? true,
       rating: l.rating || 0,
       ratingsCount: l.ratingsCount || 0,
       enrolledStudents: l.enrolledStudents || 0,
@@ -172,6 +180,24 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
     if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
+
+    // Enforce enrollment gate for non-admin users
+    if (req.user?.userType !== 'admin') {
+      const enrollment = await Enrollment.findOne({
+        userId: req.user.id,
+        subject: lesson.subject,
+        grade: lesson.grade,
+        term: lesson.term,
+        isActive: true,
+      });
+      if (!enrollment) {
+        return res.status(403).json({
+          error: 'Access denied. Please purchase this course to view lesson content.',
+          code: 'NOT_ENROLLED',
+        });
+      }
+    }
+
     res.json({
       id: lesson._id.toString(),
       subject: lesson.subject,
@@ -193,6 +219,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       targetAudience: lesson.targetAudience,
       curriculum: lesson.curriculum,
       price: lesson.price,
+      isPublished: lesson.isPublished ?? true,
       rating: lesson.rating || 0,
       ratingsCount: lesson.ratingsCount || 0,
       enrolledStudents: lesson.enrolledStudents || 0,
@@ -230,6 +257,7 @@ router.post('/', async (req, res) => {
       targetAudience: lesson.targetAudience,
       curriculum: lesson.curriculum,
       price: lesson.price,
+      isPublished: lesson.isPublished ?? true,
       rating: lesson.rating || 0,
       ratingsCount: lesson.ratingsCount || 0,
       enrolledStudents: lesson.enrolledStudents || 0,
@@ -269,6 +297,7 @@ router.put('/:id', async (req, res) => {
       targetAudience: lesson.targetAudience,
       curriculum: lesson.curriculum,
       price: lesson.price,
+      isPublished: lesson.isPublished ?? true,
       rating: lesson.rating || 0,
       ratingsCount: lesson.ratingsCount || 0,
       enrolledStudents: lesson.enrolledStudents || 0,

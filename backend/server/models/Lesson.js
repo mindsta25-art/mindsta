@@ -152,6 +152,11 @@ const LessonSchema = new Schema(
       default: 0,
       min: 0,
     },
+    // Draft/Published status — false = draft (only visible to admins)
+    isPublished: {
+      type: Boolean,
+      default: true, // Existing lessons remain published
+    },
     // Rating and reviews
     rating: {
       type: Number,

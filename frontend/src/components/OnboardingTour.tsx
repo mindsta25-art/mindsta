@@ -42,7 +42,7 @@ const tourSteps: TourStep[] = [
     ]
   },
   {
-    title: 'Browse & Enroll in Courses',
+    title: 'Browse & Enroll in lessons',
     description: 'Explore hundreds of lessons organized by grade and subject — from Grade 1 all the way to Common Entrance.',
     icon: <BookOpen className="w-14 h-14 text-white" />,
     gradient: 'from-blue-600 to-cyan-500',
@@ -54,7 +54,7 @@ const tourSteps: TourStep[] = [
   },
   {
     title: 'My Learning & Progress',
-    description: 'Your personal learning hub — see all enrolled courses, track completion, and pick up exactly where you left off.',
+    description: 'Your personal learning hub — see all enrolled lessons, track completion, and pick up exactly where you left off.',
     icon: <GraduationCap className="w-14 h-14 text-white" />,
     gradient: 'from-teal-500 to-green-500',
     features: [
@@ -65,11 +65,11 @@ const tourSteps: TourStep[] = [
   },
   {
     title: 'Cart & Wishlist',
-    description: 'Found a great course? Add it to your cart or save it to your wishlist for later. Enroll in multiple courses at once and manage your learning journey with ease.',
+    description: 'Found a great course? Add it to your cart or save it to your wishlist for later. Enroll in multiple lessons at once and manage your learning journey with ease.',
     icon: <ShoppingCart className="w-14 h-14 text-white" />,
     gradient: 'from-orange-500 to-rose-500',
     features: [
-      { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Add multiple courses to your cart at once' },
+      { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Add multiple lessons to your cart at once' },
       { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Save items to wishlist for later' },
       { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Subscribe for unlimited access to all lessons' },
     ]

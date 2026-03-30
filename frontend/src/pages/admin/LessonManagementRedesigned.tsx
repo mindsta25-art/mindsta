@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/hooks/use-toast";
-import { getAllLessons, deleteLesson, type Lesson } from "@/api/lessons";
+import { getAllLessons, deleteLesson, updateLesson, type Lesson } from "@/api/lessons";
 import { getAllSubjects } from "@/api/subjects";
 import { 
   Plus, 
@@ -54,6 +54,7 @@ const LessonManagementRedesigned = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [lessonToDelete, setLessonToDelete] = useState<string | null>(null);
   const [filterDifficulty, setFilterDifficulty] = useState<string>("all");
+  const [filterPublished, setFilterPublished] = useState<string>("all");
   
   // Sorting
   const [sortBy, setSortBy] = useState<string>("newest");
@@ -76,7 +77,7 @@ const LessonManagementRedesigned = () => {
 
   useEffect(() => {
     applyFiltersAndSort();
-  }, [lessons, searchQuery, filterGrade, filterSubject, filterTerm, filterDifficulty, sortBy]);
+  }, [lessons, searchQuery, filterGrade, filterSubject, filterTerm, filterDifficulty, filterPublished, sortBy]);
 
   useEffect(() => {
     calculateStats();
@@ -102,11 +103,13 @@ const LessonManagementRedesigned = () => {
     const total = lessons.length;
     const withVideo = lessons.filter(l => l.videoUrl?.trim()).length;
     const noVideo = total - withVideo;
+    const published = lessons.filter(l => (l as any).isPublished !== false).length;
+    const drafts = lessons.filter(l => (l as any).isPublished === false).length;
     const avgDuration = lessons.length > 0 
       ? Math.round(lessons.reduce((sum, l) => sum + (l.duration || 0), 0) / lessons.length)
       : 0;
 
-    setStats({ total, published: withVideo, draft: noVideo, avgDuration });
+    setStats({ total, published, draft: drafts, avgDuration });
   };
 
   const applyFiltersAndSort = () => {
@@ -141,6 +144,13 @@ const LessonManagementRedesigned = () => {
       filtered = filtered.filter(lesson => lesson.difficulty === filterDifficulty);
     }
 
+    // Published/Draft filter
+    if (filterPublished === "published") {
+      filtered = filtered.filter(lesson => (lesson as any).isPublished !== false);
+    } else if (filterPublished === "draft") {
+      filtered = filtered.filter(lesson => (lesson as any).isPublished === false);
+    }
+
     // Sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -171,7 +181,7 @@ const LessonManagementRedesigned = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterGrade, filterSubject, filterTerm, filterDifficulty, sortBy, searchQuery]);
+  }, [filterGrade, filterSubject, filterTerm, filterDifficulty, filterPublished, sortBy, searchQuery]);
 
   const handleDelete = (id: string) => {
     setLessonToDelete(id);
@@ -218,7 +228,7 @@ const LessonManagementRedesigned = () => {
 
   const grades = ["1", "2", "3", "4", "5", "6", "Common Entrance"];
   const terms = ["First Term", "Second Term", "Third Term"];
-  const difficulties = ["Beginner", "Intermediate", "Advanced"];
+  const difficulties = ["beginner", "intermediate", "advanced"];
   
   // Extract unique subjects from lessons
   const subjects = Array.from(new Set(lessons.map(l => l.subject).filter(Boolean)));
@@ -257,26 +267,26 @@ const LessonManagementRedesigned = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">With Video</CardTitle>
+                  <CardTitle className="text-sm font-medium">Published</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.published}</div>
+              <div className="text-2xl font-bold text-green-600">{stats.published}</div>
               <p className="text-xs text-muted-foreground">
-                {stats.total > 0 ? Math.round((stats.published / stats.total) * 100) : 0}% have video content
+                Visible to students
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">No Video</CardTitle>
+              <CardTitle className="text-sm font-medium">Drafts (Unpublished)</CardTitle>
               <Edit className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.draft}</div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.draft}</div>
               <p className="text-xs text-muted-foreground">
-                Text/image only
+                Hidden from students
               </p>
             </CardContent>
           </Card>
@@ -364,9 +374,21 @@ const LessonManagementRedesigned = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Levels</SelectItem>
-                  {difficulties.map(diff => (
-                    <SelectItem key={diff} value={diff}>{diff}</SelectItem>
-                  ))}
+                  <SelectItem value="beginner">🟢 Beginner</SelectItem>
+                  <SelectItem value="intermediate">🟡 Intermediate</SelectItem>
+                  <SelectItem value="advanced">🔴 Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Published/Draft Filter */}
+              <Select value={filterPublished} onValueChange={setFilterPublished}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="draft">Draft only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -414,7 +436,7 @@ const LessonManagementRedesigned = () => {
             Showing <span className="font-semibold text-foreground">{filteredLessons.length}</span> of{" "}
             <span className="font-semibold text-foreground">{lessons.length}</span> lessons
           </p>
-          {(searchQuery || filterGrade !== "all" || filterSubject !== "all" || filterTerm !== "all" || filterDifficulty !== "all") && (
+          {(searchQuery || filterGrade !== "all" || filterSubject !== "all" || filterTerm !== "all" || filterDifficulty !== "all" || filterPublished !== "all") && (
             <Button
               variant="ghost"
               size="sm"
@@ -424,6 +446,7 @@ const LessonManagementRedesigned = () => {
                 setFilterSubject("all");
                 setFilterTerm("all");
                 setFilterDifficulty("all");
+                setFilterPublished("all");
               }}
             >
               Clear Filters
@@ -482,11 +505,16 @@ const LessonManagementRedesigned = () => {
                         <Badge className={getDifficultyColor(lesson.difficulty || '')}>
                           {lesson.difficulty || 'N/A'}
                         </Badge>
-                        {lesson.videoUrl?.trim() && (
-                          <Badge variant="outline" className="border-green-500 text-green-600">
-                            Video
-                          </Badge>
-                        )}
+                        <div className="flex gap-1">
+                          {(lesson as any).isPublished === false && (
+                            <Badge variant="secondary" className="text-xs">Draft</Badge>
+                          )}
+                          {lesson.videoUrl?.trim() && (
+                            <Badge variant="outline" className="border-green-500 text-green-600">
+                              Video
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
                         {lesson.title}
@@ -513,6 +541,20 @@ const LessonManagementRedesigned = () => {
                         )}
                       </div>
                       <div className="flex gap-2">
+                        {(lesson as any).isPublished === false && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 text-yellow-700 border-yellow-400 hover:bg-yellow-50"
+                            onClick={async () => {
+                              await updateLesson(lesson.id, { isPublished: true } as any);
+                              fetchLessons();
+                              toast({ title: "Lesson Published", description: `"${lesson.title}" is now visible to students.` });
+                            }}
+                          >
+                            📢 Publish
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
                           size="sm" 
@@ -580,13 +622,15 @@ const LessonManagementRedesigned = () => {
                           </td>
                           <td className="px-4 py-3 text-sm">{lesson.duration || 30} min</td>
                           <td className="px-4 py-3">
-                            {lesson.videoUrl?.trim() ? (
+                            {(lesson as any).isPublished === false ? (
+                              <Badge variant="secondary">Draft</Badge>
+                            ) : lesson.videoUrl?.trim() ? (
                               <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                                Has Video
+                                Published
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="border-yellow-500 text-yellow-600">
-                                No Video
+                              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                Published
                               </Badge>
                             )}
                           </td>

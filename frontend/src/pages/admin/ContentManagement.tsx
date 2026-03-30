@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getAllLessons, createLesson, updateLesson, deleteLesson, type Lesson, type Section } from "@/api/lessons";
 import { getAllQuizzes, createQuiz, updateQuiz, deleteQuiz, type Quiz, type QuizQuestion } from "@/api/quizzes";
-import { getAllSubjects, type Subject } from "@/api/subjects";
+import { getAllSubjects, getSubjects, type Subject } from "@/api/subjects";
 import { 
   Plus, 
   Search, 
@@ -103,7 +103,6 @@ const ContentManagement = () => {
     title: "",
     subtitle: "",
     description: "",
-    content: "",
     overview: "",
     subject: "",
     grade: "",
@@ -116,6 +115,7 @@ const ContentManagement = () => {
     order: 0,
     duration: 30,
     price: 0,
+    isPublished: true,
     whatYouWillLearn: [] as string[],
     requirements: [] as string[],
     targetAudience: [] as string[],
@@ -214,7 +214,7 @@ const ContentManagement = () => {
     if (isDialogOpen && dialogMode === "lesson" && !editingId) {
       const autoSaveInterval = setInterval(() => {
         // Only auto-save if there's content
-        if (lessonForm.title || lessonForm.description || lessonForm.content || curriculum.length > 0) {
+        if (lessonForm.title || lessonForm.description || curriculum.length > 0) {
           saveProgressDraft();
         }
       }, 120000); // 2 minutes
@@ -229,7 +229,7 @@ const ContentManagement = () => {
       const [lessonsData, quizzesData, subjectsData] = await Promise.all([
         getAllLessons(),
         getAllQuizzes(),
-        getAllSubjects(),
+        getSubjects(),
       ]);
       setLessons(lessonsData);
       setQuizzes(quizzesData);
@@ -324,7 +324,6 @@ const ContentManagement = () => {
       title: "",
       subtitle: "",
       description: "",
-      content: "",
       overview: "",
       subject: "",
       grade: "",
@@ -337,6 +336,7 @@ const ContentManagement = () => {
       order: 0,
       duration: 30,
       price: 0,
+      isPublished: true,
       whatYouWillLearn: [],
       requirements: [],
       targetAudience: [],
@@ -397,7 +397,6 @@ const ContentManagement = () => {
         title: lesson.title,
         subtitle: lesson.subtitle || "",
         description: lesson.description,
-        content: lesson.content || "",
         overview: (lesson as any).overview || "",
         subject: lesson.subject,
         grade: lesson.grade,
@@ -410,6 +409,7 @@ const ContentManagement = () => {
         order: lesson.order || 0,
         duration: lesson.duration || 30,
         price: lesson.price || 1200,
+        isPublished: (lesson as any).isPublished ?? true,
         whatYouWillLearn: lesson.whatYouWillLearn || [],
         requirements: lesson.requirements || [],
         targetAudience: lesson.targetAudience || [],
@@ -444,7 +444,6 @@ const ContentManagement = () => {
     const missingFields = [];
     if (!lessonForm.title) missingFields.push("Title");
     if (!lessonForm.description) missingFields.push("Description");
-    if (!lessonForm.content) missingFields.push("Content");
     if (!lessonForm.subject) missingFields.push("Subject");
     if (!lessonForm.grade) missingFields.push("Grade");
     if (!lessonForm.term) missingFields.push("Term");
@@ -463,15 +462,6 @@ const ContentManagement = () => {
       toast({
         title: "Invalid Title",
         description: "Title must be at least 5 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (lessonForm.content.length < 50) {
-      toast({
-        title: "Insufficient Content",
-        description: "Please provide more detailed lesson content (at least 50 characters)",
         variant: "destructive",
       });
       return;
@@ -874,6 +864,7 @@ const ContentManagement = () => {
 
   const contentStats = {
     lessons: lessons.length,
+    drafts: lessons.filter(l => !(l as any).isPublished).length,
     quizzes: quizzes.length,
     total: lessons.length + quizzes.length,
   };
@@ -1070,16 +1061,6 @@ const ContentManagement = () => {
                           <p className="text-xs text-muted-foreground">This overview helps students decide if this course is right for them before purchasing</p>
                         </div>
 
-                        <div className="space-y-2">
-                          <RichTextEditor
-                            label="Full Lesson Content *"
-                            value={lessonForm.content}
-                            onChange={(value) => setLessonForm({ ...lessonForm, content: value })}
-                            placeholder="Write your complete lesson content here..."
-                            minHeight="400px"
-                          />
-                          <p className="text-xs text-muted-foreground">💡 Tip: Use the toolbar to format your content with headings, lists, bold, italics, and more</p>
-                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -1588,14 +1569,28 @@ const ContentManagement = () => {
                         </div>
 
                         <div className="flex justify-between items-center pt-4 border-t">
-                          <Button 
-                            variant="secondary" 
-                            onClick={saveProgressDraft}
-                            disabled={isSavingProgress || editingId !== null}
-                            className="gap-2"
-                          >
-                            {isSavingProgress ? "Saving..." : "💾 Save Progress"}
-                          </Button>
+                          <div className="flex items-center gap-4">
+                            <Button 
+                              variant="secondary" 
+                              onClick={saveProgressDraft}
+                              disabled={isSavingProgress || editingId !== null}
+                              className="gap-2"
+                            >
+                              {isSavingProgress ? "Saving..." : "💾 Save Progress"}
+                            </Button>
+                            <div className="flex items-center gap-2">
+                              <input
+                                id="isPublished"
+                                type="checkbox"
+                                checked={lessonForm.isPublished}
+                                onChange={(e) => setLessonForm({ ...lessonForm, isPublished: e.target.checked })}
+                                className="h-4 w-4 rounded border-gray-300 accent-primary"
+                              />
+                              <label htmlFor="isPublished" className="text-sm font-medium cursor-pointer select-none">
+                                {lessonForm.isPublished ? "Published" : "Draft (hidden from students)"}
+                              </label>
+                            </div>
+                          </div>
                           <div className="flex gap-2">
                             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                               Cancel
@@ -2072,12 +2067,63 @@ const ContentManagement = () => {
                 <TabsTrigger value="all">All Content ({contentStats.total})</TabsTrigger>
                 <TabsTrigger value="lessons">Lessons ({contentStats.lessons})</TabsTrigger>
                 <TabsTrigger value="quizzes">Quizzes ({contentStats.quizzes})</TabsTrigger>
+                <TabsTrigger value="db-drafts">
+                  Unpublished {contentStats.drafts > 0 && <Badge variant="secondary" className="ml-2">{contentStats.drafts}</Badge>}
+                </TabsTrigger>
                 <TabsTrigger value="drafts">
-                  Drafts {hasSavedDraft() && <Badge variant="secondary" className="ml-2">1</Badge>}
+                  WIP Drafts {hasSavedDraft() && <Badge variant="secondary" className="ml-2">1</Badge>}
                 </TabsTrigger>
               </TabsList>
 
-              {/* Drafts Tab Content */}
+              {/* Unpublished Lessons Tab */}
+              <TabsContent value="db-drafts">
+                {lessons.filter(l => !(l as any).isPublished).length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                      <BookOpen className="w-8 h-8 opacity-50" />
+                    </div>
+                    <h3 className="font-semibold text-lg mb-2">No Unpublished Lessons</h3>
+                    <p className="text-sm">All lessons are currently published and visible to students.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {lessons.filter(l => !(l as any).isPublished).map(lesson => (
+                      <div key={lesson.id} className="border rounded-lg p-4 flex items-center justify-between gap-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="secondary">Draft</Badge>
+                            <Badge variant="outline">{lesson.grade}</Badge>
+                            <Badge variant="outline">{lesson.term}</Badge>
+                          </div>
+                          <p className="font-semibold truncate">{lesson.title}</p>
+                          <p className="text-sm text-muted-foreground">{lesson.subject} · {lesson.difficulty}</p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditDialog(lesson, "lesson")}
+                          >
+                            <Edit className="w-4 h-4 mr-1" /> Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              await updateLesson(lesson.id, { isPublished: true } as any);
+                              await fetchContent();
+                              toast({ title: "Lesson Published", description: `"${lesson.title}" is now visible to students.` });
+                            }}
+                          >
+                            📢 Publish
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* WIP Drafts Tab Content */}
               <TabsContent value="drafts">
                 {hasSavedDraft() ? (
                   <Card>
@@ -2253,7 +2299,14 @@ const ContentManagement = () => {
                                   )}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="font-medium">{item.title}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  {item.title}
+                                  {item.type === "lesson" && !(item as Lesson).isPublished && (
+                                    <Badge variant="secondary" className="text-xs">Draft</Badge>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 {item.type === "lesson" 
                                   ? (item as Lesson).subject 
@@ -2293,6 +2346,23 @@ const ContentManagement = () => {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1">
+                                  {item.type === "lesson" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      title={(item as Lesson).isPublished ? "Unpublish (set as draft)" : "Publish"}
+                                      onClick={async () => {
+                                        const newStatus = !(item as Lesson).isPublished;
+                                        await updateLesson(item.id, { isPublished: newStatus } as any);
+                                        await fetchContent();
+                                        toast({ title: newStatus ? "Lesson Published" : "Lesson set to Draft" });
+                                      }}
+                                    >
+                                      {(item as Lesson).isPublished
+                                        ? <span title="Unpublish">🌐</span>
+                                        : <span title="Publish">📢</span>}
+                                    </Button>
+                                  )}
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
@@ -2627,15 +2697,6 @@ const ContentManagement = () => {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <RichTextEditor
-                      label="Content * (Markdown supported)"
-                      value={lessonForm.content}
-                      onChange={(value) => setLessonForm({ ...lessonForm, content: value })}
-                      placeholder="Write your lesson content here..."
-                      minHeight="300px"
-                    />
-                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="videoUrl">Video URL (Optional)</Label>

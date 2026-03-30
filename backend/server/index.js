@@ -192,7 +192,7 @@ if (!MONGODB_URI) {
 console.log('[MongoDB] Connecting...');
 mongoose.connect(MONGODB_URI, {
   maxPoolSize: IS_PRODUCTION ? 20 : 5,
-  serverSelectionTimeoutMS: IS_PRODUCTION ? 10000 : 5000,
+  serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 45000,
   heartbeatFrequencyMS: 10000,
   retryWrites: true,
@@ -225,7 +225,9 @@ mongoose.connect(MONGODB_URI, {
   })
   .catch((error) => {
     console.error('[MongoDB] Connection failed:', error.message);
-    process.exit(1);
+    console.error('[MongoDB] ⚠️  Check that your IP (run: curl ifconfig.me) is whitelisted in MongoDB Atlas Network Access.');
+    // Don't exit — keep server alive so health checks and non-DB routes still respond.
+    // Mongoose will auto-retry connection in the background.
   });
 
 // MongoDB connection event handlers

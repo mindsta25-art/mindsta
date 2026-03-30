@@ -340,7 +340,7 @@ function generateRecommendations(recommendation, gradePercentages, subjectPerfor
       type: 'action',
       icon: 'target',
       title: 'Recommended Action Plan',
-      message: `1. Enroll in Common Entrance courses to access advanced materials
+      message: `1. Enroll in Common Entrance lessons to access advanced materials
 2. Focus on exam techniques and time management
 3. Practice with past entrance examination papers
 4. Join study groups for collaborative learning`

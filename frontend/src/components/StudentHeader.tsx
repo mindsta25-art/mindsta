@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
@@ -59,7 +59,8 @@ import {
   Sun,
   Trophy,
   Award,
-  Target
+  Target,
+  ChevronDown
 } from "lucide-react";
 import { signOut } from "@/api";
 import { getStudentByUserId, updateStudentGrade } from "@/api";
@@ -99,6 +100,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   const [currentGrade, setCurrentGrade] = useState<string>("");
   const [updatingGrade, setUpdatingGrade] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   
   // Use auth user's fullName as the source of truth, capitalize properly
   const displayName = formatUserName(studentName || user?.fullName || "Student");
@@ -285,7 +287,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   return (
     <>
     <TooltipProvider delayDuration={300}>
-    <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 shadow-sm border-b z-50">
+    <header className="fixed top-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-sm border-b border-border/60 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -309,7 +311,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/dashboard")}
-                className={`font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
+                className={`font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40 hover:text-purple-700'}`}
               >
                 <Home className="w-4 h-4 mr-2" />
                 Dashboard
@@ -317,14 +319,14 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/browse")}
-                className={`font-medium transition-colors ${location.pathname === '/browse' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
+                className={`font-medium transition-colors ${location.pathname === '/browse' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40 hover:text-purple-700'}`}
               >
-                Browse lessonss
+                Browse Courses
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => navigate("/my-learning")}
-                className={`font-medium transition-colors ${location.pathname === '/my-learning' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
+                className={`font-medium transition-colors ${location.pathname === '/my-learning' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40 hover:text-purple-700'}`}
               >
                 My Learning
               </Button>
@@ -381,8 +383,17 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery && setShowSuggestions(true)}
-                className="pl-10 w-full border-gray-300 dark:border-gray-700"
+                className="pl-10 pr-8 w-full border-gray-300 dark:border-gray-700"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(''); setShowSuggestions(false); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
               
               {/* Search Suggestions Dropdown */}
               {showSuggestions && searchSuggestions.length > 0 && (
@@ -409,7 +420,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-sm mb-1 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                            <h4 className="font-semibold text-sm mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
                               {lesson.title}
                             </h4>
                             <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
@@ -424,13 +435,13 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                               </span>
                             </div>
                           </div>
-                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-indigo-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                         </div>
                       </button>
                     ))}
                     <button
                       onClick={handleSearch}
-                      className="w-full p-3 bg-muted/30 hover:bg-muted/50 transition-colors text-center font-medium text-sm text-indigo-600"
+                      className="w-full p-3 bg-muted/30 hover:bg-muted/50 transition-colors text-center font-medium text-sm text-purple-600"
                     >
                       View all results for "{searchQuery}"
                     </button>
@@ -450,7 +461,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                   size="icon"
                   onClick={toggleTheme}
                   aria-label="Toggle theme"
-                  className="hidden md:flex hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  className="hidden md:flex hover:bg-purple-100 dark:hover:bg-purple-950/40"
                 >
                   {theme === 'dark' ? (
                     <Sun className="w-5 h-5" />
@@ -471,7 +482,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="flex relative hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                  className="flex relative hover:bg-purple-100 dark:hover:bg-purple-950/40"
                   onClick={() => navigate("/wishlist")}
                   aria-label="Wishlist"
                 >
@@ -491,7 +502,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="flex relative"
+                  className="flex relative hover:bg-purple-100 dark:hover:bg-purple-950/40"
                   onClick={() => navigate("/cart")}
                   aria-label="Shopping cart"
                 >
@@ -587,12 +598,14 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <div className="hidden md:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 px-2">
+                  <Button variant="ghost" className="gap-2 px-2 lg:px-3 hover:bg-purple-100 dark:hover:bg-purple-950/40 rounded-lg">
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-indigo-600 text-white text-sm font-semibold">
+                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-semibold">
                         {getInitials(displayName)}
                       </AvatarFallback>
                     </Avatar>
+                    <span className="hidden lg:block text-sm font-medium max-w-[80px] truncate">{capitalizeFirstName(displayName)}</span>
+                    <ChevronDown className="hidden lg:block w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
@@ -653,12 +666,22 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               </DropdownMenu>
             </div>
 
+            {/* Mobile Search Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => { setMobileSearchOpen(v => !v); setSearchQuery(''); }}
+              aria-label={mobileSearchOpen ? "Close search" : "Open search"}
+            >
+              {mobileSearchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+            </Button>
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="icon"
               className="md:hidden"
-              onClick={() => setMobileMenuOpen(true)}
+              onClick={() => { setMobileMenuOpen(true); setMobileSearchOpen(false); setSearchQuery(''); }}
               aria-label="Open menu"
             >
               <Menu className="w-6 h-6" />
@@ -666,25 +689,39 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
           </div>
         </div>
 
-        {/* Mobile Search */}
-        <div className="md:hidden pb-3">
-          <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search for lessons..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-full"
-            />
-          </form>
-        </div>
+        {/* Mobile Search Overlay */}
+        {mobileSearchOpen && (
+          <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-border shadow-xl px-4 py-3 z-40 animate-in slide-in-from-top-2 duration-200">
+            <form onSubmit={(e) => { handleSearch(e); setMobileSearchOpen(false); }} className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                autoFocus
+                type="text"
+                placeholder="Search for lessons, subjects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10 w-full"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </form>
+          </div>
+        )}
       </div>
     </header>
 
     {/* Mobile Navigation Sheet — slides in from right */}
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
       <SheetContent side="right" className="w-[300px] sm:w-[340px] p-0 flex flex-col">
+        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+        <SheetDescription className="sr-only">Main navigation and account options</SheetDescription>
         {/* Sheet Header — user info + grade */}
         <div className="px-4 py-5 bg-gradient-to-br from-indigo-600 to-purple-700 flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
@@ -724,21 +761,21 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Learning</p>
             {[
               { label: "Dashboard",      icon: Home,       path: "/dashboard",   active: location.pathname === "/dashboard" },
-              { label: "Browse lessonss", icon: BookOpen,   path: "/browse",      active: location.pathname === "/browse" },
+              { label: "Browse Courses", icon: BookOpen,   path: "/browse",      active: location.pathname === "/browse" },
               { label: "My Learning",    icon: GraduationCap, path: "/my-learning", active: location.pathname === "/my-learning" },
             ].map(({ label, icon: Icon, path, active }) => (
               <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
-                className={`w-full justify-start text-sm h-11 rounded-lg font-medium ${active ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-muted'}`}>
+                className={`w-full justify-start text-sm h-11 rounded-lg font-medium ${active ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40'}`}>
                 <Icon className={`w-4 h-4 mr-3 ${active ? 'text-indigo-500' : 'text-muted-foreground'}`} />
                 {label}
-                {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-500" />}
               </Button>
             ))}
 
             {/* Wishlist + Cart row */}
             <div className="grid grid-cols-2 gap-2 pt-1">
               <Button variant="ghost" onClick={() => { navigate("/wishlist"); setMobileMenuOpen(false); }}
-                className="justify-start text-sm h-11 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20">
+                className="justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
                 <Heart className="w-4 h-4 mr-2 text-rose-500" />
                 Wishlist
                 {wishlistCount > 0 && (
@@ -746,7 +783,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 )}
               </Button>
               <Button variant="ghost" onClick={() => { navigate("/cart"); setMobileMenuOpen(false); }}
-                className="justify-start text-sm h-11 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/20">
+                className="justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
                 <ShoppingCart className="w-4 h-4 mr-2 text-orange-500" />
                 Cart
                 {cartCount > 0 && (
@@ -763,7 +800,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               { label: "Achievements",         icon: Award,      path: "/progress?tab=achievements", iconClass: "text-indigo-500" },
             ].map(({ label, icon: Icon, path, iconClass }) => (
               <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
-                className="w-full justify-start text-sm h-11 rounded-lg font-medium hover:bg-muted">
+                className="w-full justify-start text-sm h-11 rounded-lg font-medium hover:bg-purple-100 dark:hover:bg-purple-950/40">
                 <Icon className={`w-4 h-4 mr-3 ${iconClass}`} />
                 {label}
               </Button>
@@ -772,17 +809,17 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             {/* ── Account ── */}
             <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Account</p>
             <Button variant="ghost" onClick={() => { navigate("/profile"); setMobileMenuOpen(false); }}
-              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-muted">
+              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
               <User className="w-4 h-4 mr-3 text-muted-foreground" />
               Profile
             </Button>
             <Button variant="ghost" onClick={() => { navigate("/settings"); setMobileMenuOpen(false); }}
-              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-muted">
+              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
               <Settings className="w-4 h-4 mr-3 text-muted-foreground" />
               Settings
             </Button>
             <Button variant="ghost" onClick={toggleTheme}
-              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-muted">
+              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
               {theme === 'dark'
                 ? <><Sun className="w-4 h-4 mr-3 text-yellow-400" />Light Mode</>
                 : <><Moon className="w-4 h-4 mr-3 text-indigo-400" />Dark Mode</>}
@@ -828,7 +865,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
       </AlertDialogContent>
     </AlertDialog>
     {/* Height sentinel: pushes page body below the fixed header */}
-    <div aria-hidden="true" className="h-[116px] md:h-16" />
+    <div aria-hidden="true" className="h-16" />
     </TooltipProvider>
     </>
   );

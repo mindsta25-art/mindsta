@@ -8,6 +8,7 @@ import { api } from '@/lib/apiClient';
 export interface QuizQuestion {
   id?: string;
   question: string;
+  imageUrl?: string;
   options: string[];
   correctAnswer: number;
   explanation: string;

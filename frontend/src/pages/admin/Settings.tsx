@@ -121,7 +121,7 @@ const Settings = () => {
   // Advanced Settings State
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({
     backupFrequency: 'daily',
-    coursesPerPage: 12,
+    lessonsPerPage: 12,
     leaderboardPerPage: 10,
     myLearningPerPage: 9,
   });
@@ -1069,22 +1069,22 @@ const Settings = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="coursesPerPage">Courses Per Page (Browse)</Label>
-                  <Select value={String(advancedSettings.coursesPerPage)} onValueChange={(v) => setAdvancedSettings({ ...advancedSettings, coursesPerPage: Number(v) })}>
-                    <SelectTrigger id="coursesPerPage">
+                  <Label htmlFor="lessonsPerPage">lessons Per Page (Browse)</Label>
+                  <Select value={String(advancedSettings.lessonsPerPage)} onValueChange={(v) => setAdvancedSettings({ ...advancedSettings, lessonsPerPage: Number(v) })}>
+                    <SelectTrigger id="lessonsPerPage">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="6">6 courses</SelectItem>
-                      <SelectItem value="12">12 courses</SelectItem>
-                      <SelectItem value="18">18 courses</SelectItem>
-                      <SelectItem value="24">24 courses</SelectItem>
-                      <SelectItem value="36">36 courses</SelectItem>
-                      <SelectItem value="48">48 courses</SelectItem>
+                      <SelectItem value="6">6 lessons</SelectItem>
+                      <SelectItem value="12">12 lessons</SelectItem>
+                      <SelectItem value="18">18 lessons</SelectItem>
+                      <SelectItem value="24">24 lessons</SelectItem>
+                      <SelectItem value="36">36 lessons</SelectItem>
+                      <SelectItem value="48">48 lessons</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Number of courses to display per page on the browse page
+                    Number of lessons to display per page on the browse page
                   </p>
                 </div>
 
@@ -1109,22 +1109,22 @@ const Settings = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="myLearningPerPage">Courses Per Page (My Learning)</Label>
+                  <Label htmlFor="myLearningPerPage">lessons Per Page (My Learning)</Label>
                   <Select value={String(advancedSettings.myLearningPerPage ?? 9)} onValueChange={(v) => setAdvancedSettings({ ...advancedSettings, myLearningPerPage: Number(v) })}>
                     <SelectTrigger id="myLearningPerPage">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="3">3 courses</SelectItem>
-                      <SelectItem value="6">6 courses</SelectItem>
-                      <SelectItem value="9">9 courses</SelectItem>
-                      <SelectItem value="12">12 courses</SelectItem>
-                      <SelectItem value="18">18 courses</SelectItem>
-                      <SelectItem value="24">24 courses</SelectItem>
+                      <SelectItem value="3">3 lessons</SelectItem>
+                      <SelectItem value="6">6 lessons</SelectItem>
+                      <SelectItem value="9">9 lessons</SelectItem>
+                      <SelectItem value="12">12 lessons</SelectItem>
+                      <SelectItem value="18">18 lessons</SelectItem>
+                      <SelectItem value="24">24 lessons</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Number of courses to display per page on the My Learning page
+                    Number of lessons to display per page on the My Learning page
                   </p>
                 </div>
 

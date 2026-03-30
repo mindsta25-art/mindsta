@@ -258,7 +258,6 @@ const LessonDetail = () => {
   };
 
   const hasCurriculum = lesson?.curriculum && lesson.curriculum.length > 0;
-  const hasLegacyContent = lesson?.content && lesson.content.trim().length > 0;
 
   const handleQuizComplete = async (score: number) => {
     if (!user || !lessonId) return;
@@ -570,11 +569,6 @@ const LessonDetail = () => {
                           <div
                             className="prose prose-lg max-w-none dark:prose-invert leading-relaxed break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
                             dangerouslySetInnerHTML={{ __html: currentLecture.content }}
-                          />
-                        ) : hasLegacyContent ? (
-                          <div
-                            className="prose prose-lg max-w-none dark:prose-invert leading-relaxed break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
-                            dangerouslySetInnerHTML={{ __html: lesson.content }}
                           />
                         ) : (
                           <div className="text-center py-12">

@@ -107,12 +107,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
   const checkAdminAccess = async () => {
     try {
-      console.log(' AdminLayout: Checking admin access...');
       const user = getCurrentUser();
-      console.log(' AdminLayout: Current user:', user);
       
       if (!user) {
-        console.log(' AdminLayout: No user found');
         toast({
           title: "Authentication Required",
           description: "Please log in to access the admin panel.",
@@ -122,13 +119,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         return;
       }
 
-      // Check if user is an admin by checking the userType directly
-      console.log(' AdminLayout: User type:', user.userType);
       const adminStatus = user.userType === 'admin';
-      console.log(' AdminLayout: Is admin?', adminStatus);
 
       if (!adminStatus) {
-        console.log(' AdminLayout: User is not admin');
         toast({
           title: "Access Denied",
           description: "You don't have admin privileges.",
@@ -140,7 +133,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         return;
       }
 
-      console.log(' AdminLayout: Admin access granted');
       setIsAdmin(true);
     } catch (error) {
       console.error(" AdminLayout: Admin access check error:", error);

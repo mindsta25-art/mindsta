@@ -45,7 +45,7 @@ export function VerifySuccess() {
             {/* Feature highlights */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: '📚', label: 'Access all courses' },
+                { icon: '📚', label: 'Access all lessons' },
                 { icon: '🏆', label: 'Earn achievements' },
                 { icon: '📊', label: 'Track progress' },
               ].map(({ icon, label }) => (

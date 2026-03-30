@@ -303,11 +303,11 @@ const GradeAssessment = () => {
 
   const getRecommendationMessage = (grade: number, percentage: number) => {
     if (grade === 7) {
-      return "Excellent! You've demonstrated strong mastery across all levels. You're ready for Common Entrance preparation courses that will help you excel in entrance examinations.";
+      return "Excellent! You've demonstrated strong mastery across all levels. You're ready for Common Entrance preparation lessons that will help you excel in entrance examinations.";
     } else if (grade === 6) {
       return `Great performance! You've shown strong understanding of upper primary concepts. Grade ${grade} will provide the perfect foundation to continue building advanced skills.`;
     } else if (grade >= 4) {
-      return `Good work! You've demonstrated solid understanding at this level. Grade ${grade} courses will help you strengthen your foundation and progress confidently.`;
+      return `Good work! You've demonstrated solid understanding at this level. Grade ${grade} lessons will help you strengthen your foundation and progress confidently.`;
     } else if (grade >= 2) {
       return `Starting at Grade ${grade} will ensure you build a strong foundation. This level is perfect for developing core skills that will support your learning journey.`;
     } else {
@@ -500,7 +500,7 @@ const GradeAssessment = () => {
                     className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white h-12"
                   >
                     <BookOpen className="mr-2 w-5 h-5" />
-                    Browse {getGradeName(result.grade)} Courses
+                    Browse {getGradeName(result.grade)} lessons
                   </Button>
                   <Button
                     onClick={() => navigate('/browse')}
@@ -508,7 +508,7 @@ const GradeAssessment = () => {
                     variant="outline"
                     className="flex-1 h-12"
                   >
-                    Explore All Courses
+                    Explore All lessons
                   </Button>
                 </div>
               </CardContent>

@@ -24,8 +24,8 @@ const FAQPage = () => {
           a: 'To enroll in a course, browse our course catalog, select your grade and subject, then click the "Enroll Now" button. Payment options will be presented for your chosen course.',
         },
         {
-          q: 'How do I access my enrolled courses?',
-          a: 'Once enrolled, go to the "My Learning" page from the main menu. All your enrolled courses will be listed there with your progress tracked.',
+          q: 'How do I access my enrolled lessons?',
+          a: 'Once enrolled, go to the "My Learning" page from the main menu. All your enrolled lessons will be listed there with your progress tracked.',
         },
         {
           q: 'Can I download lessons for offline viewing?',
@@ -45,8 +45,8 @@ const FAQPage = () => {
           a: 'Refund requests are evaluated on a case-by-case basis within 7 days of purchase. Please contact our support team with your order details.',
         },
         {
-          q: 'Do you offer discounts for multiple courses?',
-          a: 'Yes! We offer bundle discounts when you enroll in multiple courses. Check our Bundles page for current offers.',
+          q: 'Do you offer discounts for multiple lessons?',
+          a: 'Yes! We offer bundle discounts when you enroll in multiple lessons. Check our Bundles page for current offers.',
         },
       ],
     },

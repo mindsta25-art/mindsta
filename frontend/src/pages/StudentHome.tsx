@@ -41,7 +41,6 @@ import {
   Lightbulb,
   Brain
 } from 'lucide-react';
-import { isEnrolled as isEnrolledUtil } from '@/utils/enrollmentUtils';
 import { getStudentByUserId, updateStreak } from '@/api/students';
 import { getUserProgress, type UserProgress } from '@/api/progress';
 import { getEnrollments, type Enrollment } from '@/api/enrollments';
@@ -63,6 +62,38 @@ import {
 import { siteConfig, getWhatsAppUrl } from '@/config/siteConfig';
 
 const MotionLink = motion(Link);
+
+/** Maps a subject name to a Tailwind gradient so each course has a distinct colour. */
+function getSubjectGradient(subject: string): string {
+  const s = subject.toLowerCase();
+  if (s.includes('math')) return 'from-blue-500 to-indigo-600';
+  if (s.includes('science') || s.includes('physics') || s.includes('chemistry') || s.includes('biology')) return 'from-green-500 to-teal-600';
+  if (s.includes('english') || s.includes('language') || s.includes('literacy') || s.includes('reading')) return 'from-rose-500 to-pink-600';
+  if (s.includes('history') || s.includes('social') || s.includes('civic')) return 'from-amber-500 to-orange-600';
+  if (s.includes('geography') || s.includes('geo') || s.includes('environment')) return 'from-emerald-500 to-cyan-600';
+  if (s.includes('ict') || s.includes('computer') || s.includes('tech') || s.includes('coding')) return 'from-violet-500 to-purple-600';
+  if (s.includes('art') || s.includes('creative') || s.includes('design')) return 'from-fuchsia-500 to-pink-600';
+  if (s.includes('music') || s.includes('performing')) return 'from-purple-500 to-indigo-600';
+  if (s.includes('pe') || s.includes('sport') || s.includes('physical')) return 'from-orange-500 to-red-600';
+  if (s.includes('religious') || s.includes('moral') || s.includes('values')) return 'from-sky-500 to-blue-600';
+  return 'from-cyan-500 to-blue-600';
+}
+
+/** Returns a short human-readable relative time string, e.g. "2 days ago". */
+function formatRelativeTime(date: Date): string {
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 2) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
 
 interface StudentInfo {
   id: string;
@@ -105,6 +136,11 @@ const StudentHome = () => {
   const [fetchTrigger, setFetchTrigger] = useState(0);
 
   useEffect(() => {
+    document.title = 'Dashboard | Mindsta';
+    return () => { document.title = 'Mindsta'; };
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       if (!user?.id) return;
 
@@ -145,20 +181,28 @@ const StudentHome = () => {
           }
         });
 
-        // Filter lessons to only show enrolled ones.
-        // Per-lesson enrollments (enrollment.lessonId set) only grant access to the exact lesson;
-        // subject-level enrollments grant access to all lessons in the subject.
-        const enrolled = lessonsData.filter(lesson =>
-          enrollmentsData.some(enrollment => {
-            if (enrollment.lessonId) {
-              return isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term, lesson.id);
-            }
-            return isEnrolledUtil(enrollment, lesson.subject, lesson.grade, lesson.term);
-          })
-        ).map(lesson => ({
-          ...lesson,
-          isEnrolled: true
-        }));
+        // ── Build strict enrollment sets (API already guarantees isActive:true) ────────
+        // Two models:
+        //   1. Per-lesson: enrollment.lessonId set → only that exact lesson granted
+        //   2. Subject-level: no lessonId → all lessons with same subject+grade+term granted
+        const _n = (s: string | undefined | null) => (s ?? '').toLowerCase().trim();
+        const perLessonGrantSet = new Set<string>(); // enrolled lesson IDs
+        const subjectGrantSet   = new Set<string>(); // "subject|grade|term" keys
+        for (const e of enrollmentsData) {
+          if (e.lessonId) {
+            perLessonGrantSet.add(String(e.lessonId));
+          } else {
+            subjectGrantSet.add(`${_n(e.subject)}|${_n(e.grade)}|${_n(e.term)}`);
+          }
+        }
+        const hasEnrollmentAccess = (lesson: { id: string; subject: string; grade: string; term?: string }): boolean => {
+          if (perLessonGrantSet.has(lesson.id)) return true;
+          return subjectGrantSet.has(`${_n(lesson.subject)}|${_n(lesson.grade)}|${_n(lesson.term)}`);
+        };
+
+        const enrolled = lessonsData
+          .filter(hasEnrollmentAccess)
+          .map(lesson => ({ ...lesson, isEnrolled: true }));
 
         setEnrolledLessons(enrolled);
         
@@ -274,7 +318,7 @@ const StudentHome = () => {
     : 0;
 
   // Group enrolled lessons into course-level entries (collective view, not individual lessons)
-  const recentCourses = (() => {
+  const recentlessons = (() => {
     const courseMap = new Map<string, {
       subject: string;
       grade: string;
@@ -283,6 +327,7 @@ const StudentHome = () => {
       enrollmentDate?: Date;
       lessonsTotal: number;
       lessonsCompleted: number;
+      progressWeight: number;
       progress: number;
       nextLesson?: EnrolledLesson;
       thumbnailUrl?: string;
@@ -290,24 +335,35 @@ const StudentHome = () => {
     }>();
 
     for (const lesson of enrolledLessons) {
-      // Use per-lesson key so each purchased lesson gets its own card
-      const perLessonEnrollment = enrollments.find(e =>
-        e.lessonId && isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term, lesson.id)
-      );
-      const key = perLessonEnrollment
+      // Determine whether this lesson was a per-lesson purchase or subject-level.
+      // Use direct Set lookup (matches what the enrollment filter above used).
+      const _nx = (s: string | undefined | null) => (s ?? '').toLowerCase().trim();
+      const isPerLesson = lesson.id && enrollments.some(e => e.lessonId && String(e.lessonId) === lesson.id);
+      const key = isPerLesson
         ? `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}-${lesson.id}`
         : `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
+
+      // Find the specific enrollment for date/metadata
+      const matchedEnrollment = isPerLesson
+        ? enrollments.find(e => e.lessonId && String(e.lessonId) === lesson.id)
+        : enrollments.find(e =>
+            !e.lessonId &&
+            _nx(e.subject) === _nx(lesson.subject) &&
+            _nx(e.grade)   === _nx(lesson.grade) &&
+            _nx(e.term)    === _nx(lesson.term)
+          );
       if (!courseMap.has(key)) {
         courseMap.set(key, {
           subject: lesson.subject,
           grade: lesson.grade,
           term: lesson.term,
-          lessonId: perLessonEnrollment ? lesson.id : undefined,
-          enrollmentDate: perLessonEnrollment
-            ? new Date(perLessonEnrollment.purchasedAt || perLessonEnrollment.createdAt)
+          lessonId: isPerLesson ? lesson.id : undefined,
+          enrollmentDate: matchedEnrollment
+            ? new Date(matchedEnrollment.purchasedAt || matchedEnrollment.createdAt)
             : undefined,
           lessonsTotal: 0,
           lessonsCompleted: 0,
+          progressWeight: 0,
           progress: 0,
         });
       }
@@ -322,8 +378,14 @@ const StudentHome = () => {
       if (lessonProg) {
         if (lessonProg.completed) {
           course.lessonsCompleted += 1;
-        } else if (!course.nextLesson) {
-          course.nextLesson = lesson;
+          course.progressWeight += 1;
+        } else {
+          // Partial credit for in-progress lessons: use video watch % (capped at 0.99)
+          const watchPct = (lessonProg.videoWatchPercent || 0) / 100;
+          course.progressWeight += Math.min(watchPct, 0.99);
+          if (!course.nextLesson) {
+            course.nextLesson = lesson;
+          }
         }
         const accessedDate = new Date(lessonProg.lastAccessedAt);
         if (!course.lastAccessed || accessedDate > course.lastAccessed) {
@@ -336,7 +398,7 @@ const StudentHome = () => {
 
     courseMap.forEach((course) => {
       course.progress = course.lessonsTotal > 0
-        ? Math.round((course.lessonsCompleted / course.lessonsTotal) * 100)
+        ? Math.round((course.progressWeight / course.lessonsTotal) * 100)
         : 0;
     });
 
@@ -344,7 +406,7 @@ const StudentHome = () => {
       .sort((a, b) => {
         // Sort by most recent engagement: use lastAccessed if available, otherwise
         // fall back to enrollmentDate so newly purchased (not-yet-started) lessons
-        // appear near the top instead of being buried under older accessed courses.
+        // appear near the top instead of being buried under older accessed lessons.
         const aDate = a.lastAccessed ?? a.enrollmentDate;
         const bDate = b.lastAccessed ?? b.enrollmentDate;
         if (!aDate && !bDate) return 0;
@@ -352,7 +414,7 @@ const StudentHome = () => {
         if (!bDate) return -1;
         return bDate.getTime() - aDate.getTime();
       })
-      .slice(0, 4);
+      .slice(0, 8);
   })();
 
   const quickActions = [
@@ -370,7 +432,7 @@ const StudentHome = () => {
     }] : []),
     {
       icon: BookOpen,
-      title: 'Browse Courses',
+      title: 'Browse lessons',
       description: 'Explore all available lessons',
       gradient: 'from-blue-500 to-cyan-500',
       action: () => navigate('/browse'),
@@ -378,7 +440,7 @@ const StudentHome = () => {
     {
       icon: GraduationCap,
       title: 'My Learning',
-      description: 'Continue your enrolled courses',
+      description: 'Continue your enrolled lessons',
       gradient: 'from-purple-500 to-pink-500',
       action: () => navigate('/my-learning'),
     },
@@ -607,7 +669,7 @@ const StudentHome = () => {
                       p.set('lessonId', lastAccessedLesson.id);
                       navigate(`/subjects/${lastAccessedLesson.grade}/${lastAccessedLesson.subject}?${p.toString()}`);
                     }}
-                    className="flex-shrink-0 flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm border border-white/20"
+                    className="flex-shrink-0 flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm border border-white/20 w-full sm:w-auto min-h-[44px]"
                   >
                     <PlayCircle className="w-4 h-4" />
                     Continue Learning
@@ -615,10 +677,10 @@ const StudentHome = () => {
                 ) : (
                   <button
                     onClick={() => navigate('/browse')}
-                    className="flex-shrink-0 flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm border border-white/20"
+                    className="flex-shrink-0 flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm border border-white/20 w-full sm:w-auto min-h-[44px]"
                   >
                     <BookOpen className="w-4 h-4" />
-                    Browse Courses
+                    Browse lessons
                   </button>
                 )}
               </div>
@@ -630,7 +692,7 @@ const StudentHome = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8"
           >
             {stats.map((stat, index) => (
               <div
@@ -818,7 +880,7 @@ const StudentHome = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="lg:col-span-2"
+              className="lg:col-span-2 flex flex-col"
             >
               <Card className="shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3 border-b border-gray-100 dark:border-gray-700">
@@ -851,13 +913,18 @@ const StudentHome = () => {
               </Card>
 
               {/* Continue Learning */}
-              {recentCourses.length > 0 ? (
-                <Card className="mt-4 sm:mt-5 shadow-sm hover:shadow-md transition-shadow">
+              {recentlessons.length > 0 ? (
+                <Card className="mt-4 sm:mt-5 shadow-sm hover:shadow-md transition-shadow flex flex-col flex-1">
                   <CardHeader className="pb-3 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-base">
-                        <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                        <PlayCircle className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                         Continue Learning
+                        {recentlessons.length > 0 && (
+                          <span className="inline-flex items-center justify-center bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300 text-[10px] font-bold w-5 h-5 rounded-full">
+                            {recentlessons.length}
+                          </span>
+                        )}
                       </CardTitle>
                       <Button
                         variant="ghost"
@@ -870,9 +937,9 @@ const StudentHome = () => {
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="space-y-2.5">
-                      {recentCourses.map((course, idx) => {
+                  <CardContent className="pt-4 flex-1">
+                    <div className="space-y-3">
+                      {recentlessons.map((course, idx) => {
                         const continueLessonId = course.nextLesson?.id ?? course.lessonId;
                         const continueParams = new URLSearchParams();
                         if (course.term) continueParams.set('term', course.term);
@@ -888,44 +955,82 @@ const StudentHome = () => {
                         >
                         <Link
                           to={continueHref}
-                          className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-cyan-400 dark:hover:border-cyan-500 hover:bg-cyan-50/40 dark:hover:bg-cyan-900/10 transition-all group block"
+                          className="flex items-start gap-3 p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-cyan-400 dark:hover:border-cyan-500 hover:bg-cyan-50/40 dark:hover:bg-cyan-900/10 transition-all group block"
                         >
-                          {course.thumbnailUrl ? (
-                            <img
-                              src={course.thumbnailUrl}
-                              alt={course.subject}
-                              className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                              loading="lazy"
-                              decoding="async"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <BookOpen className="w-5 h-5 text-white" />
-                            </div>
-                          )}
+                          {/* Subject thumbnail with status overlay */}
+                          <div className={`relative w-14 h-14 rounded-xl flex-shrink-0 bg-gradient-to-br ${getSubjectGradient(course.subject)} flex items-center justify-center overflow-hidden shadow-sm`}>
+                            <BookOpen className="w-6 h-6 text-white/80" />
+                            {course.thumbnailUrl && (
+                              <img
+                                src={course.thumbnailUrl}
+                                alt={course.subject}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            )}
+                            {course.progress === 100 && (
+                              <div className="absolute inset-0 bg-green-600/85 flex items-center justify-center rounded-xl">
+                                <CheckCircle className="w-6 h-6 text-white" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Main content */}
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-sm truncate group-hover:text-cyan-700 dark:group-hover:text-cyan-400 transition-colors">
-                              {course.nextLesson?.title || course.subject}
-                            </h4>
-                            <p className="text-xs text-muted-foreground mb-1.5">
+                            {/* Title row + status badge */}
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                              <h4 className="font-semibold text-sm leading-tight line-clamp-1 group-hover:text-cyan-700 dark:group-hover:text-cyan-400 transition-colors">
+                                {course.nextLesson?.title || course.subject}
+                              </h4>
+                              {!course.lastAccessed && course.progress === 0 ? (
+                                <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-[10px] px-1.5 h-4 flex-shrink-0 rounded-full border-0 font-semibold">
+                                  New
+                                </Badge>
+                              ) : course.progress === 100 ? (
+                                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 text-[10px] px-1.5 h-4 flex-shrink-0 rounded-full border-0 font-semibold">
+                                  ✓ Done
+                                </Badge>
+                              ) : null}
+                            </div>
+
+                            {/* Subject / grade / lesson fraction */}
+                            <p className="text-xs text-muted-foreground mb-2">
                               Grade {course.grade}{course.term ? ` · ${course.term}` : ''}
+                              {' · '}<span className="font-medium text-foreground/70">{course.lessonsCompleted}/{course.lessonsTotal}</span> lessons
                             </p>
-                            <div className="flex items-center gap-2">
+
+                            {/* Progress bar */}
+                            <div className="flex items-center gap-2 mb-2">
                               <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                                 <div
-                                  className="bg-gradient-to-r from-cyan-500 to-blue-500 h-1.5 rounded-full transition-all"
+                                  className={`h-1.5 rounded-full transition-all ${
+                                    course.progress === 100
+                                      ? 'bg-green-500'
+                                      : 'bg-gradient-to-r from-cyan-500 to-blue-500'
+                                  }`}
                                   style={{ width: `${Math.max(course.progress, 2)}%` }}
                                 />
                               </div>
-                              <span className="text-xs text-muted-foreground flex-shrink-0 w-10 text-right">
-                                {course.progress === 100 ? (
-                                  <span className="text-green-600 dark:text-green-400 font-medium">Done</span>
-                                ) : `${course.progress}%`}
+                              <span className="text-xs font-semibold text-muted-foreground flex-shrink-0 w-8 text-right">
+                                {course.progress}%
+                              </span>
+                            </div>
+
+                            {/* Footer: last accessed + action label */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-muted-foreground/70">
+                                {course.lastAccessed
+                                  ? formatRelativeTime(course.lastAccessed)
+                                  : 'Not started yet'}
+                              </span>
+                              <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                {course.progress === 100 ? 'Review' : 'Continue'}
+                                <ChevronRight className="w-3 h-3" />
                               </span>
                             </div>
                           </div>
-                          <PlayCircle className="w-4 h-4 text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors flex-shrink-0" />
                         </Link>
                         </motion.div>
                         );
@@ -934,18 +1039,18 @@ const StudentHome = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="mt-4 sm:mt-5 shadow-sm">
+                <Card className="mt-4 sm:mt-5 shadow-sm flex flex-col flex-1">
                   <CardContent className="py-10 flex flex-col items-center text-center gap-3">
                     <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
                       <BookOpen className="w-6 h-6 text-indigo-500" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-sm mb-1">No courses yet</h4>
+                      <h4 className="font-semibold text-sm mb-1">No lessons yet</h4>
                       <p className="text-xs text-muted-foreground max-w-xs">Browse our course catalog to find subjects that match your grade and start learning today.</p>
                     </div>
                     <Button size="sm" onClick={() => navigate('/browse')} className="mt-1">
                       <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-                      Browse lessonss
+                      Browse lessons
                     </Button>
                   </CardContent>
                 </Card>

@@ -303,13 +303,13 @@ const Index = () => {
 
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-12 md:py-20 relative z-10 mt-20">
-        <div className="text-center mb-20 space-y-6">
+        <div className="text-center mb-10 sm:mb-16 md:mb-20 space-y-6">
           <Badge className="mb-4 px-6 py-3 text-base font-bold bg-gradient-to-r from-yellow-400/30 to-orange-400/30 border-yellow-500/50 hover:scale-110 transition-transform shadow-lg">
             <PartyPopper className="w-5 h-5 mr-2 inline animate-bounce" />
             Join 10,000+ Happy Students! 🎉
           </Badge>
           
-          <h1 className="text-5xl md:text-7xl font-black text-foreground mb-6 animate-in slide-in-from-bottom duration-700">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-foreground mb-6 animate-in slide-in-from-bottom duration-700">
             🌟 Welcome to{" "}
             <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 bg-clip-text text-transparent animate-pulse">
               Mindsta
@@ -317,11 +317,11 @@ const Index = () => {
             ! 🎈
           </h1>
           
-          <p className="text-2xl md:text-3xl font-bold text-purple-600 dark:text-purple-400 max-w-3xl mx-auto animate-in slide-in-from-bottom duration-700 delay-100 leading-relaxed">
+          <p className="text-lg sm:text-2xl md:text-3xl font-bold text-purple-600 dark:text-purple-400 max-w-3xl mx-auto animate-in slide-in-from-bottom duration-700 delay-100 leading-relaxed">
             Where Learning Transforms Into Adventure! 🚀
           </p>
           
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto animate-in slide-in-from-bottom duration-700 delay-200">
+          <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto animate-in slide-in-from-bottom duration-700 delay-200">
             Engaging lessons, interactive experiences, and rewarding achievements for grades 1-6! 
             Embark on an extraordinary educational journey designed for excellence! ✨
           </p>
@@ -330,26 +330,26 @@ const Index = () => {
             <Button 
               size="lg" 
               onClick={() => navigate("/auth?mode=register")}
-              className="gap-2 text-xl px-10 py-7 hover:scale-110 transition-all duration-300 shadow-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600"
+              className="gap-2 text-base sm:text-xl px-6 sm:px-10 py-4 sm:py-7 w-full sm:w-auto hover:scale-110 transition-all duration-300 shadow-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600"
               title="Sign up as a Student"
             >
-              <Rocket className="w-6 h-6 animate-bounce" />
+              <Rocket className="w-5 h-5 sm:w-6 sm:h-6 animate-bounce" />
               Start Your Adventure! 
             </Button>
             <Button 
               size="lg" 
               variant="outline"
               onClick={() => document.getElementById('why-mindsta')?.scrollIntoView({ behavior: 'smooth' })}
-              className="gap-2 text-xl px-10 py-7 hover:scale-110 transition-all duration-300 border-4 border-purple-300 hover:border-purple-500 hover:shadow-xl"
+              className="gap-2 text-base sm:text-xl px-6 sm:px-10 py-4 sm:py-7 w-full sm:w-auto hover:scale-110 transition-all duration-300 border-4 border-purple-300 hover:border-purple-500 hover:shadow-xl"
             >
-              <Star className="w-6 h-6 animate-spin" />
+              <Star className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
               Why It's So Fun! 
             </Button>
           </div>
         </div>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-20 animate-in fade-in duration-700 delay-300">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-10 sm:mb-14 md:mb-20 animate-in fade-in duration-700 delay-300">
           {stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
@@ -359,9 +359,9 @@ const Index = () => {
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <CardContent className="p-6">
-                  <div className="text-5xl mb-2">{stat.emoji}</div>
-                  <div className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-2">{stat.value}</div>
-                  <div className="text-sm font-bold text-foreground">{stat.label}</div>
+                  <div className="text-4xl sm:text-5xl mb-2">{stat.emoji}</div>
+                  <div className="text-2xl sm:text-4xl font-black text-purple-600 dark:text-purple-400 mb-2">{stat.value}</div>
+                  <div className="text-xs sm:text-sm font-bold text-foreground">{stat.label}</div>
                 </CardContent>
               </Card>
             );
@@ -375,14 +375,14 @@ const Index = () => {
               <Lightbulb className="w-5 h-5 mr-2 inline animate-pulse" />
               Why Kids Love Mindsta! 💜
             </Badge>
-            <h2 className="text-4xl md:text-6xl font-black text-foreground mb-4">
+            <h2 className="text-2xl sm:text-4xl md:text-6xl font-black text-foreground mb-4">
               🎯 Why Choose{" "}
               <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
                 Mindsta
               </span>
               ?
             </h2>
-            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-2xl font-bold text-purple-600 dark:text-purple-400 max-w-2xl mx-auto">
               Because learning should be FUN! 
             </p>
           </div>
@@ -398,13 +398,13 @@ const Index = () => {
                   }`}
                   onMouseEnter={() => setActiveFeature(index)}
                 >
-                  <CardContent className="p-8 text-center">
-                    <div className="text-6xl mb-4 animate-bounce">{item.emoji}</div>
-                    <div className={`inline-flex p-4 rounded-3xl bg-gradient-to-br ${item.color} mb-4 group-hover:scale-125 transition-transform shadow-lg`}>
-                      <Icon className="w-10 h-10 text-white" />
+                  <CardContent className="p-5 sm:p-8 text-center">
+                    <div className="text-4xl sm:text-6xl mb-3 sm:mb-4 animate-bounce">{item.emoji}</div>
+                    <div className={`inline-flex p-3 sm:p-4 rounded-3xl bg-gradient-to-br ${item.color} mb-3 sm:mb-4 group-hover:scale-125 transition-transform shadow-lg`}>
+                      <Icon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                     </div>
-                    <h3 className="text-2xl font-black text-foreground mb-3">{item.title}</h3>
-                    <p className="text-lg text-muted-foreground font-medium">{item.description}</p>
+                    <h3 className="text-xl sm:text-2xl font-black text-foreground mb-2 sm:mb-3">{item.title}</h3>
+                    <p className="text-base sm:text-lg text-muted-foreground font-medium">{item.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -413,18 +413,18 @@ const Index = () => {
         </div>
 
         {/* About Us Section */}
-        <div className="mb-20">
+        <div className="mb-10 sm:mb-16 md:mb-20">
           <Card className="max-w-5xl mx-auto border-4 border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 shadow-2xl">
-            <CardContent className="p-12">
-              <div className="text-center mb-8">
-                <Badge className="mb-4 px-6 py-3 text-base font-bold bg-gradient-to-r from-blue-400/30 to-green-400/30 border-blue-500/50">
-                  <Smile className="w-5 h-5 mr-2 inline" />
+            <CardContent className="p-6 sm:p-10 md:p-12">
+              <div className="text-center mb-6 sm:mb-8">
+                <Badge className="mb-4 px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-bold bg-gradient-to-r from-blue-400/30 to-green-400/30 border-blue-500/50">
+                  <Smile className="w-4 h-4 sm:w-5 sm:h-5 mr-2 inline" />
                   About Mindsta 
                 </Badge>
-                <h2 className="text-4xl md:text-5xl font-black text-foreground mb-6">
+                <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-4 sm:mb-6">
                   {aboutUs.title}
                 </h2>
-                <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed mb-8">
+                <p className="text-base sm:text-xl md:text-2xl text-muted-foreground leading-relaxed mb-6 sm:mb-8">
                   {aboutUs.description}
                 </p>
               </div>
@@ -435,7 +435,7 @@ const Index = () => {
                     key={index}
                     className="flex items-center gap-4 p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:scale-105 transition-transform border-2 border-purple-200 hover:border-purple-400"
                   >
-                    <div className="text-5xl animate-bounce" style={{ animationDelay: `${index * 200}ms` }}>
+                    <div className="text-3xl sm:text-5xl animate-bounce" style={{ animationDelay: `${index * 200}ms` }}>
                       {feature.emoji}
                     </div>
                     <p className="text-lg font-bold text-foreground">{feature.text}</p>
@@ -444,7 +444,7 @@ const Index = () => {
               </div>
 
               <div className="mt-10 text-center">
-                <p className="text-2xl font-black text-purple-600 dark:text-purple-400">
+                  <p className="text-lg sm:text-2xl font-black text-purple-600 dark:text-purple-400">
                   {aboutUs.tagline}
                 </p>
               </div>
@@ -455,34 +455,34 @@ const Index = () => {
         {/* CTA Section */}
         <div className="text-center">
           <Card className="max-w-4xl mx-auto bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-blue-500/20 border-4 border-purple-300 shadow-2xl">
-            <CardContent className="p-12">
-              <div className="text-7xl mb-6 animate-bounce">🎉</div>
-              <h2 className="text-4xl md:text-5xl font-black text-foreground mb-6">
+            <CardContent className="p-6 sm:p-10 md:p-12">
+              <div className="text-5xl sm:text-7xl mb-4 sm:mb-6 animate-bounce">🎉</div>
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-4 sm:mb-6">
                 Ready for the Adventure? 🚀
               </h2>
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-4">
+              <p className="text-lg sm:text-2xl font-bold text-purple-600 dark:text-purple-400 mb-3 sm:mb-4">
                 Join the Mindsta Family Today!
               </p>
-              <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+              <p className="text-base sm:text-xl text-muted-foreground mb-8 sm:mb-10 max-w-2xl mx-auto">
                 Thousands of kids are already having fun while learning. 
                 Join them now and unlock a world of exciting lessons, games, and prizes!
-                Sign up is completely free — courses are affordable and tailored for every grade! ✨
+                Sign up is completely free — lessons are affordable and tailored for every grade! ✨
               </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center">
                 <Button 
                   size="lg" 
                   onClick={() => navigate("/auth?mode=register")}
-                  className="gap-3 text-2xl px-12 py-8 hover:scale-110 transition-all duration-300 shadow-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 font-black"
+                  className="gap-3 text-base sm:text-2xl px-8 sm:px-12 py-5 sm:py-8 w-full sm:w-auto hover:scale-110 transition-all duration-300 shadow-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 font-black"
                   title="Student Registration"
                 >
-                  <Rocket className="w-7 h-7 animate-bounce" />
+                  <Rocket className="w-5 h-5 sm:w-7 sm:h-7 animate-bounce" />
                   Start Learning Now! 🎮
                 </Button>
                 <Button 
                   size="lg" 
                   variant="outline"
                   onClick={() => navigate("/auth?mode=login")}
-                  className="gap-3 text-xl px-10 py-8 hover:scale-110 transition-all duration-300 border-4 border-purple-300 hover:border-purple-500 font-bold"
+                  className="gap-3 text-base sm:text-xl px-8 sm:px-10 py-5 sm:py-8 w-full sm:w-auto hover:scale-110 transition-all duration-300 border-4 border-purple-300 hover:border-purple-500 font-bold"
                   title="Student Login"
                 >
                   Already a Student? Login! 👋

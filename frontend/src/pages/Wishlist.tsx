@@ -42,9 +42,9 @@ const Wishlist = () => {
         {isEmpty ? (
           <Card className="p-8 sm:p-16 text-center">
             <div className="inline-block p-4 sm:p-6 bg-muted rounded-full mb-4 sm:mb-6"><HeartCrack className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground"/></div>
-            <h2 className="text-xl sm:text-2xl font-bold mb-2">No saved courses</h2>
-            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">Save courses you're interested in and move them to cart when ready</p>
-            <Button onClick={() => navigate('/browse')} className="w-full sm:w-auto">Browse lessonss</Button>
+            <h2 className="text-xl sm:text-2xl font-bold mb-2">No saved lessons</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">Save lessons you're interested in and move them to cart when ready</p>
+            <Button onClick={() => navigate('/browse')} className="w-full sm:w-auto">Browse Lessons</Button>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">

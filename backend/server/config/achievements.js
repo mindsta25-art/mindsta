@@ -48,7 +48,7 @@ export const ACHIEVEMENTS = {
   COURSE_COLLECTOR: {
     id: 'course_collector',
     name: 'Course Collector',
-    description: 'Enroll in 3 or more courses',
+    description: 'Enroll in 3 or more lessons',
     icon: 'BookOpen',
     requirement: 3,
     coinReward: 30,

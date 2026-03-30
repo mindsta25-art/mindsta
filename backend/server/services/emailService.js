@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Email Service — Resend (HTTP/443) primary, Nodemailer SMTP local-dev fallback
  *
  * Why Resend?  Render free tier blocks all outbound SMTP (ports 465 & 587).
@@ -119,7 +119,7 @@ export const sendEmailVerifiedEmail = async (email, name) => {
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <!-- Header -->
       <tr><td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:44px 36px;text-align:center;">
@@ -139,7 +139,7 @@ export const sendEmailVerifiedEmail = async (email, name) => {
             <td width="50%" style="padding:0 6px 10px 0;vertical-align:top;">
               <div style="background:#f0f4ff;border-radius:10px;padding:16px;">
                 <p style="margin:0 0 6px;font-size:22px;">📚</p>
-                <p style="margin:0 0 4px;color:#1e40af;font-weight:700;font-size:13px;">Browse lessonss</p>
+                <p style="margin:0 0 4px;color:#1e40af;font-weight:700;font-size:13px;">Browse Lessons</p>
                 <p style="margin:0;color:#6b7280;font-size:12px;">Grade 1–6 &amp; Common Entrance</p>
               </div>
             </td>
@@ -197,7 +197,7 @@ You now have full access to all Mindsta features.
 
 What You Can Do:
 
-📚 Explore Courses
+📚 Explore lessons
    Browse our comprehensive library of subjects and lessons
 
 🎯 Track Your Progress
@@ -225,7 +225,7 @@ If you have any questions or need assistance, our support team is always here to
     const mailOptions = {
       from: FROM_ADDRESS,
       to: email,
-      subject: '🎉 Congratulations! Your Email is Verified - Mindsta',
+      subject: 'Your Email is Verified – Welcome to Mindsta!',
       text: textContent,
       html: htmlContent
     };
@@ -253,7 +253,7 @@ export const sendReferralSignupEmail = async (referrerEmail, referrerName, refer
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <!-- Header -->
       <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
@@ -311,7 +311,7 @@ View your dashboard: https://mindsta.com.ng/referral/dashboard
     const mailOptions = {
       from: FROM_ADDRESS,
       to: referrerEmail,
-      subject: '🎉 New Referral Signup - Mindsta',
+      subject: 'New Referral Signup – Mindsta',
       text: textContent,
       html: htmlContent
     };
@@ -339,7 +339,7 @@ export const sendPasswordResetEmail = async (email, name, resetUrl) => {
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <!-- Header -->
       <tr><td style="background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);padding:44px 36px;text-align:center;">
@@ -424,7 +424,7 @@ export const sendWelcomeEmail = async (email, name) => {
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <!-- Header -->
       <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
@@ -445,7 +445,7 @@ export const sendWelcomeEmail = async (email, name) => {
               <table cellpadding="0" cellspacing="0"><tr>
                 <td style="width:40px;font-size:22px;vertical-align:middle;">🔍</td>
                 <td style="vertical-align:middle;padding-left:12px;">
-                  <p style="margin:0 0 2px;color:#111827;font-weight:700;font-size:14px;">Explore Courses</p>
+                  <p style="margin:0 0 2px;color:#111827;font-weight:700;font-size:14px;">Explore lessons</p>
                   <p style="margin:0;color:#6b7280;font-size:13px;">Browse subjects across Grade 1–6 and Common Entrance</p>
                 </td>
               </tr></table>
@@ -481,7 +481,7 @@ export const sendWelcomeEmail = async (email, name) => {
         </div>
         <!-- CTA -->
         <div style="text-align:center;margin-bottom:24px;">
-          <a href="https://mindsta.com.ng" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:15px 44px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Explore Courses →</a>
+          <a href="https://mindsta.com.ng" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:15px 44px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Explore lessons →</a>
         </div>
         <p style="margin:0;color:#9ca3af;font-size:13px;text-align:center;">Need help? Contact us at <a href="mailto:support@mindsta.com.ng" style="color:#6366f1;text-decoration:none;">support@mindsta.com.ng</a></p>
       </td></tr>
@@ -504,7 +504,7 @@ Welcome to Mindsta — your gateway to quality education!
 We're thrilled to have you join our community of learners.
 
 Get started:
-• Explore Courses — Browse subjects across Grade 1–6 and Common Entrance
+• Explore lessons — Browse subjects across Grade 1–6 and Common Entrance
 • Track Progress — Detailed analytics and quiz scores in your dashboard
 • Refer & Earn — Share your code and earn commissions
 • Win Rewards — Complete quizzes and climb the leaderboard
@@ -520,7 +520,7 @@ Need help? Contact us at support@mindsta.com.ng
     const mailOptions = {
       from: FROM_ADDRESS,
       to: email,
-      subject: '🎓 Welcome to Mindsta - Start Your Learning Journey!',
+      subject: 'Welcome to Mindsta – Start Your Learning Journey',
       text: textContent,
       html: htmlContent
     };
@@ -548,7 +548,7 @@ export const sendPayoutRequestEmail = async (referrerEmail, referrerName, amount
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
         <div style="font-size:48px;line-height:1;margin-bottom:16px;">💸</div>
@@ -601,7 +601,7 @@ export const sendPayoutProcessedEmail = async (referrerEmail, referrerName, amou
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <tr><td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:44px 36px;text-align:center;">
         <div style="font-size:52px;line-height:1;margin-bottom:16px;">✅</div>
@@ -669,13 +669,13 @@ export const sendPaymentSuccessEmail = async (email, name, paymentDetails) => {
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <!-- Header -->
       <tr><td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:44px 36px;text-align:center;">
         <div style="font-size:52px;line-height:1;margin-bottom:16px;">✅</div>
         <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Payment Successful!</h1>
-        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">Your courses are now unlocked</p>
+        <p style="margin:10px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">Your lessons are now unlocked</p>
       </td></tr>
       <!-- Body -->
       <tr><td style="padding:36px 36px 28px;">
@@ -736,7 +736,7 @@ Thank you for your payment! Your transaction has been processed successfully.
 Payment Receipt
 Date: ${date}
 Reference: ${reference || 'N/A'}
-${items.length > 0 ? '\nPurchased Courses:\n' + items.map(item => {
+${items.length > 0 ? '\nPurchased lessons:\n' + items.map(item => {
   const courseName = item.name || `${item.subject || 'Course'} - Grade ${item.grade || ''} Term ${item.term || ''}`;
   return `- ${courseName}: ₦${(item.price || 0).toLocaleString()}`;
 }).join('\n') : ''}
@@ -777,7 +777,7 @@ export const sendCommissionEarnedEmail = async (referrerEmail, referrerName, com
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <!-- Header -->
       <tr><td style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);padding:44px 36px;text-align:center;">
@@ -850,7 +850,7 @@ View your dashboard: https://mindsta.com.ng/referral/dashboard
     const mailOptions = {
       from: FROM_ADDRESS,
       to: referrerEmail,
-      subject: '💰 Commission Earned - Mindsta Referral Program',
+      subject: 'Commission Earned – Mindsta Referral Program',
       text: textContent,
       html: htmlContent
     };
@@ -875,13 +875,14 @@ export const sendVerificationOTP = async (email, name, otp) => {
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Your Mindsta verification code — do not share it with anyone.</div>
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
   <tr><td align="center" style="padding:32px 16px;">
-    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">📚 Mindsta</p>
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
       <!-- Header -->
       <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:44px 36px;text-align:center;">
-        <div style="font-size:48px;line-height:1;margin-bottom:16px;">✉️</div>
+        <div style="font-size:48px;line-height:1;margin-bottom:16px;">&#10003;</div>
         <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;">Verify Your Email</h1>
         <p style="margin:10px 0 0;color:rgba(255,255,255,0.85);font-size:15px;">One step away from starting your journey</p>
       </td></tr>
@@ -893,9 +894,13 @@ export const sendVerificationOTP = async (email, name, otp) => {
         </p>
         <!-- OTP Code Box -->
         <div style="background:#f0f4ff;border:2px dashed #6366f1;border-radius:12px;padding:28px;text-align:center;margin-bottom:28px;">
-          <p style="margin:0 0 8px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your Verification Code</p>
-          <p style="margin:0;font-size:42px;font-weight:800;color:#6366f1;letter-spacing:10px;">${otp}</p>
-          <p style="margin:10px 0 0;color:#9ca3af;font-size:12px;">Expires in 10 minutes</p>
+          <p style="margin:0 0 16px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Your Verification Code</p>
+          <table cellpadding="0" cellspacing="0" style="margin:0 auto 12px;">
+            <tr>
+              ${otp.toString().split('').map(d => `<td style="padding:0 4px;"><div style="width:44px;height:54px;background:#ffffff;border:2px solid #6366f1;border-radius:10px;display:inline-block;line-height:54px;text-align:center;font-size:28px;font-weight:800;color:#4f46e5;box-shadow:0 2px 8px rgba(99,102,241,0.15);">${d}</div></td>`).join('')}
+            </tr>
+          </table>
+          <p style="margin:0;color:#9ca3af;font-size:12px;">Expires in 10 minutes &nbsp;·&nbsp; Do not share this code with anyone</p>
         </div>
         <p style="margin:0 0 8px;color:#4b5563;font-size:14px;line-height:1.6;">
           Enter this code on the verification page to activate your account.
@@ -965,58 +970,38 @@ export const sendNewsletterEmail = async (email, name, subject, message) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${subject}</title>
       </head>
-      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f7fa;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-          <!-- Header -->
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center;">
-            <div style="display: inline-block; background-color: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 50px; margin-bottom: 10px;">
-              <span style="color: #ffffff; font-size: 24px; font-weight: bold;">📚 Mindsta</span>
-            </div>
-            <h1 style="color: #ffffff; margin: 10px 0 0 0; font-size: 28px; font-weight: 700;">${subject}</h1>
-          </div>
-
-          <!-- Content -->
-          <div style="padding: 40px 30px;">
-            <p style="color: #2d3748; font-size: 16px; margin: 0 0 20px 0;">Hi <strong>${firstName}</strong>,</p>
-            <div style="color: #2d3748; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">
-              ${message}
-            </div>
-
-            <!-- CTA Button -->
-            <div style="text-align: center; margin: 40px 0;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth" 
-                 style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);">
-                Visit Mindsta
-              </a>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div style="background-color: #f7fafc; padding: 30px 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="color: #718096; font-size: 14px; margin: 0 0 10px 0;">
-              You're receiving this because you subscribed to Mindsta newsletter
-            </p>
-            <p style="color: #718096; font-size: 14px; margin: 0 0 20px 0;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings" style="color: #667eea; text-decoration: none;">Manage Preferences</a> | 
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/unsubscribe" style="color: #667eea; text-decoration: none;">Unsubscribe</a>
-            </p>
-            <div style="margin: 20px 0;">
-              <a href="https://facebook.com" style="display: inline-block; margin: 0 8px;">
-                <img src="https://img.icons8.com/color/48/000000/facebook-new.png" alt="Facebook" style="width: 24px; height: 24px;">
-              </a>
-              <a href="https://twitter.com" style="display: inline-block; margin: 0 8px;">
-                <img src="https://img.icons8.com/color/48/000000/twitter--v1.png" alt="Twitter" style="width: 24px; height: 24px;">
-              </a>
-              <a href="https://instagram.com" style="display: inline-block; margin: 0 8px;">
-                <img src="https://img.icons8.com/color/48/000000/instagram-new--v1.png" alt="Instagram" style="width: 24px; height: 24px;">
-              </a>
-            </div>
-            <p style="color: #a0aec0; font-size: 12px; margin: 20px 0 0 0;">
-              © ${new Date().getFullYear()} Mindsta. All rights reserved.<br>
-              Empowering minds through quality education
-            </p>
-          </div>
+      <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f0f4f8;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:800;color:#6366f1;">Mindsta</p>
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.09);">
+      <!-- Header -->
+      <tr><td style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:40px 36px;text-align:center;">
+        <p style="margin:0 0 10px;color:#ffffff;font-size:22px;font-weight:800;">Mindsta</p>
+        <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">${subject}</h1>
+      </td></tr>
+      <!-- Content -->
+      <tr><td style="padding:36px 36px 28px;">
+        <p style="margin:0 0 16px;color:#374151;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
+        <div style="color:#4b5563;font-size:15px;line-height:1.7;white-space:pre-wrap;margin-bottom:28px;">${message}</div>
+        <!-- CTA Button -->
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${process.env.FRONTEND_URL || 'https://mindsta.com.ng'}" style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#ffffff;text-decoration:none;padding:15px 44px;border-radius:8px;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Visit Mindsta &rarr;</a>
         </div>
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:24px 36px;text-align:center;">
+        <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">You're receiving this because you subscribed to the Mindsta newsletter.</p>
+        <p style="margin:0 0 12px;">
+          <a href="${process.env.FRONTEND_URL || 'https://mindsta.com.ng'}/unsubscribe" style="color:#6366f1;font-size:13px;text-decoration:none;">Unsubscribe</a>
+          &nbsp;·&nbsp;
+          <a href="mailto:support@mindsta.com.ng" style="color:#6366f1;font-size:13px;text-decoration:none;">Contact Support</a>
+        </p>
+        <p style="margin:0;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta &nbsp;·&nbsp; Empowering minds through quality education</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
       </body>
       </html>
     `;
@@ -1091,8 +1076,8 @@ export const sendAbandonedCartEmail = async (email, name, items = [], totalAmoun
     <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f5f7fa;">
       <div style="max-width:600px;margin:0 auto;background:#ffffff;">
         <!-- Header -->
-        <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:35px 30px;text-align:center;">
-          <p style="color:#fff;font-size:26px;font-weight:700;margin:0;">📚 Mindsta</p>
+        <div style="background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);padding:35px 30px;text-align:center;">
+          <p style="color:#fff;font-size:26px;font-weight:700;margin:0;">Mindsta</p>
           <h1 style="color:#fff;margin:12px 0 0;font-size:24px;">You left something behind!</h1>
           <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:15px;">Your cart is waiting for you</p>
         </div>
@@ -1101,7 +1086,7 @@ export const sendAbandonedCartEmail = async (email, name, items = [], totalAmoun
         <div style="padding:35px 30px;">
           <p style="color:#2d3748;font-size:16px;margin:0 0 20px;">Hi <strong>${firstName}</strong>,</p>
           <p style="color:#4a5568;font-size:15px;line-height:1.6;margin:0 0 25px;">
-            Great news — the courses in your cart are still available! 
+            Great news — the lessons in your cart are still available! 
             You're just one step away from unlocking quality lessons for your studies.
           </p>
 
@@ -1112,7 +1097,7 @@ export const sendAbandonedCartEmail = async (email, name, items = [], totalAmoun
               ${itemRows}
               <tr>
                 <td style="padding:12px 0 0;font-weight:700;color:#1a202c;font-size:16px;">Total</td>
-                <td style="padding:12px 0 0;text-align:right;font-weight:700;color:#667eea;font-size:18px;">₦${totalAmount.toLocaleString()}</td>
+                <td style="padding:12px 0 0;text-align:right;font-weight:700;color:#6366f1;font-size:18px;">₦${totalAmount.toLocaleString()}</td>
               </tr>
             </table>
           </div>
@@ -1120,22 +1105,22 @@ export const sendAbandonedCartEmail = async (email, name, items = [], totalAmoun
           <!-- CTA -->
           <div style="text-align:center;margin:30px 0;">
             <a href="${cartUrl}"
-               style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;padding:16px 48px;border-radius:8px;font-weight:700;font-size:16px;box-shadow:0 4px 10px rgba(102,126,234,0.35);">
+               style="display:inline-block;background:linear-gradient(135deg,#6366f1 0%,#7c3aed 100%);color:#fff;text-decoration:none;padding:16px 48px;border-radius:8px;font-weight:700;font-size:16px;box-shadow:0 4px 10px rgba(99,102,241,0.35);">
               Complete My Purchase →
             </a>
           </div>
 
           <p style="color:#718096;font-size:14px;text-align:center;margin:0;">
-            Questions? <a href="https://mindsta.com.ng/help" style="color:#667eea;text-decoration:none;">Visit our Help Centre</a>
+            Questions? <a href="https://mindsta.com.ng/help" style="color:#6366f1;text-decoration:none;">Visit our Help Centre</a>
           </p>
         </div>
 
         <!-- Footer -->
-        <div style="background:#f7fafc;padding:25px 30px;text-align:center;border-top:1px solid #e2e8f0;">
-          <p style="color:#a0aec0;font-size:12px;margin:0;">
-            © ${new Date().getFullYear()} Mindsta. All rights reserved.<br>
+        <div style="background:#f9fafb;padding:24px 30px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="color:#6b7280;font-size:13px;margin:0 0 6px;">
             You received this because you have items in your Mindsta cart.
           </p>
+          <p style="margin:0;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Mindsta &nbsp;·&nbsp; <a href="mailto:support@mindsta.com.ng" style="color:#6366f1;text-decoration:none;">support@mindsta.com.ng</a></p>
         </div>
       </div>
     </body>

@@ -1,5 +1,5 @@
-// Utility for matching enrollments to courses/lessons
-// Ensures purchased courses are always recognized correctly
+// Utility for matching enrollments to lessons/lessons
+// Ensures purchased lessons are always recognized correctly
 export function isEnrolled(enrollment, subject, grade, term, lessonId?: string) {
   // Normalize and compare grades
   const enrollmentGrade = String(enrollment.grade).trim().toLowerCase();
@@ -10,8 +10,8 @@ export function isEnrolled(enrollment, subject, grade, term, lessonId?: string) 
   
   // Normalize and compare subjects (case-insensitive, trim spaces)
   const enrollmentSubject = (enrollment.subject || '').toLowerCase().trim();
-  const courseSubject = (subject || '').toLowerCase().trim();
-  const subjectMatch = enrollmentSubject === courseSubject;
+  const lessonsubject = (subject || '').toLowerCase().trim();
+  const subjectMatch = enrollmentSubject === lessonsubject;
   
   // Normalize and compare terms (handle null/undefined/empty)
   const enrollmentTerm = (enrollment.term || '').toLowerCase().trim();
@@ -37,7 +37,7 @@ export function isEnrolled(enrollment, subject, grade, term, lessonId?: string) 
 
   // Subject-level check (no lessonId requested) — any enrollment for this
   // subject+grade+term grants access (used for subject page access control).
-  console.log(`✅ Enrollment match: ${courseSubject} (Grade ${courseGrade}, Term: ${courseTerm || 'N/A'})`);
+  console.log(`✅ Enrollment match: ${lessonsubject} (Grade ${courseGrade}, Term: ${courseTerm || 'N/A'})`);
   return true;
 }
 

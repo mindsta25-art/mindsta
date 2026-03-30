@@ -37,7 +37,7 @@ import {
   CheckCircle2,
   Target
 } from "lucide-react";
-import { getLessonsBySubjectAndGrade, getUserProgress, getStudentByUserId } from "@/api";
+import { getLessonsBySubjectAndGrade, getUserProgress, getStudentByUserId, getLessonById } from "@/api";
 import { recordStudyTime } from "@/api/gamification";
 import { getQuizByLessonId, getQuizzesByFilters, getQuizById } from "@/api/quizzes";
 import { upsertProgress } from "@/api/progress";
@@ -81,6 +81,7 @@ interface Lesson {
 interface Progress {
   lessonId: string;
   completed: boolean;
+  videoWatchPercent?: number;
 }
 
 interface QuizUIQuestion {
@@ -230,6 +231,7 @@ const SubjectLessonsPage = () => {
         setProgress(progressData.map(p => ({
           lessonId: p.lessonId,
           completed: p.completed,
+          videoWatchPercent: p.videoWatchPercent,
         })));
         
         // Auto-select the lesson from URL param, or fall back to first lesson
@@ -237,15 +239,39 @@ const SubjectLessonsPage = () => {
           const targetLesson = lessonIdParam
             ? (lessonsData.find(l => l.id === lessonIdParam) || lessonsData[0])
             : lessonsData[0];
-          setSelectedLesson({
-            id: targetLesson.id,
-            title: targetLesson.title,
-            description: targetLesson.description,
-            content: targetLesson.content || '',
-            duration: targetLesson.duration || 30,
-            videoUrl: targetLesson.videoUrl,
-            imageUrl: targetLesson.imageUrl,
-          });
+          // Fetch full content via :id endpoint — this enforces the backend enrollment gate
+          try {
+            const fullLesson = await getLessonById(targetLesson.id);
+            setSelectedLesson(fullLesson ? {
+              id: fullLesson.id,
+              title: fullLesson.title,
+              description: fullLesson.description,
+              content: fullLesson.content || '',
+              overview: (fullLesson as any).overview,
+              whatYouWillLearn: fullLesson.whatYouWillLearn,
+              requirements: fullLesson.requirements,
+              targetAudience: fullLesson.targetAudience,
+              duration: fullLesson.duration || 30,
+              videoUrl: fullLesson.videoUrl,
+              imageUrl: fullLesson.imageUrl,
+            } : {
+              id: targetLesson.id,
+              title: targetLesson.title,
+              description: targetLesson.description,
+              content: '',
+              duration: targetLesson.duration || 30,
+              imageUrl: targetLesson.imageUrl,
+            });
+          } catch {
+            setSelectedLesson({
+              id: targetLesson.id,
+              title: targetLesson.title,
+              description: targetLesson.description,
+              content: '',
+              duration: targetLesson.duration || 30,
+              imageUrl: targetLesson.imageUrl,
+            });
+          }
           // Record lesson access immediately (Udemy-style progress tracking)
           if (user?.id && targetLesson.id) {
             upsertProgress({
@@ -596,6 +622,11 @@ const SubjectLessonsPage = () => {
     return progress.some((p) => p.lessonId === lessonId && p.completed);
   };
 
+  const getLessonWatchPercent = (lessonId: string): number => {
+    const p = progress.find(p => p.lessonId === lessonId);
+    return p?.videoWatchPercent || 0;
+  };
+
   // Start a quiz by ID — fetches full quiz (with questions) from the API
   const handleStartQuiz = async (quizId: string) => {
     setLoadingQuiz(true);
@@ -635,6 +666,7 @@ const SubjectLessonsPage = () => {
   };
 
   const handleLessonClick = async (lesson: Lesson) => {
+    // Set basic info immediately for instant UI feedback
     setSelectedLesson(lesson);
     setCurrentTab("content");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -647,6 +679,30 @@ const SubjectLessonsPage = () => {
         completed: false,
         lastAccessedAt: new Date(),
       }).catch(() => {});
+    }
+
+    // Fetch full lesson content via :id endpoint — triggers the backend enrollment gate
+    try {
+      const fullLesson = await getLessonById(lesson.id);
+      if (fullLesson) {
+        setSelectedLesson(prev => prev?.id === fullLesson.id ? {
+          ...prev,
+          content: fullLesson.content || '',
+          videoUrl: fullLesson.videoUrl,
+          overview: (fullLesson as any).overview,
+          whatYouWillLearn: fullLesson.whatYouWillLearn,
+          requirements: fullLesson.requirements,
+          targetAudience: fullLesson.targetAudience,
+        } : prev);
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 403) {
+        toast({
+          title: 'Course not purchased',
+          description: 'Please purchase this course to access lesson content.',
+          variant: 'destructive',
+        });
+      }
     }
 
     // Fetch quiz for the selected lesson
@@ -715,6 +771,7 @@ const SubjectLessonsPage = () => {
         const progressMap = userProgress.map((p: any) => ({
           lessonId: p.lessonId,
           completed: p.completed || false,
+          videoWatchPercent: p.videoWatchPercent,
         }));
         setProgress(progressMap);
       }
@@ -789,7 +846,7 @@ const SubjectLessonsPage = () => {
               </div>
               <div className="flex gap-3 justify-center">
                 <Button onClick={() => navigate('/browse')} variant="outline">
-                  Browse lessonss
+                  Browse lessons
                 </Button>
                 <Button onClick={() => navigate('/cart')} className="gap-2">
                   <ShoppingCart className="w-4 h-4" />
@@ -973,7 +1030,7 @@ const SubjectLessonsPage = () => {
                                 completedAt: new Date(),
                               });
                               const updated = await getUserProgress(user.id);
-                              setProgress(updated.map((p: any) => ({ lessonId: p.lessonId, completed: p.completed || false })));
+                              setProgress(updated.map((p: any) => ({ lessonId: p.lessonId, completed: p.completed || false, videoWatchPercent: p.videoWatchPercent })));
                               toast({ title: "Lesson completed! 🎉", description: "Great work — keep it up!" });
                             } catch {
                               toast({ title: "Could not save progress", variant: "destructive" });
@@ -1171,20 +1228,7 @@ const SubjectLessonsPage = () => {
                 <TabsContent value="content">
                   {selectedLesson ? (
                     <div className="space-y-4">
-                      {/* Full lesson content (rich text HTML) */}
-                      {selectedLesson.content && selectedLesson.content.trim().length > 10 ? (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Lesson Content</CardTitle>
-                          </CardHeader>
-                          <CardContent className="overflow-hidden">
-                            <div
-                              className="prose prose-sm dark:prose-invert max-w-none leading-relaxed break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
-                              dangerouslySetInnerHTML={{ __html: selectedLesson.content }}
-                            />
-                          </CardContent>
-                        </Card>
-                      ) : null}
+
 
                       {/* Brief description — skip if it looks like a plain URL */}
                       {(() => {
@@ -1203,8 +1247,8 @@ const SubjectLessonsPage = () => {
                         );
                       })()}
 
-                      {/* Fallback if neither content nor description is useful */}
-                      {!selectedLesson.content && (() => {
+                      {/* Fallback if no description is useful */}
+                      {(() => {
                         const raw = stripHtml(selectedLesson.description || '');
                         const isUrl = /^https?:\/\//.test(raw) || /^www\./.test(raw);
                         if (!raw || isUrl) {
@@ -1675,13 +1719,23 @@ const SubjectLessonsPage = () => {
                                             <span className="text-green-600">Completed</span>
                                           </>
                                         )}
-                                        {!completed && Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30 && (
+                                        {!completed && (getLessonWatchPercent(lesson.id) > 0 || Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30) && (
                                           <>
                                             <span>•</span>
-                                            <span className="text-blue-500">In progress</span>
+                                            <span className="text-blue-500">
+                                              {getLessonWatchPercent(lesson.id) > 0 ? `${getLessonWatchPercent(lesson.id)}% watched` : 'In progress'}
+                                            </span>
                                           </>
                                         )}
                                       </div>
+                                      {!completed && getLessonWatchPercent(lesson.id) > 0 && (
+                                        <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+                                          <div
+                                            className="h-full bg-blue-500 rounded-full transition-all"
+                                            style={{ width: `${getLessonWatchPercent(lesson.id)}%` }}
+                                          />
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -1768,10 +1822,20 @@ const SubjectLessonsPage = () => {
                           <Clock className="w-3 h-3" />
                           <span>{lesson.duration} min</span>
                           {completed && <span className="text-green-600 font-medium">• Completed</span>}
-                          {!completed && Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30 && (
-                            <span className="text-blue-500 font-medium">• In progress</span>
+                          {!completed && (getLessonWatchPercent(lesson.id) > 0 || Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30) && (
+                            <span className="text-blue-500 font-medium">
+                              {getLessonWatchPercent(lesson.id) > 0 ? `• ${getLessonWatchPercent(lesson.id)}% watched` : '• In progress'}
+                            </span>
                           )}
                         </div>
+                        {!completed && getLessonWatchPercent(lesson.id) > 0 && (
+                          <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full transition-all"
+                              style={{ width: `${getLessonWatchPercent(lesson.id)}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
                       <ChevronRight className={`w-4 h-4 flex-shrink-0 ${
                         selectedLesson?.id === lesson.id ? 'text-purple-600' : 'text-muted-foreground'

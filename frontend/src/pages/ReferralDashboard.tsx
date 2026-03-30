@@ -292,7 +292,6 @@ export default function ReferralDashboard() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              whileHover={{ scale: 1.02, y: -5 }}
             >
               <Card className="bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-xl">
               <CardHeader>
@@ -339,18 +338,13 @@ export default function ReferralDashboard() {
             >
               <motion.div 
                 variants={cardVariants}
-                whileHover={{ scale: 1.05, y: -5 }}
+                whileHover={{ y: -3 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 <Card className="border-purple-200 hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
-                  <motion.div
-                    whileHover={{ rotate: 360 }}
-                    transition={{ duration: 0.6 }}
-                  >
-                    <Users className="h-4 w-4 text-purple-600" />
-                  </motion.div>
+                  <Users className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
                   <motion.div 
@@ -370,18 +364,13 @@ export default function ReferralDashboard() {
 
               <motion.div 
                 variants={cardVariants}
-                whileHover={{ scale: 1.05, y: -5 }}
+                whileHover={{ y: -3 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 <Card className="border-green-200 hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-                  <motion.div
-                    whileHover={{ rotate: [0, -15, 15, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                  </motion.div>
+                  <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
                   <motion.div 
@@ -401,18 +390,13 @@ export default function ReferralDashboard() {
 
               <motion.div 
                 variants={cardVariants}
-                whileHover={{ scale: 1.05, y: -5 }}
+                whileHover={{ y: -3 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 <Card className="border-orange-200 hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pending Earnings</CardTitle>
-                  <motion.div
-                    animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  >
-                    <Clock className="h-4 w-4 text-orange-600" />
-                  </motion.div>
+                  <Clock className="h-4 w-4 text-orange-600" />
                 </CardHeader>
                 <CardContent>
                   <motion.div 
@@ -432,18 +416,13 @@ export default function ReferralDashboard() {
 
               <motion.div 
                 variants={cardVariants}
-                whileHover={{ scale: 1.05, y: -5 }}
+                whileHover={{ y: -3 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 <Card className="border-pink-200 hover:shadow-lg transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Paid Out</CardTitle>
-                  <motion.div
-                    whileHover={{ scale: 1.2 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <CheckCircle className="h-4 w-4 text-pink-600" />
-                  </motion.div>
+                  <CheckCircle className="h-4 w-4 text-pink-600" />
                 </CardHeader>
                 <CardContent>
                   <motion.div 
@@ -619,7 +598,7 @@ export default function ReferralDashboard() {
                           key={ref.id} 
                           className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
                           variants={itemVariants}
-                          whileHover={{ scale: 1.02, x: 5 }}
+                          whileHover={{ x: 3 }}
                           transition={{ type: "spring", stiffness: 300 }}
                         >
                           <div className="flex-1">
@@ -727,7 +706,7 @@ export default function ReferralDashboard() {
                           key={tx.id} 
                           className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
                           variants={itemVariants}
-                          whileHover={{ scale: 1.02, x: 5 }}
+                          whileHover={{ x: 3 }}
                           transition={{ type: "spring", stiffness: 300 }}
                         >
                           <div className="flex-1">
@@ -793,13 +772,13 @@ export default function ReferralDashboard() {
                       <Button 
                         variant="outline" 
                         onClick={copyReferralLink} 
-                        className="flex-1 hover:scale-105 transition-transform"
+                        className="flex-1"
                       >
                         <Copy className="h-4 w-4 mr-2"/>Copy
                       </Button>
                       <Button 
                         onClick={shareReferralLink} 
-                        className="flex-1 hover:scale-105 transition-transform"
+                        className="flex-1"
                       >
                         <Share2 className="h-4 w-4 mr-2"/>Share
                       </Button>
@@ -820,7 +799,6 @@ export default function ReferralDashboard() {
                       initial={{ scale: 0, rotate: -180 }}
                       animate={{ scale: 1, rotate: 0 }}
                       transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-                      whileHover={{ scale: 1.05, rotate: 5 }}
                     >
                       <QRCode value={getReferralUrl()} size={180} />
                     </motion.div>
@@ -860,7 +838,6 @@ export default function ReferralDashboard() {
                     >
                       <Button 
                         onClick={() => navigate('/referral/settings')}
-                        className="hover:scale-105 transition-transform"
                       >
                         <Settings className="h-4 w-4 mr-2"/> Open Settings
                       </Button>
@@ -907,7 +884,7 @@ export default function ReferralDashboard() {
                           setShowTerms(true);
                           window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
                         }}
-                        className="w-full hover:scale-105 transition-transform"
+                        className="w-full"
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         View Full Terms & Conditions

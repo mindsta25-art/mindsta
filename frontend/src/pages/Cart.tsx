@@ -83,7 +83,8 @@ const Cart = () => {
               
               return {
                 ...item,
-                price: subjectInfo?.price || 0, // Use current price from database
+                // Prefer the price stored on the cart item itself; fall back to subject info price
+                price: item.price || subjectInfo?.price || 0,
                 lessonCount: subjectInfo?.lessonCount || 0,
                 rating: subjectInfo?.rating || 0,
                 enrolledStudents: subjectInfo?.enrolledStudents || 0,
@@ -124,8 +125,14 @@ const Cart = () => {
 
   const isEmpty = !cart || cart.items.length === 0;
 
-  // Calculate total from enriched items (with current database prices)
-  const calculatedTotal = enrichedItems.reduce((sum, item) => sum + item.price, 0);
+  // Use enriched items if available, otherwise fall back to raw cart items so
+  // the list is never blank while enrichment is still in progress.
+  const displayItems: EnrichedCartItem[] = enrichedItems.length > 0
+    ? enrichedItems
+    : (cart?.items ?? []) as EnrichedCartItem[];
+
+  // Calculate total from displayed items
+  const calculatedTotal = displayItems.reduce((sum, item) => sum + (item.price || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -150,7 +157,7 @@ const Cart = () => {
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold mb-2">Your cart is empty</h2>
                 <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
-                  Start adding courses to your cart and checkout when you're ready
+                  Start adding lessons to your cart and checkout when you're ready
                 </p>
                 <Button onClick={() => navigate("/browse")} size="lg" className="gap-2 w-full sm:w-auto">
                   <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -163,12 +170,12 @@ const Cart = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               {/* Cart Items */}
               <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-                {enrichedItems.map((item) => (
+                {displayItems.map((item) => (
                   <Card key={item._id} className="overflow-hidden hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
-                      <div className="flex gap-4">
+                      <div className="flex gap-3 sm:gap-4">
                         {/* Course Thumbnail */}
-                        <div className="relative w-28 h-16 sm:w-32 sm:h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded flex-shrink-0 overflow-hidden">
+                        <div className="relative w-20 h-14 sm:w-28 sm:h-16 md:w-32 md:h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded flex-shrink-0 overflow-hidden">
                           <div className="absolute inset-0 flex items-center justify-center">
                             <BookOpen className="w-8 h-8 text-white opacity-90" />
                           </div>
@@ -181,7 +188,7 @@ const Cart = () => {
                             <span className="text-xs text-muted-foreground">Grade {item.grade}</span>
                             {item.term && <span className="text-xs text-muted-foreground">• {item.term}</span>}
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                          <div className="flex flex-wrap items-center gap-2 gap-y-1 text-xs text-muted-foreground mb-2">
                             {item.rating > 0 && (
                               <div className="flex items-center gap-1">
                                 <span className="font-semibold text-orange-600">{item.rating.toFixed(1)}</span>

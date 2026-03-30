@@ -76,7 +76,8 @@ const Checkout = () => {
               
               return {
                 ...item,
-                price: subjectInfo?.price || 0, // Use current price from database
+                // Prefer price stored on the cart item; fall back to subject info price
+                price: item.price || subjectInfo?.price || 0,
                 lessonCount: subjectInfo?.lessonCount || 0,
                 rating: subjectInfo?.rating || 0,
                 enrolledStudents: subjectInfo?.enrolledStudents || 0,
@@ -103,8 +104,14 @@ const Checkout = () => {
 
   const isEmpty = !cart || cart.items.length === 0;
 
-  // Calculate total from enriched items (with current database prices)
-  const calculatedTotal = enrichedItems.reduce((sum, item) => sum + item.price, 0);
+  // Use enriched items if available, otherwise fall back to raw cart items
+  // so the list is never blank while enrichment is still in progress.
+  const displayItems: EnrichedCartItem[] = enrichedItems.length > 0
+    ? enrichedItems
+    : (cart?.items ?? []) as EnrichedCartItem[];
+
+  // Calculate total from displayed items
+  const calculatedTotal = displayItems.reduce((sum, item) => sum + (item.price || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -128,7 +135,7 @@ const Checkout = () => {
                   <CardContent className="p-6">
                     <h2 className="text-xl font-bold mb-6">Order Details</h2>
                     <div className="space-y-4">
-                      {enrichedItems.map((item) => (
+                      {displayItems.map((item) => (
                         <div key={item._id} className="flex gap-4 pb-4 border-b last:border-b-0">
                           <div className="w-24 h-16 bg-gradient-to-br from-purple-500 to-purple-700 rounded flex-shrink-0 flex items-center justify-center">
                             <BookOpen className="w-6 h-6 text-white" />
@@ -180,7 +187,7 @@ const Checkout = () => {
                       onClick={async () => {
                         try {
                           const total = calculatedTotal;
-                          if (total <= 0 || enrichedItems.length === 0) {
+                          if (total <= 0 || displayItems.length === 0) {
                             toast({
                               title: 'Cannot process checkout',
                               description: total <= 0
@@ -191,7 +198,7 @@ const Checkout = () => {
                             return;
                           }
                           
-                          const items = enrichedItems.map(item => ({
+                          const items = displayItems.map(item => ({
                             subject: item.subject,
                             grade: item.grade,
                             term: item.term || undefined,
@@ -212,7 +219,7 @@ const Checkout = () => {
                           toast({ title: 'Payment Failed', description: e.message || 'Please try again', variant: 'destructive' });
                         }
                       }}
-                      disabled={calculatedTotal <= 0 || enrichedItems.length === 0 || fetchingDetails}
+                      disabled={calculatedTotal <= 0 || displayItems.length === 0 || fetchingDetails}
                     >
                       {fetchingDetails ? 'Loading...' : 'Complete Checkout'}
                     </Button>

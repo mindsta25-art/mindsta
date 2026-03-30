@@ -20,6 +20,8 @@ const createBlankQuestion = (): QuizQuestion => ({
   explanation: "",
 });
 
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
+
 const CreateQuiz = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -65,13 +67,13 @@ const CreateQuiz = () => {
   }, [form.lessonId]);
 
   const isComplete = (q: QuizQuestion) =>
-    q.question.trim() &&
+    stripHtml(q.question) !== "" &&
     Array.isArray(q.options) &&
     q.options.length === 4 &&
     q.options.every((o) => o.trim()) &&
     q.correctAnswer >= 0 &&
     q.correctAnswer < 4 &&
-    q.explanation.trim();
+    stripHtml(q.explanation) !== "";
 
   const completedCount = questions.filter(isComplete).length;
   const allTenComplete = questions.length === 10 && completedCount === 10;
@@ -129,7 +131,7 @@ const CreateQuiz = () => {
       toast({ title: "Validation Error", description: "Exam must contain exactly 10 questions", variant: "destructive" });
       return;
     }
-    const validQs = questions.filter((q) => q.question.trim() && q.options.every((o) => o.trim()) && q.explanation.trim());
+    const validQs = questions.filter((q) => stripHtml(q.question) !== "" && q.options.every((o) => o.trim()) && stripHtml(q.explanation) !== "");
     if (validQs.length !== 10) {
       toast({ title: "Validation Error", description: "Please complete all 10 questions", variant: "destructive" });
       return;
@@ -341,10 +343,12 @@ const CreateQuiz = () => {
                         </Button>
                       )}
                     </div>
-                    <Input
+                    <RichTextEditor
+                      label="Question"
                       value={q.question}
-                      onChange={(e) => updateQ("question", e.target.value)}
-                      placeholder="Enter question"
+                      onChange={(v) => updateQ("question", v)}
+                      placeholder="Enter question text (use the toolbar to insert images)"
+                      minHeight="80px"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       {q.options.map((option, oIdx) => (

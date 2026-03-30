@@ -590,7 +590,7 @@ const ReferralManagement = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Paid Referrals</CardTitle>
-                <CardDescription>Referrals who have completed courses and received commissions</CardDescription>
+                <CardDescription>Referrals who have completed lessons and received commissions</CardDescription>
               </CardHeader>
               <CardContent>
                 {filteredReferrals.filter(r => r.rewardClaimed).length === 0 ? (
