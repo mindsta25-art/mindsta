@@ -109,12 +109,12 @@ const AdminAuth = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
-                <BookOpen className="w-6 h-6 text-white" />
+              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
+                <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta Admin</h1>
-                <span className="text-xs text-muted-foreground font-medium">Administrative Excellence Portal</span>
+                <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta Admin</h1>
+                <span className="text-[10px] text-muted-foreground leading-tight">Administrative Excellence Portal</span>
               </div>
             </div>
             

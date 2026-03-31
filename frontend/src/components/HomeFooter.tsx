@@ -121,11 +121,11 @@ const HomeFooterComponent = () => {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2.5 mb-4 group w-fit">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
-                <BookOpen className="w-6 h-6 text-white" />
+              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
+                <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
-                <span className="text-xl font-bold text-white">Mindsta</span>
+                <span className="text-lg sm:text-xl font-bold text-white">Mindsta</span>
                 <span className="text-[10px] block text-slate-400 leading-tight">... Every Child Can Do Well</span>
               </div>
             </Link>

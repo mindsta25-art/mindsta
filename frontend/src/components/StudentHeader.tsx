@@ -287,7 +287,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   return (
     <>
     <TooltipProvider delayDuration={300}>
-    <header className="fixed top-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-sm border-b border-border/60 z-50">
+    <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 shadow-sm border-b z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -311,7 +311,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/dashboard")}
-                className={`font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40 hover:text-purple-700'}`}
+                className={`font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
               >
                 <Home className="w-4 h-4 mr-2" />
                 Dashboard
@@ -319,14 +319,14 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/browse")}
-                className={`font-medium transition-colors ${location.pathname === '/browse' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40 hover:text-purple-700'}`}
+                className={`font-medium transition-colors ${location.pathname === '/browse' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
               >
-                Browse Courses
+                Browse Lessons
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => navigate("/my-learning")}
-                className={`font-medium transition-colors ${location.pathname === '/my-learning' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40 hover:text-purple-700'}`}
+                className={`font-medium transition-colors ${location.pathname === '/my-learning' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
               >
                 My Learning
               </Button>
@@ -383,17 +383,8 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery && setShowSuggestions(true)}
-                className="pl-10 pr-8 w-full border-gray-300 dark:border-gray-700"
+                className="pl-10 w-full border-gray-300 dark:border-gray-700"
               />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => { setSearchQuery(''); setShowSuggestions(false); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
               
               {/* Search Suggestions Dropdown */}
               {showSuggestions && searchSuggestions.length > 0 && (
@@ -420,7 +411,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-sm mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                            <h4 className="font-semibold text-sm mb-1 line-clamp-1 group-hover:text-indigo-600 transition-colors">
                               {lesson.title}
                             </h4>
                             <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
@@ -435,13 +426,13 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                               </span>
                             </div>
                           </div>
-                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-indigo-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                         </div>
                       </button>
                     ))}
                     <button
                       onClick={handleSearch}
-                      className="w-full p-3 bg-muted/30 hover:bg-muted/50 transition-colors text-center font-medium text-sm text-purple-600"
+                      className="w-full p-3 bg-muted/30 hover:bg-muted/50 transition-colors text-center font-medium text-sm text-indigo-600"
                     >
                       View all results for "{searchQuery}"
                     </button>
@@ -461,7 +452,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                   size="icon"
                   onClick={toggleTheme}
                   aria-label="Toggle theme"
-                  className="hidden md:flex hover:bg-purple-100 dark:hover:bg-purple-950/40"
+                  className="hidden md:flex hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                 >
                   {theme === 'dark' ? (
                     <Sun className="w-5 h-5" />
@@ -476,13 +467,13 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             {/* Notification Bell */}
             <NotificationBell />
             
-            {/* Wishlist Icon with count - visible on all screens */}
+            {/* Wishlist — desktop only; accessible via Sheet on mobile */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="flex relative hover:bg-purple-100 dark:hover:bg-purple-950/40"
+                  className="hidden md:flex relative hover:bg-rose-50 dark:hover:bg-rose-950/40"
                   onClick={() => navigate("/wishlist")}
                   aria-label="Wishlist"
                 >
@@ -496,13 +487,13 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               </TooltipTrigger>
               <TooltipContent side="bottom">Wishlist</TooltipContent>
             </Tooltip>
-            {/* Cart Icon with Hover Dropdown - visible on all screens */}
+            {/* Cart — desktop only, hover to preview; accessible via Sheet on mobile */}
             <HoverCard openDelay={100} closeDelay={200}>
               <HoverCardTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="flex relative hover:bg-purple-100 dark:hover:bg-purple-950/40"
+                  className="hidden md:flex relative hover:bg-purple-100 dark:hover:bg-purple-950/40"
                   onClick={() => navigate("/cart")}
                   aria-label="Shopping cart"
                 >
@@ -600,7 +591,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2 px-2 lg:px-3 hover:bg-purple-100 dark:hover:bg-purple-950/40 rounded-lg">
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-semibold">
+                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-600 text-white text-sm font-semibold">
                         {getInitials(displayName)}
                       </AvatarFallback>
                     </Avatar>
@@ -670,9 +661,9 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
-              onClick={() => { setMobileSearchOpen(v => !v); setSearchQuery(''); }}
-              aria-label={mobileSearchOpen ? "Close search" : "Open search"}
+              className="md:hidden hover:bg-purple-100 dark:hover:bg-purple-950/40"
+              onClick={() => { setMobileSearchOpen(v => !v); setSearchQuery(''); setShowSuggestions(false); }}
+              aria-label={mobileSearchOpen ? 'Close search' : 'Search'}
             >
               {mobileSearchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
             </Button>
@@ -680,7 +671,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="md:hidden hover:bg-purple-100 dark:hover:bg-purple-950/40"
               onClick={() => { setMobileMenuOpen(true); setMobileSearchOpen(false); setSearchQuery(''); }}
               aria-label="Open menu"
             >
@@ -688,19 +679,21 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             </Button>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Search Overlay */}
-        {mobileSearchOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-border shadow-xl px-4 py-3 z-40 animate-in slide-in-from-top-2 duration-200">
+      {/* Mobile Search Overlay — full-width, slides down from header */}
+      {mobileSearchOpen && (
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white/98 dark:bg-gray-900/98 backdrop-blur-md border-b border-border shadow-xl z-40 animate-in slide-in-from-top-2 duration-150">
+          <div className="container mx-auto px-4 py-3">
             <form onSubmit={(e) => { handleSearch(e); setMobileSearchOpen(false); }} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
                 autoFocus
                 type="text"
-                placeholder="Search for lessons, subjects..."
+                placeholder="Search lessons, subjects..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10 w-full"
+                className="pl-10 pr-10 w-full h-10 text-base"
               />
               {searchQuery && (
                 <button
@@ -713,8 +706,8 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               )}
             </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </header>
 
     {/* Mobile Navigation Sheet — slides in from right */}
@@ -752,6 +745,29 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               </SelectContent>
             </Select>
           </div>
+          {/* Quick-count chips — wishlist & cart glanceable in header */}
+          {(wishlistCount > 0 || cartCount > 0) && (
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {wishlistCount > 0 && (
+                <button
+                  onClick={() => { navigate('/wishlist'); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 transition-colors px-3 py-1.5 rounded-full text-xs text-white font-medium"
+                >
+                  <Heart className="w-3 h-3" />
+                  {wishlistCount} saved
+                </button>
+              )}
+              {cartCount > 0 && (
+                <button
+                  onClick={() => { navigate('/cart'); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 transition-colors px-3 py-1.5 rounded-full text-xs text-white font-medium"
+                >
+                  <ShoppingCart className="w-3 h-3" />
+                  {cartCount} in cart
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Scrollable Nav Items */}
@@ -761,21 +777,22 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Learning</p>
             {[
               { label: "Dashboard",      icon: Home,       path: "/dashboard",   active: location.pathname === "/dashboard" },
-              { label: "Browse Courses", icon: BookOpen,   path: "/browse",      active: location.pathname === "/browse" },
+              { label: "Browse Lessons", icon: BookOpen,   path: "/browse",      active: location.pathname === "/browse" },
               { label: "My Learning",    icon: GraduationCap, path: "/my-learning", active: location.pathname === "/my-learning" },
             ].map(({ label, icon: Icon, path, active }) => (
               <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
-                className={`w-full justify-start text-sm h-11 rounded-lg font-medium ${active ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' : 'hover:bg-purple-100 dark:hover:bg-purple-950/40'}`}>
+                className={`w-full justify-start text-sm h-11 rounded-lg font-medium ${active ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-muted'}`}>
                 <Icon className={`w-4 h-4 mr-3 ${active ? 'text-indigo-500' : 'text-muted-foreground'}`} />
                 {label}
-                {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-500" />}
+                {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500" />}
               </Button>
             ))}
 
-            {/* Wishlist + Cart row */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            {/* ── Shopping ── */}
+            <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Shopping</p>
+            <div className="grid grid-cols-2 gap-2">
               <Button variant="ghost" onClick={() => { navigate("/wishlist"); setMobileMenuOpen(false); }}
-                className="justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
+                className="justify-start text-sm h-11 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20">
                 <Heart className="w-4 h-4 mr-2 text-rose-500" />
                 Wishlist
                 {wishlistCount > 0 && (
@@ -783,7 +800,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 )}
               </Button>
               <Button variant="ghost" onClick={() => { navigate("/cart"); setMobileMenuOpen(false); }}
-                className="justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
+                className="justify-start text-sm h-11 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/20">
                 <ShoppingCart className="w-4 h-4 mr-2 text-orange-500" />
                 Cart
                 {cartCount > 0 && (
@@ -795,31 +812,41 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             {/* ── Progress & Rewards ── */}
             <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Progress &amp; Rewards</p>
             {[
-              { label: "Leaderboard",         icon: Trophy,     path: "/leaderboard",               iconClass: "text-yellow-500" },
-              { label: "Progress Milestones",  icon: TrendingUp, path: "/progress",                  iconClass: "text-teal-500" },
-              { label: "Achievements",         icon: Award,      path: "/progress?tab=achievements", iconClass: "text-indigo-500" },
-            ].map(({ label, icon: Icon, path, iconClass }) => (
-              <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
-                className="w-full justify-start text-sm h-11 rounded-lg font-medium hover:bg-purple-100 dark:hover:bg-purple-950/40">
-                <Icon className={`w-4 h-4 mr-3 ${iconClass}`} />
-                {label}
-              </Button>
-            ))}
+              { label: "Leaderboard",        icon: Trophy,     path: "/leaderboard",               navPath: "/leaderboard",               iconClass: "text-yellow-500" },
+              { label: "Progress Milestones", icon: TrendingUp, path: "/progress",                  navPath: "/progress",                  iconClass: "text-teal-500" },
+              { label: "Achievements",        icon: Award,      path: "/progress?tab=achievements", navPath: "/progress?tab=achievements", iconClass: "text-indigo-500" },
+            ].map(({ label, icon: Icon, path, navPath, iconClass }) => {
+              const active = path === '/leaderboard'
+                ? location.pathname === '/leaderboard'
+                : path === '/progress?tab=achievements'
+                  ? location.pathname === '/progress' && location.search.includes('achievements')
+                  : location.pathname === '/progress' && !location.search.includes('achievements');
+              return (
+                <Button key={path} variant="ghost" onClick={() => { navigate(navPath); setMobileMenuOpen(false); }}
+                  className={`w-full justify-start text-sm h-11 rounded-lg font-medium ${active ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-muted'}`}>
+                  <Icon className={`w-4 h-4 mr-3 ${iconClass}`} />
+                  {label}
+                  {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                </Button>
+              );
+            })}
 
             {/* ── Account ── */}
             <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Account</p>
             <Button variant="ghost" onClick={() => { navigate("/profile"); setMobileMenuOpen(false); }}
-              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
+              className={`w-full justify-start text-sm h-11 rounded-lg ${location.pathname === '/profile' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium' : 'hover:bg-muted'}`}>
               <User className="w-4 h-4 mr-3 text-muted-foreground" />
               Profile
+              {location.pathname === '/profile' && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500" />}
             </Button>
             <Button variant="ghost" onClick={() => { navigate("/settings"); setMobileMenuOpen(false); }}
-              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
+              className={`w-full justify-start text-sm h-11 rounded-lg ${location.pathname === '/settings' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium' : 'hover:bg-muted'}`}>
               <Settings className="w-4 h-4 mr-3 text-muted-foreground" />
               Settings
+              {location.pathname === '/settings' && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500" />}
             </Button>
             <Button variant="ghost" onClick={toggleTheme}
-              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-950/40">
+              className="w-full justify-start text-sm h-11 rounded-lg hover:bg-muted">
               {theme === 'dark'
                 ? <><Sun className="w-4 h-4 mr-3 text-yellow-400" />Light Mode</>
                 : <><Moon className="w-4 h-4 mr-3 text-indigo-400" />Dark Mode</>}

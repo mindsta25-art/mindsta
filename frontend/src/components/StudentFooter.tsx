@@ -177,12 +177,12 @@ const StudentFooterComponent = () => {
           {/* ── Brand Column ── */}
           <div className="md:col-span-4 lg:col-span-4">
             <Link to="/" className="flex items-center gap-3 mb-3 group w-fit">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center shadow-lg group-hover:shadow-purple-500/40 transition-shadow duration-300">
-                <GraduationCap className="w-5 h-5 text-white" />
+              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg group-hover:shadow-purple-500/40 transition-shadow duration-300">
+                <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
-                <span className="text-lg font-extrabold text-white tracking-tight">{siteConfig.company.name || 'Mindsta'}</span>
-                <span className="block text-[10px] text-slate-400 leading-tight">Every Child Can Do Well</span>
+                <span className="text-lg sm:text-xl font-bold text-white">{siteConfig.company.name || 'Mindsta'}</span>
+                <span className="block text-[10px] text-slate-400 leading-tight">... Every Child Can Do Well</span>
               </div>
             </Link>
 

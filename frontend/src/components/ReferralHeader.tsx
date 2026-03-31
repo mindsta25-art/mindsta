@@ -67,10 +67,10 @@ const ReferralHeader = () => {
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
-                <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
-                <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                   Mindsta
                 </span>
                 <span className="text-[10px] block text-muted-foreground leading-tight">Referral Partner Portal</span>

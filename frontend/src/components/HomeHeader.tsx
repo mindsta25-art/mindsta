@@ -32,10 +32,10 @@ export const HomeHeader = () => {
                 <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
             <div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Mindsta
               </span>
-              <span className="text-xs block text-muted-foreground">
+              <span className="text-[10px] block text-muted-foreground leading-tight">
                 ... Every Child Can Do Well
               </span>
             </div>

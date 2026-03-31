@@ -233,7 +233,7 @@ const Auth = () => {
             </div>
             <div>
               <span className="text-2xl font-bold text-white tracking-tight">Mindsta</span>
-              <span className="block text-[10px] text-purple-200 leading-tight">Every Child Can Do Well</span>
+              <span className="block text-[10px] text-purple-200 leading-tight">... Every Child Can Do Well</span>
             </div>
           </button>
 
@@ -279,10 +279,13 @@ const Auth = () => {
         {/* Mobile header */}
         <div className="lg:hidden flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border">
           <button onClick={() => navigate("/")} className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600">
-              <BookOpen className="w-4 h-4 text-white" />
+            <div className="p-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-gray-900 dark:text-white">Mindsta</span>
+            <div>
+              <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Mindsta</span>
+              <span className="text-[10px] block text-muted-foreground leading-tight">... Every Child Can Do Well</span>
+            </div>
           </button>
           <button onClick={() => navigate("/")} className="text-sm flex items-center gap-1" style={{ color: "#9333ea" }}>
             <ArrowLeft className="w-4 h-4" /> Home

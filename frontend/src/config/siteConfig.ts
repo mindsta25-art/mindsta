@@ -11,7 +11,7 @@ export const siteConfig = {
   // Company Information (editable via Admin Panel > Settings > General)
   company: {
     name: "Mindsta",
-    tagline: "Every Child Can Do Well",
+    tagline: "... Every Child Can Do Well",
     description: "Curriculum-aligned learning platform for Grades 1-6",
   },
 
