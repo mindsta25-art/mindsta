@@ -47,8 +47,6 @@
     <!-- DNS Prefetch & Preconnect for faster API calls -->
     <link rel="dns-prefetch" href="//api.mindsta.com.ng" />
     <link rel="preconnect" href="https://api.mindsta.com.ng" crossorigin />
-    <link rel="dns-prefetch" href="//localhost:3000" />
-    <link rel="preconnect" href="//localhost:3000" crossorigin />
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg" />
@@ -61,7 +59,7 @@
       <img src="/assets/icons/mindsta2.png" alt="Mindsta Logo" style="height: 56px; width: auto; display: block; margin-bottom: 8px;" />
     </div> -->
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
     <!-- Structured Data: Educational Organization -->
     <script type="application/ld+json">
     {

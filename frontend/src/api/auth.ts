@@ -3,7 +3,7 @@
  * Handles user authentication and authorization
  */
 
-import { api } from '@/lib/apiClient';
+import { api, clearApiCache } from '@/lib/apiClient';
 
 export interface SignUpData {
   email: string;
@@ -143,6 +143,8 @@ export const signOut = async (): Promise<void> => {
   } catch (error) {
     console.error('Error during logout:', error);
   } finally {
+    // Clear cached API responses so no data bleeds into the next session
+    clearApiCache();
     // Always clear local storage and redirect
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');

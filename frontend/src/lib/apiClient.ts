@@ -3,6 +3,67 @@
  * Makes HTTP requests to the Node.js backend
  */
 
+// ---------------------------------------------------------------------------
+// In-memory GET cache — dramatically cuts repeated round trips on navigation
+// ---------------------------------------------------------------------------
+
+/** Cache entry shape */
+interface CacheEntry { data: unknown; expires: number; }
+
+/** Keyed by `token|url` so each user gets isolated cached data */
+const responseCache = new Map<string, CacheEntry>();
+
+/** In-flight deduplication — same URL requested twice gets the same Promise */
+const inFlight = new Map<string, Promise<unknown>>();
+
+/** Default TTL: 30 seconds — fresh enough for UX, fast enough to skip refetch */
+const DEFAULT_TTL_MS = 30_000;
+
+function _cacheKey(url: string): string {
+  const token = localStorage.getItem('authToken') ?? 'anon';
+  return `${token}|${url}`;
+}
+
+function _fromCache(key: string): unknown | null {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) { responseCache.delete(key); return null; }
+  return entry.data;
+}
+
+function _toCache(key: string, data: unknown, ttlMs: number): void {
+  responseCache.set(key, { data, expires: Date.now() + ttlMs });
+  // Cap at 200 entries (LRU-style eviction) to prevent unbounded memory growth
+  if (responseCache.size > 200) {
+    responseCache.delete(responseCache.keys().next().value!);
+  }
+}
+
+/**
+ * Clear all cached GET responses.
+ * Call this on sign-out so stale data never bleeds into the next session.
+ */
+export function clearApiCache(): void {
+  responseCache.clear();
+  inFlight.clear();
+}
+
+/**
+ * Bust cached entries that match a resource prefix.
+ * Called automatically after every POST / PUT / PATCH / DELETE so the next
+ * GET for that resource returns fresh server data.
+ */
+function _bustCache(endpoint: string): void {
+  const resource = '/' + (endpoint.split('/').filter(Boolean)[0] ?? '');
+  for (const key of responseCache.keys()) {
+    if (key.includes(resource)) responseCache.delete(key);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Determine API URL based on environment
+// ---------------------------------------------------------------------------
+
 // Determine API URL based on environment
 const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
@@ -151,12 +212,42 @@ function buildUrlWithParams(endpoint: string, params?: Record<string, any>): str
 }
 
 export const api = {
-  get: (endpoint: string, params?: Record<string, any>) => {
+  /**
+   * GET with caching + in-flight deduplication.
+   * @param ttlMs  How long to cache (ms). Pass 0 to skip cache entirely.
+   */
+  get: (endpoint: string, params?: Record<string, any>, ttlMs = DEFAULT_TTL_MS) => {
     const url = buildUrlWithParams(endpoint, params);
+    if (ttlMs > 0) {
+      const key = _cacheKey(url);
+      // 1. Serve from cache if still fresh
+      const cached = _fromCache(key);
+      if (cached !== null) return Promise.resolve(cached);
+      // 2. Dedup in-flight requests to the same URL
+      if (inFlight.has(key)) return inFlight.get(key)!;
+      // 3. Fetch, cache the result, clear in-flight entry
+      const promise = (apiRequest(url, { method: 'GET' }) as Promise<unknown>)
+        .then(data => { _toCache(key, data, ttlMs); inFlight.delete(key); return data; })
+        .catch(err => { inFlight.delete(key); throw err; });
+      inFlight.set(key, promise);
+      return promise;
+    }
     return apiRequest(url, { method: 'GET' });
   },
-  post: (endpoint: string, data: any) => apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) }),
-  put: (endpoint: string, data: any) => apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
-  patch: (endpoint: string, data: any) => apiRequest(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
-  delete: (endpoint: string) => apiRequest(endpoint, { method: 'DELETE' }),
+  post: (endpoint: string, data: any) => {
+    _bustCache(endpoint);
+    return apiRequest(endpoint, { method: 'POST', body: JSON.stringify(data) });
+  },
+  put: (endpoint: string, data: any) => {
+    _bustCache(endpoint);
+    return apiRequest(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  patch: (endpoint: string, data: any) => {
+    _bustCache(endpoint);
+    return apiRequest(endpoint, { method: 'PATCH', body: JSON.stringify(data) });
+  },
+  delete: (endpoint: string) => {
+    _bustCache(endpoint);
+    return apiRequest(endpoint, { method: 'DELETE' });
+  },
 };

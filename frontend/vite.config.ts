@@ -25,6 +25,13 @@ export default defineConfig(({ mode }) => ({
     target: "es2020", // Modern target for better tree-shaking
     sourcemap: mode !== "production", // Disable sourcemaps in production
     minify: "terser",
+    // Skip reporting compressed sizes — saves ~2–3s on every production build
+    reportCompressedSize: false,
+    // Inline assets smaller than 4 KB as base64 — removes 2–4 HTTP round trips
+    // for small icons and images on first load
+    assetsInlineLimit: 4096,
+    // Skip the ~12 KB modulepreload polyfill — all supported browsers handle it natively
+    modulePreload: { polyfill: false },
     terserOptions: {
       compress: {
         drop_console: mode === "production", // Remove console.logs in production
