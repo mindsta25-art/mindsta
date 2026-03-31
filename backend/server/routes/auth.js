@@ -986,71 +986,197 @@ router.post('/logout', async (req, res) => {
 
 /**
  * GET /api/auth/google
- * Initiate Google OAuth flow
- * Accepts optional ?userType=referral to create referral accounts
+ * Initiate Google OAuth flow.
+ *
+ * Builds the Google authorisation URL manually so the redirect_uri points to
+ * the FRONTEND (mindsta.com.ng), not the backend API.  This means:
+ *  - Google's "Developer info" popup shows "mindsta.com.ng" as the redirect
+ *  - The backend API URL is never surfaced to end-users
+ *
+ * Accepts optional ?userType=referral to create referral accounts.
  */
-router.get('/google', (req, res, next) => {
+router.get('/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(503).json({ error: 'Google OAuth is not configured on this server.' });
+  }
+
   const userType = req.query.userType === 'referral' ? 'referral' : 'student';
-  const state = Buffer.from(JSON.stringify({ userType })).toString('base64');
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-    session: false,
+  // Embed userType + a random nonce in state so we can recover it after the callback
+  const state = Buffer.from(
+    JSON.stringify({ userType, nonce: crypto.randomBytes(16).toString('hex') })
+  ).toString('base64url');
+
+  const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const redirectUri = `${frontendURL}/auth/google/callback`;
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'profile email',
     state,
-  })(req, res, next);
+    access_type: 'online',
+    prompt: 'select_account',
+  });
+
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 });
 
 /**
- * GET /api/auth/google/callback
- * Google OAuth callback handler
+ * POST /api/auth/google/exchange-code
+ * Exchange the authorisation code (received by the frontend) for a JWT.
+ *
+ * Flow:
+ *  1. Frontend /auth/google/callback receives ?code=...&state=... from Google
+ *  2. Frontend POSTs { code, state } here
+ *  3. We exchange the code with Google's token endpoint (server-side, so the
+ *     client secret is never exposed)
+ *  4. We look up / create the user and return a short-lived JWT
  */
-router.get('/google/callback', 
+router.post('/google/exchange-code', async (req, res) => {
+  try {
+    const { code, state } = req.body;
+    if (!code) return res.status(400).json({ error: 'Missing code parameter' });
+
+    // Decode userType from state
+    let targetUserType = 'student';
+    try {
+      const decoded = JSON.parse(Buffer.from(state ?? '', 'base64url').toString('utf8'));
+      if (decoded.userType === 'referral') targetUserType = 'referral';
+    } catch { /* ignore — defaults to student */ }
+
+    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const redirectUri = `${frontendURL}/auth/google/callback`;
+
+    // Exchange authorisation code for access token
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const err = await tokenRes.json().catch(() => ({}));
+      console.error('[Google Exchange] Token exchange failed:', err);
+      return res.status(400).json({ error: 'Failed to exchange authorisation code with Google.' });
+    }
+
+    const tokens = await tokenRes.json();
+
+    // Fetch the user's Google profile using the access token
+    const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+
+    if (!profileRes.ok) {
+      return res.status(400).json({ error: 'Failed to retrieve profile from Google.' });
+    }
+
+    const profile = await profileRes.json();
+    const { email, name: fullName, id: googleId } = profile;
+
+    if (!email) return res.status(400).json({ error: 'No email returned by Google.' });
+
+    // Look up or create user (same logic as the passport strategy)
+    let user = await User.findOne({ email });
+
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      user = await User.create({
+        email,
+        fullName,
+        googleId,
+        userType: targetUserType,
+        isVerified: false,
+        password: crypto.randomBytes(16).toString('hex'),
+      });
+    }
+
+    await User.findByIdAndUpdate(user._id, {
+      isOnline: true,
+      lastActiveAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    // New / unverified users need OTP before they can access the app
+    if (!user.isVerified) {
+      const otp = generateOTP();
+      const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      await User.findByIdAndUpdate(user._id, { verificationOTP: otp, otpExpires });
+      try {
+        await sendVerificationOTP(user.email, user.fullName, otp);
+      } catch (emailErr) {
+        console.error('[Google Exchange] OTP email failed:', emailErr);
+      }
+      return res.json({ requiresVerification: true, email: user.email });
+    }
+
+    // Issue a short-lived handoff token — the frontend stores it and exchanges
+    // it for the long-lived session immediately
+    const token = jwt.sign(
+      { id: user._id, email: user.email, userType: user.userType },
+      JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+
+    return res.json({
+      token,
+      id: user._id.toString(),
+      email: user.email,
+      fullName: user.fullName,
+      userType: user.userType,
+    });
+  } catch (error) {
+    console.error('[Google Exchange] Unexpected error:', error);
+    return res.status(500).json({ error: 'Authentication failed. Please try again.' });
+  }
+});
+
+/**
+ * GET /api/auth/google/callback  ← legacy / kept for backward-compat
+ * Passport still handles this if the old callbackURL is somehow hit.
+ * In normal operation this route is no longer used.
+ */
+router.get('/google/callback',
   (req, res, next) => {
-    passport.authenticate('google', { 
+    passport.authenticate('google', {
       session: false,
       failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth?error=google_auth_failed`
     })(req, res, next);
   },
   async (req, res) => {
     try {
-      console.log('[Google OAuth Callback] Processing user:', req.user?.email);
-      
-      // User is attached to req.user by passport
       const user = req.user;
-      
       if (!user) {
-        console.error('[Google OAuth Callback] No user found in request');
         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
         return res.redirect(`${frontendURL}/auth?error=authentication_failed`);
       }
 
-      // If user is not yet verified, send OTP and redirect to verification screen
       if (!user.isVerified) {
         const otp = generateOTP();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
         await User.findByIdAndUpdate(user._id, { verificationOTP: otp, otpExpires });
-        try {
-          await sendVerificationOTP(user.email, user.fullName, otp);
-          console.log('[Google OAuth Callback] OTP sent for unverified user:', user.email);
-        } catch (emailErr) {
-          console.error('[Google OAuth Callback] Failed to send OTP email:', emailErr);
-        }
+        try { await sendVerificationOTP(user.email, user.fullName, otp); } catch {}
         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
         return res.redirect(`${frontendURL}/auth?requiresVerification=true&email=${encodeURIComponent(user.email)}`);
       }
 
-      // Generate a short-lived JWT (5 min) for the handoff URL.
-      // Hash fragments are never sent to the server in HTTP requests,
-      // so the token won't appear in server access logs or referrer headers.
       const token = jwt.sign(
         { id: user._id, email: user.email, userType: user.userType },
         JWT_SECRET,
         { expiresIn: '5m' }
       );
-
-      console.log('[Google OAuth Callback] Token generated, redirecting to frontend');
-      
-      // Use a hash fragment (#) instead of a query string (?) so the token is
-      // never sent in HTTP requests and is not included in server access logs.
       const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
       res.redirect(`${frontendURL}/auth/google/callback#token=${token}&email=${encodeURIComponent(user.email)}&fullName=${encodeURIComponent(user.fullName)}&userType=${user.userType}&id=${user._id}`);
     } catch (error) {
