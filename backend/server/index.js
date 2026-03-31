@@ -286,6 +286,12 @@ app.get('/api/health', (req, res) => {
   res.status(statusCode).json(health);
 });
 
+// Lightweight ping — answers immediately with no DB check.
+// The frontend uses this to detect Render cold-start without hitting heavy routes.
+app.get('/api/ping', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 // API Routes with Rate Limiting
 
 // Auth routes with strict rate limiting

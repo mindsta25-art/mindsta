@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +16,7 @@ import { LoadingScreen } from "@/components/ui/loading";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { IdleWarningModal } from "@/components/IdleWarningModal";
 import { signOut } from "@/api";
+import ServerStartingUp from "@/components/ServerStartingUp";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -87,6 +88,48 @@ const LeaderboardManagement = lazy(() => import("./pages/admin/LeaderboardManage
 
 // React Query removed
 
+// Detects Render cold-start: if the backend doesn't respond within 3 seconds,
+// show the engaging waking-up page and poll until the server is alive.
+function ServerStatusWrapper({ children }: { children: React.ReactNode }) {
+  const [sleeping, setSleeping] = useState(false);
+
+  useEffect(() => {
+    const base = import.meta.env.VITE_API_URL
+      ?? (import.meta.env.PROD ? 'https://api.mindsta.com.ng/api' : 'http://localhost:3000/api');
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    // Only surface the "waking up" screen if the server hasn't answered in 3s.
+    // Fast connections never see it (latency < 3s → server is clearly up).
+    const slowTimer = setTimeout(() => {
+      if (!cancelled) setSleeping(true);
+    }, 3000);
+
+    fetch(`${base}/ping`, { signal: controller.signal })
+      .then((res) => {
+        clearTimeout(slowTimer);
+        if (!cancelled) setSleeping(!res.ok);
+      })
+      .catch(() => {
+        clearTimeout(slowTimer);
+        if (!cancelled) setSleeping(true);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(slowTimer);
+    };
+  }, []);
+
+  if (sleeping) {
+    return <ServerStartingUp onReady={() => setSleeping(false)} />;
+  }
+
+  return <>{children}</>;
+}
+
 // Idle timer wrapper - must be inside AuthProvider and BrowserRouter
 function IdleTimerWrapper({ children }: { children: React.ReactNode }) {
   const { user, refreshUser } = useAuth();
@@ -135,6 +178,7 @@ const App = () => (
                 }}
               >
               <ScrollToTop />
+              <ServerStatusWrapper>
               <IdleTimerWrapper>
               <Suspense fallback={<LoadingScreen message="Loading page..." />}>
                 <Routes>
@@ -614,6 +658,7 @@ const App = () => (
               </Routes>
             </Suspense>
             </IdleTimerWrapper>
+            </ServerStatusWrapper>
           </BrowserRouter>
               </WishlistProvider>
             </CartProvider>
