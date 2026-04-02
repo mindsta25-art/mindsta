@@ -144,6 +144,19 @@ export const getAllLessons = async (): Promise<Lesson[]> => {
 };
 
 /**
+ * Get draft lessons for admins only
+ */
+export const getDraftLessons = async (): Promise<Lesson[]> => {
+  try {
+    const result = await api.get(`/lessons?isPublished=false`);
+    return result;
+  } catch (error) {
+    console.error('Error fetching draft lessons:', error);
+    return [];
+  }
+};
+
+/**
  * Get lesson by ID
  */
 export const getLessonById = async (id: string): Promise<Lesson | null> => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,24 +64,97 @@ const LessonManagementRedesigned = () => {
   const [itemsPerPage, setItemsPerPage] = useState(12);
   
   // Stats
+  const LOCAL_DRAFT_ID = "local-lesson-draft";
   const [stats, setStats] = useState({
     total: 0,
     published: 0,
     draft: 0,
     avgDuration: 0,
   });
+  const [savedDraft, setSavedDraft] = useState<{ timestamp: string } | null>(null);
+  const [localDraftLesson, setLocalDraftLesson] = useState<Lesson | null>(null);
 
   useEffect(() => {
     fetchLessons();
   }, []);
 
   useEffect(() => {
+    const parseLocalDraft = () => {
+      try {
+        const draftStr = localStorage.getItem("mindsta_lesson_draft");
+        if (!draftStr) {
+          setSavedDraft(null);
+          setLocalDraftLesson(null);
+          return;
+        }
+        const draft = JSON.parse(draftStr);
+        const lessonForm = draft.lessonForm || {};
+        const localDraft: Lesson = {
+          id: LOCAL_DRAFT_ID,
+          title: lessonForm.title || "Saved Lesson Draft",
+          subtitle: lessonForm.subtitle || "",
+          description: lessonForm.description || "",
+          content: lessonForm.overview || "",
+          subject: lessonForm.subject || "Unspecified",
+          grade: lessonForm.grade || "Unspecified",
+          term: lessonForm.term || "Unspecified",
+          difficulty: lessonForm.difficulty || "beginner",
+          duration: lessonForm.duration || 30,
+          videoUrl: lessonForm.videoUrl || "",
+          imageUrl: lessonForm.imageUrl || "",
+          imageDisplaySize: lessonForm.imageDisplaySize || "full",
+          imageObjectFit: lessonForm.imageObjectFit || "cover",
+          price: lessonForm.price || 0,
+          isPublished: false,
+          keywords: lessonForm.keywords || [],
+          learningObjectives: lessonForm.learningObjectives || [],
+          whatYouWillLearn: lessonForm.whatYouWillLearn || [],
+          requirements: lessonForm.requirements || [],
+          targetAudience: lessonForm.targetAudience || [],
+          curriculum: lessonForm.curriculum || [],
+          createdAt: draft.timestamp || new Date().toISOString(),
+          updatedAt: draft.timestamp || new Date().toISOString(),
+        } as Lesson;
+
+        setSavedDraft({ timestamp: draft.timestamp || new Date().toISOString() });
+        setLocalDraftLesson(localDraft);
+      } catch {
+        setSavedDraft(null);
+        setLocalDraftLesson(null);
+      }
+    };
+
+    parseLocalDraft();
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "mindsta_lesson_draft") {
+        parseLocalDraft();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const combinedLessons = useMemo(() => {
+    return localDraftLesson ? [localDraftLesson, ...lessons] : lessons;
+  }, [lessons, localDraftLesson]);
+
+  const handleLessonEdit = (lesson: Lesson) => {
+    if (lesson.id === LOCAL_DRAFT_ID) {
+      navigate('/admin/create-lesson');
+    } else {
+      navigate(`/admin/create-lesson?edit=${lesson.id}`);
+    }
+  };
+
+  useEffect(() => {
     applyFiltersAndSort();
-  }, [lessons, searchQuery, filterGrade, filterSubject, filterTerm, filterDifficulty, filterPublished, sortBy]);
+  }, [combinedLessons, searchQuery, filterGrade, filterSubject, filterTerm, filterDifficulty, filterPublished, sortBy]);
 
   useEffect(() => {
     calculateStats();
-  }, [lessons]);
+  }, [combinedLessons]);
 
   const fetchLessons = async () => {
     setLoading(true);
@@ -100,20 +173,19 @@ const LessonManagementRedesigned = () => {
   };
 
   const calculateStats = () => {
-    const total = lessons.length;
-    const withVideo = lessons.filter(l => l.videoUrl?.trim()).length;
-    const noVideo = total - withVideo;
-    const published = lessons.filter(l => (l as any).isPublished !== false).length;
-    const drafts = lessons.filter(l => (l as any).isPublished === false).length;
-    const avgDuration = lessons.length > 0 
-      ? Math.round(lessons.reduce((sum, l) => sum + (l.duration || 0), 0) / lessons.length)
+    const total = combinedLessons.length;
+    const withVideo = combinedLessons.filter(l => l.videoUrl?.trim()).length;
+    const published = combinedLessons.filter(l => (l as any).isPublished !== false).length;
+    const drafts = combinedLessons.filter(l => (l as any).isPublished === false).length;
+    const avgDuration = combinedLessons.length > 0 
+      ? Math.round(combinedLessons.reduce((sum, l) => sum + (l.duration || 0), 0) / combinedLessons.length)
       : 0;
 
     setStats({ total, published, draft: drafts, avgDuration });
   };
 
   const applyFiltersAndSort = () => {
-    let filtered = [...lessons];
+    let filtered = [...combinedLessons];
 
     // Search filter
     if (searchQuery) {
@@ -288,6 +360,16 @@ const LessonManagementRedesigned = () => {
               <p className="text-xs text-muted-foreground">
                 Hidden from students
               </p>
+              {savedDraft && (
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-foreground/80">
+                    Saved lesson draft available from {new Date(savedDraft.timestamp).toLocaleString()}.
+                  </p>
+                  <Button size="xs" variant="outline" onClick={() => navigate('/admin/create-lesson')}>
+                    Continue Draft
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
           
@@ -559,7 +641,7 @@ const LessonManagementRedesigned = () => {
                           variant="outline" 
                           size="sm" 
                           className="flex-1"
-                          onClick={() => navigate(`/admin/create-lesson?edit=${lesson.id}`)}
+                          onClick={() => handleLessonEdit(lesson)}
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
@@ -639,7 +721,7 @@ const LessonManagementRedesigned = () => {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => navigate(`/admin/create-lesson?edit=${lesson.id}`)}
+                                onClick={() => handleLessonEdit(lesson)}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>

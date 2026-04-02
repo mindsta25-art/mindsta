@@ -16,7 +16,6 @@ import { LoadingScreen } from "@/components/ui/loading";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { IdleWarningModal } from "@/components/IdleWarningModal";
 import { signOut } from "@/api";
-import ServerStartingUp from "@/components/ServerStartingUp";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -85,49 +84,86 @@ const QuestionManagement = lazy(() => import("./pages/admin/QuestionManagement")
 const NewsletterSubscribers = lazy(() => import("./pages/admin/NewsletterSubscribers"));
 const TicketManagement = lazy(() => import("./pages/admin/TicketManagement"));
 const LeaderboardManagement = lazy(() => import("./pages/admin/LeaderboardManagement"));
+const DraftLessons = lazy(() => import("./pages/admin/DraftLessons"));
 
 // React Query removed
 
 // Detects Render cold-start: if the backend doesn't respond within 3 seconds,
 // show the engaging waking-up page and poll until the server is alive.
 function ServerStatusWrapper({ children }: { children: React.ReactNode }) {
-  const [sleeping, setSleeping] = useState(false);
+  const [serverSleeping, setServerSleeping] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const base = import.meta.env.VITE_API_URL
       ?? (import.meta.env.PROD ? 'https://api.mindsta.com.ng/api' : 'http://localhost:3000/api');
 
     let cancelled = false;
-    const controller = new AbortController();
+    let initialTimer: number | null = null;
+    let intervalId: number | null = null;
 
-    // Only surface the "waking up" screen if the server hasn't answered in 3s.
-    // Fast connections never see it (latency < 3s → server is clearly up).
-    const slowTimer = setTimeout(() => {
-      if (!cancelled) setSleeping(true);
+    const ping = async () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(`${base}/ping`, { signal: controller.signal });
+        window.clearTimeout(timeout);
+        if (!cancelled) {
+          if (res.ok) {
+            setServerSleeping(false);
+            return;
+          }
+          setServerSleeping(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setServerSleeping(true);
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        if (!cancelled) {
+          setAttempt((value) => value + 1);
+        }
+      }
+    };
+
+    initialTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setServerSleeping(true);
+      }
     }, 3000);
 
-    fetch(`${base}/ping`, { signal: controller.signal })
-      .then((res) => {
-        clearTimeout(slowTimer);
-        if (!cancelled) setSleeping(!res.ok);
-      })
-      .catch(() => {
-        clearTimeout(slowTimer);
-        if (!cancelled) setSleeping(true);
-      });
+    ping();
+    intervalId = window.setInterval(ping, 5000);
 
     return () => {
       cancelled = true;
-      controller.abort();
-      clearTimeout(slowTimer);
+      if (initialTimer !== null) {
+        window.clearTimeout(initialTimer);
+      }
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
     };
   }, []);
 
-  if (sleeping) {
-    return <ServerStartingUp onReady={() => setSleeping(false)} />;
-  }
-
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {serverSleeping && (
+        <div className="fixed inset-x-0 top-0 z-50 border-b border-yellow-300 bg-yellow-50/95 text-yellow-900 shadow-sm backdrop-blur-sm">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 text-sm sm:px-6">
+            <div>
+              <strong>Backend waking up</strong> — the API is taking longer than usual to respond. You can continue using the app while we retry in the background.
+            </div>
+            <div className="hidden sm:flex items-center gap-2 text-xs text-yellow-700">
+              {attempt <= 1 ? 'Checking connection…' : `Retry attempt ${attempt}`}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 // Idle timer wrapper - must be inside AuthProvider and BrowserRouter
@@ -535,7 +571,23 @@ const App = () => (
                   path="/admin/lessons" 
                   element={
                     <ProtectedRoute requireAdmin>
+                      <DraftLessons />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/lesson-management" 
+                  element={
+                    <ProtectedRoute requireAdmin>
                       <LessonManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/drafts" 
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <DraftLessons />
                     </ProtectedRoute>
                   } 
                 />

@@ -53,6 +53,7 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const LOCAL_DRAFT_ID = "local-lesson-draft";
   const { toast } = useToast();
   const { refreshUser } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -62,6 +63,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [contentMenuExpanded, setContentMenuExpanded] = useState(false);
   const [referralMenuExpanded, setReferralMenuExpanded] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showCreateLessonDraftDialog, setShowCreateLessonDraftDialog] = useState(false);
+  const [createLessonDraftTimestamp, setCreateLessonDraftTimestamp] = useState<string | null>(null);
   const [sidebarCounts, setSidebarCounts] = useState<SidebarCounts>({
     questions: 0, suggestions: 0, tickets: 0, users: 0, referralPayouts: 0, newsletter: 0, notifications: 0,
   });
@@ -69,6 +72,38 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   useEffect(() => {
     checkAdminAccess();
   }, []);
+
+  const handleCreateLessonClick = () => {
+    try {
+      const draftStr = localStorage.getItem("mindsta_lesson_draft");
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        setCreateLessonDraftTimestamp(draft.timestamp || null);
+        setShowCreateLessonDraftDialog(true);
+        return;
+      }
+    } catch {
+      // Ignore localStorage errors and continue to create lesson.
+    }
+
+    navigate("/admin/create-lesson");
+  };
+
+  const continueCreateLessonDraft = () => {
+    setShowCreateLessonDraftDialog(false);
+    navigate(`/admin/create-lesson?edit=${LOCAL_DRAFT_ID}`);
+  };
+
+  const startNewLesson = () => {
+    localStorage.removeItem("mindsta_lesson_draft");
+    localStorage.removeItem("mindsta_curriculum_draft");
+    setShowCreateLessonDraftDialog(false);
+    toast({
+      title: "Start a fresh lesson",
+      description: "Your saved draft has been cleared so you can begin a new lesson.",
+    });
+    navigate("/admin/create-lesson");
+  };
 
   // Fetch sidebar counts once admin is confirmed, then poll every 60s
   useEffect(() => {
@@ -202,9 +237,14 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           hasDropdown: true,
         },
         {
-          icon: GraduationCap,
-          label: "Lessons & Quizzes",
+          icon: FileText,
+          label: "Draft Lessons",
           path: "/admin/lessons",
+        },
+        {
+          icon: BookOpen,
+          label: "Lesson Management",
+          path: "/admin/lesson-management",
         },
         {
           icon: MessageSquare,
@@ -424,9 +464,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                           {/* Dropdown items */}
                           {!sidebarCollapsed && contentMenuExpanded && (
                             <div className="ml-8 mt-1 space-y-1">
-                              <Link
-                                to="/admin/create-lesson"
-                                onClick={() => setMobileMenuOpen(false)}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMobileMenuOpen(false);
+                                  handleCreateLessonClick();
+                                }}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                                   location.pathname === '/admin/create-lesson'
                                     ? 'bg-primary/10 text-primary'
@@ -435,7 +478,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                               >
                                 <Plus className="w-4 h-4 flex-shrink-0" />
                                 <span>Create Lesson</span>
-                              </Link>
+                              </button>
                               <Link
                                 to="/admin/create-quiz"
                                 onClick={() => setMobileMenuOpen(false)}
@@ -635,6 +678,41 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             className="bg-red-600 hover:bg-red-700 text-white"
           >
             Yes, sign me out
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={showCreateLessonDraftDialog} onOpenChange={setShowCreateLessonDraftDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-yellow-500" />
+            Resume Lesson Draft
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-base">
+            A saved lesson draft was found.
+            {createLessonDraftTimestamp && (
+              <span className="block text-sm text-muted-foreground mt-2">
+                Last saved: {new Date(createLessonDraftTimestamp).toLocaleString()}.
+              </span>
+            )}
+            Choose whether to continue your draft or start a new lesson from scratch.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={continueCreateLessonDraft}
+            className="bg-primary text-white hover:bg-primary/90"
+          >
+            Continue Draft
+          </AlertDialogAction>
+          <AlertDialogAction
+            onClick={startNewLesson}
+            className="bg-slate-700 text-white hover:bg-slate-800"
+          >
+            Start New Lesson
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

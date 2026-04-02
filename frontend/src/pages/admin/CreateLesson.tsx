@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import AdminLayout from "@/components/AdminLayout";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { createLesson, getLessonById, updateLesson, type Section } from "@/api/lessons";
 import { getAllSubjects, getSubjects, type Subject } from "@/api/subjects";
@@ -16,22 +18,29 @@ import { BookOpen, CheckCircle, Plus, X, Link, ArrowLeft } from "lucide-react";
 
 const DRAFT_KEY = "mindsta_lesson_draft";
 const CURRICULUM_DRAFT_KEY = "mindsta_curriculum_draft";
+const LOCAL_DRAFT_ID = "local-lesson-draft";
 
 const CreateLesson = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
-  const isEditing = !!editId;
+  const isLocalDraftEdit = editId === LOCAL_DRAFT_ID;
+  const isEditing = !!editId && !isLocalDraftEdit;
   const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingProgress, setIsSavingProgress] = useState(false);
+  const [showDiscardDraftConfirm, setShowDiscardDraftConfirm] = useState(false);
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [draftPromptTimestamp, setDraftPromptTimestamp] = useState<string | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [draftTimestamp, setDraftTimestamp] = useState<string | null>(null);
   const [thumbnailMode, setThumbnailMode] = useState<"url" | "upload">("url");
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
   const [curriculum, setCurriculum] = useState<Section[]>([]);
 
-  const [form, setForm] = useState({
+  const initialForm = {
     title: "",
     subtitle: "",
     description: "",
@@ -51,11 +60,29 @@ const CreateLesson = () => {
     whatYouWillLearn: [] as string[],
     requirements: [] as string[],
     targetAudience: [] as string[],
-  });
+  };
+
+  const [form, setForm] = useState(initialForm);
 
   useEffect(() => {
     getSubjects().then(setSubjects).catch(console.error);
-    if (isEditing && editId) {
+    if (isLocalDraftEdit) {
+      // Load the locally saved draft for editing/continuation.
+      try {
+        const draftStr = localStorage.getItem(DRAFT_KEY);
+        if (draftStr) {
+          const draft = JSON.parse(draftStr);
+          setForm(draft.lessonForm || initialForm);
+          setCurriculum(draft.curriculum || []);
+          setDraftLoaded(true);
+          setDraftTimestamp(draft.timestamp || null);
+        } else {
+          toast({ title: 'Draft not found', description: 'No saved lesson draft exists.', variant: 'destructive' });
+        }
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to load saved draft.', variant: 'destructive' });
+      }
+    } else if (isEditing && editId) {
       // Load existing lesson for editing
       getLessonById(editId).then((lesson) => {
         if (!lesson) {
@@ -89,18 +116,43 @@ const CreateLesson = () => {
       }).catch(() => {
         toast({ title: 'Error', description: 'Failed to load lesson', variant: 'destructive' });
       });
-    } else {
-      // Load draft if exists (skip draft in edit mode)
-      try {
-        const draftStr = localStorage.getItem(DRAFT_KEY);
-        if (draftStr) {
-          const draft = JSON.parse(draftStr);
-          setForm(draft.lessonForm);
-          setCurriculum(draft.curriculum || []);
-        }
-      } catch (_) {}
     }
-  }, [editId]);
+  }, [editId, isEditing, isLocalDraftEdit]);
+
+  useEffect(() => {
+    if (isEditing || isLocalDraftEdit) return;
+
+    try {
+      const draftStr = localStorage.getItem(DRAFT_KEY);
+      if (!draftStr) return;
+      const draft = JSON.parse(draftStr);
+      setDraftPromptTimestamp(draft.timestamp || null);
+      setShowDraftPrompt(true);
+    } catch {
+      // ignore invalid draft data
+    }
+  }, [isEditing, isLocalDraftEdit]);
+
+  useEffect(() => {
+    if (isEditing) return;
+    const draftAutoSave = () => {
+      try {
+        const draft = { lessonForm: form, curriculum, timestamp: new Date().toISOString() };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        localStorage.setItem(CURRICULUM_DRAFT_KEY, JSON.stringify(curriculum));
+        setDraftTimestamp(draft.timestamp);
+      } catch (_) {
+        // ignore auto-save failures
+      }
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      if (form.title || form.description || form.subject || form.grade || form.term) {
+        draftAutoSave();
+      }
+    }, 2500);
+    return () => window.clearTimeout(timeoutId);
+  }, [form, curriculum, isEditing]);
 
   // Auto-fill duration from direct video files
   useEffect(() => {
@@ -125,6 +177,8 @@ const CreateLesson = () => {
       const draft = { lessonForm: form, curriculum, timestamp: new Date().toISOString() };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       localStorage.setItem(CURRICULUM_DRAFT_KEY, JSON.stringify(curriculum));
+      setDraftLoaded(true);
+      setDraftTimestamp(draft.timestamp);
       toast({ title: "Progress Saved", description: "Your work has been saved. You can continue later." });
     } catch (_) {
       toast({ title: "Error", description: "Failed to save progress", variant: "destructive" });
@@ -136,6 +190,17 @@ const CreateLesson = () => {
   const clearDraft = () => {
     localStorage.removeItem(DRAFT_KEY);
     localStorage.removeItem(CURRICULUM_DRAFT_KEY);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setDraftLoaded(false);
+    setDraftTimestamp(null);
+    if (!isEditing) {
+      setForm(initialForm);
+      setCurriculum([]);
+    }
+    toast({ title: "Draft Discarded", description: "Saved lesson progress has been removed." });
   };
 
   const processThumbnailFile = (file: File) => {
@@ -150,6 +215,24 @@ const CreateLesson = () => {
     const reader = new FileReader();
     reader.onload = (ev) => setForm((prev) => ({ ...prev, imageUrl: ev.target?.result as string }));
     reader.readAsDataURL(file);
+  };
+
+  const continueDraftFromPrompt = () => {
+    setShowDraftPrompt(false);
+    navigate(`/admin/create-lesson?edit=${LOCAL_DRAFT_ID}`);
+  };
+
+  const startNewLessonFromPrompt = () => {
+    clearDraft();
+    setShowDraftPrompt(false);
+    setDraftLoaded(false);
+    setDraftTimestamp(null);
+    setForm(initialForm);
+    setCurriculum([]);
+    toast({
+      title: "Start a fresh lesson",
+      description: "Your saved draft has been cleared so you can begin a new lesson.",
+    });
   };
 
   const handleSubmit = async () => {
@@ -193,12 +276,12 @@ const CreateLesson = () => {
       if (isEditing && editId) {
         await updateLesson(editId, payload);
         toast({ title: "Success", description: "Lesson updated successfully" });
-        navigate("/admin/lessons");
+        navigate("/admin/lesson-management");
       } else {
         await createLesson(payload);
         clearDraft();
         toast({ title: "Success", description: "Lesson created successfully" });
-        navigate("/admin/lessons");
+        navigate("/admin/lesson-management");
       }
     } catch (error: any) {
       toast({ title: "Error", description: error?.response?.data?.error || (isEditing ? "Failed to update lesson" : "Failed to create lesson"), variant: "destructive" });
@@ -216,9 +299,16 @@ const CreateLesson = () => {
             <div>
               <h1 className="text-3xl font-bold text-foreground">{isEditing ? 'Edit Lesson' : 'Create Lesson'}</h1>
               <p className="text-muted-foreground mt-1">{isEditing ? 'Update the lesson details below' : 'Fill in the lesson details below'}</p>
-              {!isEditing && <p className="text-xs text-muted-foreground mt-1">💡 Click "Save Progress" to save your work and return later</p>}
+              {!isEditing && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground mt-1">💡 Click "Save Progress" to save your work and return later.</p>
+                  {draftLoaded && draftTimestamp && (
+                    <p className="text-xs text-foreground/80">Draft restored from {new Date(draftTimestamp).toLocaleString()}.</p>
+                  )}
+                </div>
+              )}
             </div>
-            <Button size="sm" variant="outline" onClick={() => navigate("/admin/lessons")} className="gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate("/admin/lesson-management")} className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               Back to Lessons
             </Button>
@@ -723,11 +813,16 @@ const CreateLesson = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-3 pt-4 border-t sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     {!isEditing && (
                       <Button variant="secondary" onClick={saveProgressDraft} disabled={isSavingProgress} className="gap-2">
                         {isSavingProgress ? "Saving..." : "💾 Save Progress"}
+                      </Button>
+                    )}
+                    {!isEditing && draftLoaded && (
+                      <Button variant="outline" onClick={() => setShowDiscardDraftConfirm(true)} className="gap-2">
+                        Discard Saved Draft
                       </Button>
                     )}
                     <div className="flex items-center gap-2">
@@ -756,6 +851,41 @@ const CreateLesson = () => {
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={showDiscardDraftConfirm}
+        onOpenChange={setShowDiscardDraftConfirm}
+        onConfirm={handleDiscardDraft}
+        title="Discard Saved Draft"
+        description="This will delete your saved lesson progress and cannot be undone. Are you sure you want to continue?"
+        confirmText="Discard"
+        cancelText="Keep Draft"
+        destructive
+      />
+      <AlertDialog open={showDraftPrompt} onOpenChange={setShowDraftPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resume existing draft?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A saved lesson draft was found.
+              {draftPromptTimestamp && (
+                <span className="block text-sm text-muted-foreground mt-2">
+                  Last saved: {new Date(draftPromptTimestamp).toLocaleString()}.
+                </span>
+              )}
+              Choose whether to continue your draft or start a new lesson from scratch.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={continueDraftFromPrompt} className="bg-primary text-white hover:bg-primary/90">
+              Continue Draft
+            </AlertDialogAction>
+            <AlertDialogAction onClick={startNewLessonFromPrompt} className="bg-slate-700 text-white hover:bg-slate-800">
+              Start New Lesson
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 };

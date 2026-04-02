@@ -128,15 +128,22 @@ router.get('/terms-by-grade/:grade', requireAuth, async (req, res) => {
 // GET /api/lessons
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { subject, grade, term } = req.query;
+    const { subject, grade, term, isPublished } = req.query;
     const query = {};
     if (subject) query.subject = subject;
     if (grade) query.grade = grade;
     if (term) query.term = term;
+    if (isPublished !== undefined) {
+      if (req.user?.userType === 'admin') {
+        query.isPublished = isPublished === 'true';
+      } else {
+        query.isPublished = { $ne: false };
+      }
+    }
     // Non-admins only see published lessons.
     // Use $ne:false (not strict === true) so lessons created before the isPublished field
     // was added (which have isPublished: undefined) are treated as published.
-    if (req.user?.userType !== 'admin') {
+    if (req.user?.userType !== 'admin' && isPublished === undefined) {
       query.isPublished = { $ne: false };
     }
     
