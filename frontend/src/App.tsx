@@ -88,12 +88,7 @@ const DraftLessons = lazy(() => import("./pages/admin/DraftLessons"));
 
 // React Query removed
 
-// Detects Render cold-start: if the backend doesn't respond within 3 seconds,
-// show the engaging waking-up page and poll until the server is alive.
 function ServerStatusWrapper({ children }: { children: React.ReactNode }) {
-  const [serverSleeping, setServerSleeping] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-
   useEffect(() => {
     const base = import.meta.env.VITE_API_URL
       ?? (import.meta.env.PROD ? 'https://api.mindsta.com.ng/api' : 'http://localhost:3000/api');
@@ -106,30 +101,17 @@ function ServerStatusWrapper({ children }: { children: React.ReactNode }) {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 8000);
       try {
-        const res = await fetch(`${base}/ping`, { signal: controller.signal });
-        window.clearTimeout(timeout);
-        if (!cancelled) {
-          if (res.ok) {
-            setServerSleeping(false);
-            return;
-          }
-          setServerSleeping(true);
-        }
+        await fetch(`${base}/ping`, { signal: controller.signal });
       } catch {
-        if (!cancelled) {
-          setServerSleeping(true);
-        }
+        // Keep retrying in the background.
       } finally {
         window.clearTimeout(timeout);
-        if (!cancelled) {
-          setAttempt((value) => value + 1);
-        }
       }
     };
 
     initialTimer = window.setTimeout(() => {
       if (!cancelled) {
-        setServerSleeping(true);
+        ping();
       }
     }, 3000);
 
@@ -147,23 +129,7 @@ function ServerStatusWrapper({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  return (
-    <>
-      {children}
-      {serverSleeping && (
-        <div className="fixed inset-x-0 top-0 z-50 border-b border-yellow-300 bg-yellow-50/95 text-yellow-900 shadow-sm backdrop-blur-sm">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 text-sm sm:px-6">
-            <div>
-              <strong>Backend waking up</strong> — the API is taking longer than usual to respond. You can continue using the app while we retry in the background.
-            </div>
-            <div className="hidden sm:flex items-center gap-2 text-xs text-yellow-700">
-              {attempt <= 1 ? 'Checking connection…' : `Retry attempt ${attempt}`}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  return <>{children}</>;
 }
 
 // Idle timer wrapper - must be inside AuthProvider and BrowserRouter
