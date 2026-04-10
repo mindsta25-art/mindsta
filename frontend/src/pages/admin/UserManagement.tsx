@@ -749,9 +749,10 @@ const UserManagement = () => {
               <span className="inline sm:hidden text-xs">Referrals</span>
               <span className="hidden sm:inline">Referrals</span> ({userTypeCounts.referral})
             </TabsTrigger>
-            <TabsTrigger value="admin">
-              <span className="hidden md:inline">Admins</span> ({userTypeCounts.admin})
-            </TabsTrigger>
+           <TabsTrigger value="admin">
+  <span className="hidden md:inline">Admins</span> ({userTypeCounts.admin})
+</TabsTrigger>
+            
           </TabsList>
 
           <TabsContent value={selectedTab} className="mt-4">
