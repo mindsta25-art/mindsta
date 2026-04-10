@@ -166,7 +166,7 @@ const AdminAuth = () => {
             <div className="mx-auto w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg mb-2">
               <Shield className="w-8 h-8 text-white" />
             </div>
-            <CardTitle className="text-3xl font-bold text-gray-900 dark:text-white">
+            <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
               Admin Login
             </CardTitle>
             <CardDescription className="text-base font-medium text-gray-600 dark:text-gray-400">

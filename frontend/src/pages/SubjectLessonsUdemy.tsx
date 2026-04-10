@@ -964,7 +964,7 @@ const SubjectLessonsPage = () => {
                 <div className="mb-6">
                   <div className="bg-gradient-to-br from-purple-100 via-pink-50 to-orange-50 dark:from-purple-950/30 dark:via-pink-950/20 dark:to-orange-950/20 p-8 border-b">
                     <div className="container mx-auto px-4 max-w-5xl">
-                      <h1 className="text-4xl font-bold mb-3">{subjectName}</h1>
+                      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">{subjectName}</h1>
                       <p className="text-muted-foreground mb-6">
                         {grade === "Common Entrance" ? "Common Entrance" : `Grade ${gradeParam}`}
                         {termParam ? ` • ${termParam.split('-').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ')}` : ''}
@@ -992,7 +992,7 @@ const SubjectLessonsPage = () => {
               {/* Tabs Section */}
               <div className="container mx-auto px-4 max-w-5xl">
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid mb-6">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:w-auto lg:inline-grid mb-6">
                   <TabsTrigger value="overview" className="gap-2">
                     <Info className="w-4 h-4" />
                     <span className="hidden sm:inline">Overview</span>

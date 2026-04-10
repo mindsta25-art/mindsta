@@ -10,7 +10,7 @@ const router = express.Router();
 // POST /api/admin/admins
 router.post('/admins', requireAdmin, async (req, res) => {
   try {
-    const { email, password, fullName, userType, grade, age, schoolName } = req.body || {};
+    const { email, password, fullName, userType, grade, age } = req.body || {};
 
     if (!email || !password || !fullName) {
       return res.status(400).json({ error: 'email, password and fullName are required' });
@@ -38,7 +38,6 @@ router.post('/admins', requireAdmin, async (req, res) => {
           fullName,
           grade: grade || '1',
           age: parseInt(age) || 10,
-          schoolName: schoolName || 'Not specified',
         });
       } catch (studentError) {
         console.error('[Admin Create User] Error creating student record:', studentError.message);

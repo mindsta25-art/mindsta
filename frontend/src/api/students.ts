@@ -11,7 +11,6 @@ export interface StudentData {
   fullName: string;
   grade: string;
   age: number;
-  schoolName: string;
   currentStreak?: number;
   longestStreak?: number;
   lastActivityDate?: string | null;
@@ -81,7 +80,7 @@ export const updateStudentGrade = async (userId: string, grade: string): Promise
  */
 export const createStudentProfile = async (
   userId: string,
-  data: { fullName: string; grade: string; age?: number; schoolName?: string }
+  data: { fullName: string; grade: string; age?: number }
 ): Promise<StudentData> => {
   const result = await api.post(`/students/${userId}/profile`, data);
   return result;
@@ -89,7 +88,7 @@ export const createStudentProfile = async (
 
 export const updateStudentProfile = async (
   userId: string, 
-  data: { fullName?: string; age?: number; grade?: string; schoolName?: string }
+  data: { fullName?: string; age?: number; grade?: string }
 ): Promise<StudentData | null> => {
   try {
     const result = await api.put(`/students/${userId}/profile`, data);

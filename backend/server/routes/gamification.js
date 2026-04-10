@@ -672,13 +672,8 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
 
     let filter = { userType: 'student' };
     
-    // Filter by school if scope is school
-    if (scope === 'school' && student?.schoolName) {
-      const studentsInSchool = await Student.find({ schoolName: student.schoolName });
-      const userIds = studentsInSchool.map(s => s.userId);
-      filter._id = { $in: userIds };
-    }
-
+    // Filter by global leaderboard (school filtering removed since schoolName field is removed)
+    
     // Get all users with their progress
     const users = await User.find(filter).select('_id fullName coins leaderboardSettings');
     

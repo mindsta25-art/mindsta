@@ -99,7 +99,6 @@ interface StudentInfo {
   id: string;
   fullName: string;
   grade: string;
-  schoolName: string;
   currentStreak?: number;
   longestStreak?: number;
   lastActivityDate?: string | null;
@@ -650,7 +649,7 @@ const StudentHome = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="w-5 h-5 opacity-80" />
-                    <span className="text-sm font-medium opacity-80">{studentInfo?.schoolName} · Grade {studentInfo?.grade}</span>
+                    <span className="text-sm font-medium opacity-80">Grade {studentInfo?.grade}</span>
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-bold mb-1">
                     Welcome back, {studentInfo?.fullName?.split(' ')[0] || 'Student'}! 👋

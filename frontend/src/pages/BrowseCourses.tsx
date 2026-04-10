@@ -197,6 +197,8 @@ const Browselessons = () => {
   // Pagination state
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Enrollment counts per subject-grade-term (for student count display)
   const [enrollmentCounts, setEnrollmentCounts] = useState<Record<string, number>>({});
@@ -818,7 +820,8 @@ const Browselessons = () => {
     } else {
       const startIndex = (currentPage - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
-      setDisplayedlessons(filteredlessons.slice(startIndex, endIndex));
+      setDisplayedlessons(filteredlessons.slice(0, endIndex));
+      setHasMore(endIndex < filteredlessons.length);
       // Scroll to top smoothly when page changes
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -848,6 +851,37 @@ const Browselessons = () => {
     if (selectedCategory) params.set('category', selectedCategory);
     setSearchParams(params);
   }, [searchQuery, selectedGrade, selectedSubject, selectedTerm, selectedTopic, selectedCategory, setSearchParams]);
+
+  // Intersection Observer for auto-loading more lessons
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !searchQuery.trim()) {
+          loadMoreLessons();
+        }
+      },
+      { threshold: 0.15, rootMargin: '100px' }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, searchQuery]);
+
+  const loadMoreLessons = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    // Simulate loading delay for better UX
+    setTimeout(() => {
+      setCurrentPage(prev => prev + 1);
+      setLoadingMore(false);
+    }, 300);
+  }, [loadingMore, hasMore]);
 
   const fetchlessonsForGrade = async (grade: string) => {
     if (loadedGradesRef.current.has(grade) || isFetchingRef.current) return; // Already loaded or currently fetching
@@ -1050,6 +1084,7 @@ const Browselessons = () => {
       term: course.term,
       price: course.price,
       lessonId: course.lessonId, // pass the specific lesson ID for per-lesson enrollment
+      title: course.lessonTitle || course.subject,
     });
     toast({
       title: "Added to cart",
@@ -1226,7 +1261,7 @@ const Browselessons = () => {
     return lessons
       .filter(c =>
         !c.enrolled &&
-        !isInCart(c.subject, c.grade, c.term) &&
+        !isInCart(c.subject, c.grade, c.term, c.lessonId) &&
         c.id !== source.id &&
         (c.grade === source.grade || c.subject === source.subject)
       )
@@ -1936,7 +1971,7 @@ const Browselessons = () => {
                         ? '1 result'
                         : `${filteredlessons.length} results`}
                     <span className="font-normal text-muted-foreground">for</span>
-                    <span className="italic text-purple-600 dark:text-purple-400 truncate max-w-[200px] sm:max-w-none">&ldquo;{searchQuery}&rdquo;</span>
+                    <span className="italic text-purple-600 dark:text-purple-400 truncate max-w-[150px] sm:max-w-[200px] md:max-w-none">&ldquo;{searchQuery}&rdquo;</span>
                     {isLoadingBackground && <Loader2 className="w-4 h-4 animate-spin text-purple-500" />}
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -2482,13 +2517,13 @@ const Browselessons = () => {
                             </button>
                             <button
                               className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors shadow-sm ${
-                                isInCart(course.subject, course.grade, course.term)
+                                isInCart(course.subject, course.grade, course.term, course.lessonId)
                                   ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-300'
                                   : 'bg-purple-600 hover:bg-purple-700 text-white'
                               }`}
                               onClick={(e) => { e.stopPropagation(); handleAddToCart(course); }}
                             >
-                              {isInCart(course.subject, course.grade, course.term) ? '✓ Added' : 'Add'}
+                              {isInCart(course.subject, course.grade, course.term, course.lessonId) ? '✓ Added' : 'Add'}
                             </button>
                           </div>
                         </div>
@@ -2733,9 +2768,9 @@ const Browselessons = () => {
                           <Button 
                             className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group"
                             onClick={() => handleAddToCart(course)}
-                            disabled={isInCart(course.subject, course.grade, course.term)}
+                            disabled={isInCart(course.subject, course.grade, course.term, course.lessonId)}
                           >
-                            {isInCart(course.subject, course.grade, course.term) ? (
+                            {isInCart(course.subject, course.grade, course.term, course.lessonId) ? (
                               <>
                                 <CheckCircle className="w-4 h-4 mr-2" />
                                 In Cart
@@ -2755,6 +2790,36 @@ const Browselessons = () => {
               </motion.div>
             ))}
           </motion.div>
+        )}
+
+        {/* Load More Button — Udemy-style infinite scroll */}
+        {!loading && !searchQuery.trim() && hasMore && (
+          <div className="flex justify-center pt-6 pb-8">
+            <Button
+              onClick={loadMoreLessons}
+              disabled={loadingMore}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              {loadingMore ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Loading more lessons...
+                </>
+              ) : (
+                <>
+                  Load More Lessons
+                  <svg className="w-4 h-4 ml-2" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Invisible trigger for auto-loading */}
+        {!loading && !searchQuery.trim() && hasMore && (
+          <div ref={loadMoreRef} className="h-10" />
         )}
 
         {/* Pagination Controls — hidden while search is active */}
@@ -2972,7 +3037,7 @@ const Browselessons = () => {
                           onClick={() => {
                             if (course.enrolled) {
                               handleViewCourse(course);
-                            } else if (!isInCart(course.subject, course.grade, course.term)) {
+                            } else if (!isInCart(course.subject, course.grade, course.term, course.lessonId)) {
                               handleAddToCart(course);
                             } else {
                               navigate('/cart');
@@ -2984,7 +3049,7 @@ const Browselessons = () => {
                               <PlayCircle className="w-4 h-4 mr-1" />
                               Start Course
                             </>
-                          ) : isInCart(course.subject, course.grade, course.term) ? (
+                          ) : isInCart(course.subject, course.grade, course.term, course.lessonId) ? (
                             'In Cart'
                           ) : (
                             'Add to Cart'
@@ -3078,7 +3143,7 @@ const Browselessons = () => {
                   const style = reasonStyles[reasonType] ?? reasonStyles['popular'];
                   const Icon = style.icon;
                   const wishlisted = isInWishlist(course.subject, course.grade, course.term);
-                  const inCart = isInCart(course.subject, course.grade, course.term);
+                  const inCart = isInCart(course.subject, course.grade, course.term, course.lessonId);
                   return (
                     <motion.div
                       key={course.id}
@@ -3367,7 +3432,7 @@ const Browselessons = () => {
                       <div className="overflow-x-auto pb-5 px-4 sm:px-8">
                         <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
                           {alsoBought.map((course, idx) => {
-                            const inCart = isInCart(course.subject, course.grade, course.term);
+                            const inCart = isInCart(course.subject, course.grade, course.term, course.lessonId);
                             const isBestseller = course.studentCount >= 5 || course.rating >= 4;
                             return (
                               <motion.div
@@ -3515,6 +3580,7 @@ const Browselessons = () => {
               term: selectedCourseForPreview.term,
               price: selectedCourseForPreview.price,
               lessonId: selectedCourseForPreview.id,
+              title: selectedCourseForPreview.title,
             });
             toast({
               title: "Added to cart",
@@ -3528,7 +3594,8 @@ const Browselessons = () => {
         isInCart={selectedCourseForPreview ? isInCart(
           selectedCourseForPreview.subject,
           selectedCourseForPreview.grade,
-          selectedCourseForPreview.term
+          selectedCourseForPreview.term,
+          selectedCourseForPreview.id
         ) : false}
       />
     </div>

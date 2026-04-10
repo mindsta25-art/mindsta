@@ -1,24 +1,18 @@
 import express from 'express';
 import { Lesson, UserProgress, Enrollment } from '../models/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { getCache, setCache, deleteCache } from '../services/cacheService.js';
+import { monitoringService } from '../services/monitoringService.js';
+import { databaseOptimizer } from '../services/databaseOptimizerService.js';
 
 const router = express.Router();
 
-// Simple in-memory cache with TTL (5 minutes)
-const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-const getCached = (key) => {
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
-  }
-  cache.delete(key);
-  return null;
-};
-
-const setCache = (key, data) => {
-  cache.set(key, { data, timestamp: Date.now() });
+// Cache keys for different types of data
+const CACHE_KEYS = {
+  SUBJECTS_BY_GRADE: (grade, term) => `lessons:subjects:${grade}:${term || 'all'}`,
+  LESSONS_BY_SUBJECT: (subjectId, grade, term) => `lessons:subject:${subjectId}:${grade}:${term || 'all'}`,
+  LESSON_DETAIL: (lessonId) => `lessons:detail:${lessonId}`,
+  LESSONS_BY_TOPIC: (topicId) => `lessons:topic:${topicId}`,
 };
 
 // GET /api/lessons/subjects-by-grade/:grade
@@ -26,56 +20,63 @@ router.get('/subjects-by-grade/:grade', requireAuth, async (req, res) => {
   try {
     const { grade } = req.params;
     const { term } = req.query;
-    
-    // Check cache first
-    const cacheKey = `subjects-${grade}-${term || 'all'}`;
-    const cached = getCached(cacheKey);
+
+    // Check Redis cache first
+    const cacheKey = CACHE_KEYS.SUBJECTS_BY_GRADE(grade, term);
+    const cached = await getCache(cacheKey);
     if (cached) {
+      monitoringService.logCacheOperation('get', cacheKey, true);
       return res.json(cached);
     }
-    
+    monitoringService.logCacheOperation('get', cacheKey, false);
+
     // Build match query — use $ne:false so legacy lessons without the field still show
     const matchQuery = { grade, isPublished: { $ne: false } };
     if (term) matchQuery.term = term;
-    
-    // Use aggregation pipeline for optimal performance (single query instead of N+1)
-    const subjectsWithCount = await Lesson.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: '$subject',
-          lessonCount: { $sum: 1 },
-          avgPrice: { $avg: { $ifNull: ['$price', 0] } },
-          minPrice: { $min: { $ifNull: ['$price', 0] } },
-          maxPrice: { $max: { $ifNull: ['$price', 0] } },
-          avgRating: { $avg: { $ifNull: ['$rating', 0] } },
-          totalRatingsCount: { $sum: { $ifNull: ['$ratingsCount', 0] } },
-          totalEnrolled: { $sum: { $ifNull: ['$enrolledStudents', 0] } },
-          totalDuration: { $sum: { $ifNull: ['$duration', 0] } },
-          difficulty: { $first: '$difficulty' }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          name: '$_id',
-          lessonCount: 1,
-          price: { $round: ['$avgPrice', 0] },
-          rating: { $round: ['$avgRating', 1] },
-          ratingsCount: '$totalRatingsCount',
-          enrolledStudents: '$totalEnrolled',
-          duration: '$totalDuration',
-          difficulty: 1
-        }
-      },
-      { $sort: { name: 1 } }
-    ]);
-    
-    // Cache the result
-    setCache(cacheKey, subjectsWithCount);
-    
+
+    // Use optimized query with database optimizer
+    const subjectsWithCount = await databaseOptimizer.optimizeQuery(
+      Lesson,
+      Lesson.aggregate([
+        { $match: matchQuery },
+        {
+          $group: {
+            _id: '$subject',
+            lessonCount: { $sum: 1 },
+            avgPrice: { $avg: { $ifNull: ['$price', 0] } },
+            minPrice: { $min: { $ifNull: ['$price', 0] } },
+            maxPrice: { $max: { $ifNull: ['$price', 0] } },
+            avgRating: { $avg: { $ifNull: ['$rating', 0] } },
+            totalRatingsCount: { $sum: { $ifNull: ['$ratingsCount', 0] } },
+            totalEnrolled: { $sum: { $ifNull: ['$enrolledStudents', 0] } },
+            totalDuration: { $sum: { $ifNull: ['$duration', 0] } },
+            difficulty: { $first: '$difficulty' }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            name: '$_id',
+            lessonCount: 1,
+            price: { $round: ['$avgPrice', 0] },
+            rating: { $round: ['$avgRating', 1] },
+            ratingsCount: '$totalRatingsCount',
+            enrolledStudents: '$totalEnrolled',
+            duration: '$totalDuration',
+            difficulty: 1
+          }
+        },
+        { $sort: { name: 1 } }
+      ]),
+      { lean: true, maxTimeMS: 10000 }
+    );
+
+    // Cache the result for 10 minutes
+    await setCache(cacheKey, subjectsWithCount, 600);
+
     res.json(subjectsWithCount);
   } catch (error) {
+    monitoringService.logDatabaseOperation('aggregate', 'lessons', 0, error);
     res.status(500).json({ error: error.message });
   }
 });

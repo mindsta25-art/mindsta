@@ -192,7 +192,6 @@ const ReferralAuth = () => {
         userType: 'referral',
         grade: undefined,
         age: undefined,
-        schoolName: undefined,
         referralCode: referralCode || undefined,
       });
 
@@ -280,11 +279,11 @@ const ReferralAuth = () => {
             </ul>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mt-12 pt-8 border-t border-white/10">
-            {[{ value: "500+", label: "Partners" }, { value: "₦2M+", label: "Paid Out" }, { value: "15%", label: "Commission" }].map(s => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-white/10">
+            {[{ value: "5,000+", label: "Students" }, { value: "200+", label: "Lessons" }, { value: "6", label: "Grade Levels" }].map(s => (
               <div key={s.label}>
-                <div className="text-2xl font-bold text-white">{s.value}</div>
-                <div className="text-xs text-pink-200">{s.label}</div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{s.value}</div>
+                <div className="text-xs sm:text-sm text-pink-200">{s.label}</div>
               </div>
             ))}
           </div>

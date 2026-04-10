@@ -231,7 +231,7 @@ const ReferralManagement = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Referral Management</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Referral Management</h1>
             <p className="text-muted-foreground mt-2">
               View and manage all referral registrations
             </p>
@@ -547,7 +547,7 @@ const ReferralManagement = () => {
                       setCurrentPage(1);
                     }}
                   >
-                    <SelectTrigger className="w-[100px]">
+                    <SelectTrigger className="w-full sm:w-[100px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

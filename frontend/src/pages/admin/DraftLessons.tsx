@@ -145,7 +145,7 @@ const DraftLessons = () => {
       <div className="space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Draft Lessons</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Draft Lessons</h1>
             <p className="text-sm text-muted-foreground mt-1">
               View all unpublished lessons currently saved as drafts in the admin panel.
             </p>

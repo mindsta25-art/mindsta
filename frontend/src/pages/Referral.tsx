@@ -54,7 +54,6 @@ import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } 
 interface StudentInfo {
   fullName: string;
   grade: string;
-  schoolName: string;
 }
 
 interface ReferralStats {

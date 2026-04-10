@@ -19,7 +19,7 @@ import {
   Users
 } from "lucide-react";
 import { getStudentByUserId } from "@/api";
-import { getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
+import { getLessonById, getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
 import { formatCurrency } from "@/config/siteConfig";
 
 interface EnrichedCartItem {
@@ -33,6 +33,8 @@ interface EnrichedCartItem {
   rating?: number;
   enrolledStudents?: number;
   duration?: number;
+  lessonId?: string;
+  lessonTitle?: string;
 }
 
 const Cart = () => {
@@ -78,12 +80,29 @@ const Cart = () => {
         const enriched = await Promise.all(
           cart.items.map(async (item) => {
             try {
+              if (item.lessonId) {
+                const lesson = await getLessonById(item.lessonId);
+                if (lesson) {
+                  return {
+                    ...item,
+                    lessonTitle: lesson.title,
+                    price: item.price || lesson.price || 0,
+                    lessonCount: 1,
+                    rating: lesson.rating || 0,
+                    enrolledStudents: lesson.enrolledStudents || 0,
+                    duration: lesson.duration || 0,
+                    subject: lesson.subject,
+                    grade: lesson.grade,
+                    term: lesson.term,
+                  } as EnrichedCartItem;
+                }
+              }
+
               const subjects = await getSubjectsByGrade(item.grade, item.term);
               const subjectInfo = subjects.find(s => s.name === item.subject);
               
               return {
                 ...item,
-                // Prefer the price stored on the cart item itself; fall back to subject info price
                 price: item.price || subjectInfo?.price || 0,
                 lessonCount: subjectInfo?.lessonCount || 0,
                 rating: subjectInfo?.rating || 0,
@@ -183,10 +202,13 @@ const Cart = () => {
 
                         {/* Course Info */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-base sm:text-lg mb-1 line-clamp-2">{item.subject}</h3>
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className="text-xs text-muted-foreground">Grade {item.grade}</span>
-                            {item.term && <span className="text-xs text-muted-foreground">• {item.term}</span>}
+                          <h3 className="font-bold text-base sm:text-lg mb-1 line-clamp-2">
+                            {item.lessonTitle || item.subject}
+                          </h3>
+                          <div className="flex items-center gap-2 mb-2 flex-wrap text-xs text-muted-foreground">
+                            <span>Grade {item.grade}</span>
+                            {item.term && <span>• {item.term}</span>}
+                            {item.lessonId ? <span>• 1 lesson</span> : item.lessonCount ? <span>• {item.lessonCount} lessons</span> : null}
                           </div>
                           <div className="flex flex-wrap items-center gap-2 gap-y-1 text-xs text-muted-foreground mb-2">
                             {item.rating > 0 && (
@@ -195,7 +217,6 @@ const Cart = () => {
                                 <Star className="w-3 h-3 fill-orange-400 text-orange-400" />
                               </div>
                             )}
-                            {item.lessonCount > 0 && <span>• {item.lessonCount} lessons</span>}
                             {item.duration > 0 && <span>• {Math.ceil(item.duration / 60)} total hours</span>}
                           </div>
                           <div className="flex items-center gap-2">

@@ -12,7 +12,6 @@ export interface SignUpData {
   userType: 'student' | 'parent' | 'educator' | 'referral';
   grade?: string;
   age?: number;
-  schoolName?: string;
   referralCode?: string; // optional: track signup via referral
 }
 

@@ -21,7 +21,7 @@ router.post('/:userId/profile', requireAuth, async (req, res) => {
       return res.status(409).json({ error: 'Student profile already exists' });
     }
 
-    const { fullName, age, grade, schoolName } = req.body;
+    const { fullName, age, grade } = req.body;
     if (!fullName || !grade) {
       return res.status(400).json({ error: 'fullName and grade are required' });
     }
@@ -31,7 +31,6 @@ router.post('/:userId/profile', requireAuth, async (req, res) => {
       fullName,
       age: age ? Number(age) : undefined,
       grade,
-      schoolName: schoolName || '',
     });
 
     if (fullName) {
@@ -44,7 +43,6 @@ router.post('/:userId/profile', requireAuth, async (req, res) => {
       fullName: student.fullName,
       grade: student.grade,
       age: student.age,
-      schoolName: student.schoolName,
       isPaid: student.isPaid || false,
       createdAt: student.createdAt.toISOString(),
     });
@@ -67,7 +65,6 @@ router.get('/:userId', requireAuth, async (req, res) => {
       fullName: student.fullName,
       grade: student.grade,
       age: student.age,
-      schoolName: student.schoolName,
       isPaid: student.isPaid || false,
       currentStreak: student.currentStreak || 0,
       longestStreak: student.longestStreak || 0,
@@ -90,7 +87,6 @@ router.get('/', requireAdmin, async (req, res) => {
       fullName: s.fullName,
       grade: s.grade,
       age: s.age,
-      schoolName: s.schoolName,
       isPaid: s.isPaid || false,
       createdAt: s.createdAt.toISOString(),
     })));
@@ -131,7 +127,6 @@ router.put('/:userId/grade', requireAuth, async (req, res) => {
       fullName: student.fullName,
       grade: student.grade,
       age: student.age,
-      schoolName: student.schoolName,
       isPaid: student.isPaid || false,
       createdAt: student.createdAt.toISOString(),
     });
@@ -144,7 +139,7 @@ router.put('/:userId/grade', requireAuth, async (req, res) => {
 // PUT /api/students/:userId/profile
 router.put('/:userId/profile', requireAuth, async (req, res) => {
   try {
-    const { fullName, age, grade, schoolName } = req.body;
+    const { fullName, age, grade } = req.body;
     
     // Ensure user can only update their own profile
     if (req.user.id !== req.params.userId) {
@@ -155,7 +150,6 @@ router.put('/:userId/profile', requireAuth, async (req, res) => {
     if (fullName) updateData.fullName = fullName;
     if (age) updateData.age = age;
     if (grade) updateData.grade = grade;
-    if (schoolName) updateData.schoolName = schoolName;
     
     const student = await Student.findOneAndUpdate(
       { userId: req.params.userId },
@@ -178,7 +172,6 @@ router.put('/:userId/profile', requireAuth, async (req, res) => {
       fullName: student.fullName,
       grade: student.grade,
       age: student.age,
-      schoolName: student.schoolName,
       isPaid: student.isPaid || false,
       createdAt: student.createdAt.toISOString(),
     });

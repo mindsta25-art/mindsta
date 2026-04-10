@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { BookOpen, Star, Users, Clock } from "lucide-react";
 import { getStudentByUserId, initializePayment } from "@/api";
-import { getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
+import { getLessonById, getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/config/siteConfig";
 
@@ -27,6 +29,7 @@ interface EnrichedCartItem {
   enrolledStudents?: number;
   duration?: number;
   lessonId?: string; // present for lesson-level purchases
+  lessonTitle?: string;
 }
 
 const Checkout = () => {
@@ -36,6 +39,7 @@ const Checkout = () => {
   const [studentName, setStudentName] = useState("");
   const [enrichedItems, setEnrichedItems] = useState<EnrichedCartItem[]>([]);
   const [fetchingDetails, setFetchingDetails] = useState(false);
+  const [agreeToRefundPolicy, setAgreeToRefundPolicy] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -71,12 +75,29 @@ const Checkout = () => {
         const enriched = await Promise.all(
           cart.items.map(async (item) => {
             try {
+              if (item.lessonId) {
+                const lesson = await getLessonById(item.lessonId);
+                if (lesson) {
+                  return {
+                    ...item,
+                    lessonTitle: lesson.title,
+                    price: item.price || lesson.price || 0,
+                    lessonCount: 1,
+                    rating: lesson.rating || 0,
+                    enrolledStudents: lesson.enrolledStudents || 0,
+                    duration: lesson.duration || 0,
+                    subject: lesson.subject,
+                    grade: lesson.grade,
+                    term: lesson.term,
+                  } as EnrichedCartItem;
+                }
+              }
+
               const subjects = await getSubjectsByGrade(item.grade, item.term);
               const subjectInfo = subjects.find(s => s.name === item.subject);
               
               return {
                 ...item,
-                // Prefer price stored on the cart item; fall back to subject info price
                 price: item.price || subjectInfo?.price || 0,
                 lessonCount: subjectInfo?.lessonCount || 0,
                 rating: subjectInfo?.rating || 0,
@@ -181,6 +202,20 @@ const Checkout = () => {
                       </div>
                     </div>
 
+                    {/* Refund Policy Checkbox */}
+                    <div className="mb-4 pt-4">
+                      <div className="flex items-start space-x-2">
+                        <Checkbox
+                          id="agreeToRefundPolicy"
+                          checked={agreeToRefundPolicy}
+                          onCheckedChange={(checked) => setAgreeToRefundPolicy(!!checked)}
+                        />
+                        <Label htmlFor="agreeToRefundPolicy" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                          I am a parent/guardian and I understand that there is no refund after payments
+                        </Label>
+                      </div>
+                    </div>
+
                     <Button
                       size="lg"
                       className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold"
@@ -219,7 +254,7 @@ const Checkout = () => {
                           toast({ title: 'Payment Failed', description: e.message || 'Please try again', variant: 'destructive' });
                         }
                       }}
-                      disabled={calculatedTotal <= 0 || displayItems.length === 0 || fetchingDetails}
+                      disabled={calculatedTotal <= 0 || displayItems.length === 0 || fetchingDetails || !agreeToRefundPolicy}
                     >
                       {fetchingDetails ? 'Loading...' : 'Complete Checkout'}
                     </Button>
@@ -229,8 +264,8 @@ const Checkout = () => {
                         Secure payment powered by Paystack
                       </p>
                       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>30-Day Money-Back Guarantee</span>
+
+      
                       </div>
                       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>

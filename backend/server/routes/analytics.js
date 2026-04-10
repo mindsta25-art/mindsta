@@ -238,7 +238,6 @@ router.get('/export', requireAdmin, async (req, res) => {
         userId: s.userId?.toString(),
         fullName: s.fullName,
         grade: s.grade,
-        schoolName: s.schoolName,
         age: s.age,
         createdAt: s.createdAt
       })),
@@ -274,9 +273,9 @@ router.get('/export', requireAdmin, async (req, res) => {
     if (format === 'csv') {
       // Simple CSV for students
       const csv = [
-        'ID,Name,Grade,School,Age,Created',
+        'ID,Name,Grade,Age,Created',
         ...exportData.students.map(s => 
-          `${s.id},${s.fullName},${s.grade},${s.schoolName},${s.age},${s.createdAt}`
+          `${s.id},${s.fullName},${s.grade},${s.age},${s.createdAt}`
         )
       ].join('\n');
       

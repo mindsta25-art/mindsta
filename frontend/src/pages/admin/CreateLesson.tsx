@@ -297,7 +297,7 @@ const CreateLesson = () => {
           {/* Header */}
           <div className="flex items-center justify-between sticky top-0 bg-background py-4 border-b z-10">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">{isEditing ? 'Edit Lesson' : 'Create Lesson'}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{isEditing ? 'Edit Lesson' : 'Create Lesson'}</h1>
               <p className="text-muted-foreground mt-1">{isEditing ? 'Update the lesson details below' : 'Fill in the lesson details below'}</p>
               {!isEditing && (
                 <div className="space-y-1">

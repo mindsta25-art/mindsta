@@ -164,7 +164,16 @@ function IdleTimerWrapper({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
-  <ErrorBoundary>
+  <ErrorBoundary
+    showOfflineIndicator={true}
+    enableRetry={true}
+    maxRetries={3}
+    onError={(error, errorInfo) => {
+      // Send error to monitoring service if available
+      console.error('App Error:', error, errorInfo);
+      // Could integrate with error reporting service here
+    }}
+  >
     <TooltipProvider>
       <AuthProvider>
         <ContactSettingsProvider>

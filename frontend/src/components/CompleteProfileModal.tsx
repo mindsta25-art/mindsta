@@ -30,7 +30,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { createStudentProfile } from '@/api/students';
 import { useAuth } from '@/contexts/AuthContext';
-import { GraduationCap, School, User, Calendar } from 'lucide-react';
+import { GraduationCap, User, Calendar } from 'lucide-react';
 
 const GRADES = [
   'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4',
@@ -49,7 +49,6 @@ export function CompleteProfileModal({ open, onComplete }: Props) {
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [grade, setGrade] = useState('');
   const [age, setAge] = useState('');
-  const [schoolName, setSchoolName] = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +66,6 @@ export function CompleteProfileModal({ open, onComplete }: Props) {
         fullName: fullName.trim() || user.fullName,
         grade,
         age: age ? parseInt(age) : undefined,
-        schoolName: schoolName.trim(),
       });
 
       // If the name changed, patch localStorage so the header updates immediately
@@ -169,19 +167,6 @@ export function CompleteProfileModal({ open, onComplete }: Props) {
               value={age}
               onChange={(e) => setAge(e.target.value)}
               placeholder="Your age"
-            />
-          </div>
-
-          {/* School */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cp-school" className="flex items-center gap-1.5 text-sm font-medium">
-              <School className="w-3.5 h-3.5" /> School Name
-            </Label>
-            <Input
-              id="cp-school"
-              value={schoolName}
-              onChange={(e) => setSchoolName(e.target.value)}
-              placeholder="Your school name"
             />
           </div>
 

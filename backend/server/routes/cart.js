@@ -177,13 +177,20 @@ router.post('/add', requireAuth, async (req, res) => {
       });
     }
 
+    console.log('[Cart] Current cart items:', cart.items.length);
+    console.log('[Cart] Checking for lessonId:', lessonId);
+
     // Check if item already exists in cart (match by lessonId if provided, else by subject+grade+term)
     const existingItem = lessonId
-      ? cart.items.find(item => item.lessonId?.toString() === lessonId)
+      ? cart.items.find(item => {
+          const match = item.lessonId?.toString() === lessonId;
+          console.log('[Cart] Checking item lessonId:', item.lessonId?.toString(), 'against:', lessonId, 'match:', match);
+          return match;
+        })
       : cart.items.find(item => item.subject === subject && item.grade === grade && item.term === term && !item.lessonId);
 
     if (existingItem) {
-      console.log('[Cart] Item already exists in cart');
+      console.log('[Cart] Item already exists in cart, rejecting');
       return res.status(400).json({ message: 'Item already in cart' });
     }
 
@@ -197,7 +204,11 @@ router.post('/add', requireAuth, async (req, res) => {
       price,
       addedAt: new Date(),
     };
-    if (lessonId) newItem.lessonId = lessonId;
+    if (lessonId) {
+      newItem.lessonId = lessonId;
+      console.log('[Cart] Adding lesson item with lessonId:', lessonId);
+    }
+    
     cart.items.push(newItem);
 
     console.log('[Cart] Saving cart with', cart.items.length, 'items');

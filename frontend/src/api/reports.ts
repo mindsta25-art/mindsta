@@ -31,7 +31,6 @@ export interface StudentProgressReport {
     name: string;
     email: string;
     grade: string;
-    schoolName: string;
     totalLessons: number;
     completedLessons: number;
     completionRate: number;

@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -74,8 +75,10 @@ const Auth = () => {
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       fullName: "", email: "", password: "", confirmPassword: "",
-      userType: "student", grade: "", age: "", schoolName: "",
+      userType: "student", grade: "", age: "",
       referralCode: referralCode || "",
+      isParentGuardian: false,
+      agreedToTerms: false,
     },
   });
 
@@ -133,7 +136,7 @@ const Auth = () => {
         userType: userType as any,
         grade: data.grade,
         age: parseInt(data.age || "0"),
-        schoolName: data.schoolName,
+
         referralCode: data.referralCode,
       });
 
@@ -263,11 +266,11 @@ const Auth = () => {
             </ul>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mt-12 pt-8 border-t border-white/10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-white/10">
             {[{ value: "5,000+", label: "Students" }, { value: "200+", label: "Lessons" }, { value: "6", label: "Grade Levels" }].map(s => (
               <div key={s.label}>
-                <div className="text-2xl font-bold text-white">{s.value}</div>
-                <div className="text-xs text-pink-200">{s.label}</div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{s.value}</div>
+                <div className="text-xs sm:text-sm text-pink-200">{s.label}</div>
               </div>
             ))}
           </div>
@@ -395,53 +398,6 @@ const Auth = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Grade + Age */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="grade" className="text-sm font-medium text-gray-700 dark:text-gray-300">Grade</Label>
-                      <Select value={signupForm.watch("grade")} onValueChange={(v) => signupForm.setValue("grade", v)}>
-                        <SelectTrigger id="grade" className="h-11 border-gray-200 dark:border-border">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6].map((g) => (
-                            <SelectItem key={g} value={g.toString()}>Grade {g}</SelectItem>
-                          ))}
-                          <SelectItem value="Common Entrance">Common Entrance</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {signupForm.formState.errors.grade && (
-                        <p className="text-xs text-red-500">{signupForm.formState.errors.grade.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="age" className="text-sm font-medium text-gray-700 dark:text-gray-300">Age</Label>
-                      <Select value={signupForm.watch("age")} onValueChange={(v) => signupForm.setValue("age", v)}>
-                        <SelectTrigger id="age" className="h-11 border-gray-200 dark:border-border">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((a) => (
-                            <SelectItem key={a} value={a.toString()}>{a} yrs</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {signupForm.formState.errors.age && (
-                        <p className="text-xs text-red-500">{signupForm.formState.errors.age.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* School Name */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="schoolName" className="text-sm font-medium text-gray-700 dark:text-gray-300">School Name</Label>
-                    <Input id="schoolName" type="text" {...signupForm.register("schoolName")} maxLength={200}
-                      className="h-11 border-gray-200 dark:border-border" placeholder="Name of your school" />
-                    {signupForm.formState.errors.schoolName && (
-                      <p className="text-xs text-red-500">{signupForm.formState.errors.schoolName.message}</p>
-                    )}
-                  </div>
                 </>
               )}
 
@@ -487,6 +443,45 @@ const Auth = () => {
                   <p className="text-xs text-red-500">{signupForm.formState.errors.email.message}</p>
                 )}
               </div>
+
+              {/* Grade + Age (signup only) */}
+              {!isLogin && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="grade" className="text-sm font-medium text-gray-700 dark:text-gray-300">Grade</Label>
+                    <Select value={signupForm.watch("grade")} onValueChange={(v) => signupForm.setValue("grade", v)}>
+                      <SelectTrigger id="grade" className="h-11 border-gray-200 dark:border-border">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6].map((g) => (
+                          <SelectItem key={g} value={g.toString()}>Grade {g}</SelectItem>
+                        ))}
+                        <SelectItem value="Common Entrance">Common Entrance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {signupForm.formState.errors.grade && (
+                      <p className="text-xs text-red-500">{signupForm.formState.errors.grade.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="age" className="text-sm font-medium text-gray-700 dark:text-gray-300">Age</Label>
+                    <Select value={signupForm.watch("age")} onValueChange={(v) => signupForm.setValue("age", v)}>
+                      <SelectTrigger id="age" className="h-11 border-gray-200 dark:border-border">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((a) => (
+                          <SelectItem key={a} value={a.toString()}>{a} yrs</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {signupForm.formState.errors.age && (
+                      <p className="text-xs text-red-500">{signupForm.formState.errors.age.message}</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Password */}
               <div className="space-y-1.5">
@@ -592,6 +587,7 @@ const Auth = () => {
                     )}
                   </div>
 
+                  {/* Referral Code (optional) */}
                   <div className="space-y-1.5">
                     <Label htmlFor="referralCode" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Referral Code <span className="text-gray-400 font-normal">(optional)</span>
@@ -599,6 +595,45 @@ const Auth = () => {
                     <Input id="referralCode" type="text" placeholder="Enter referral code if you have one"
                       {...signupForm.register("referralCode")} maxLength={50}
                       className="h-11 border-gray-200 dark:border-border" />
+                  </div>
+
+                  {/* Agreements Section - At the end before submit */}
+                  <div className="space-y-3 bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-900/50">
+                    {/* Parent/Guardian Checkbox */}
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="isParentGuardian"
+                        checked={signupForm.watch("isParentGuardian")}
+                        onCheckedChange={(checked) => signupForm.setValue("isParentGuardian", !!checked)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor="isParentGuardian" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer block">
+                          I am a parent/guardian and I agree
+                        </Label>
+                        {signupForm.formState.errors.isParentGuardian && (
+                          <p className="text-xs text-red-500 mt-1">{signupForm.formState.errors.isParentGuardian.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Terms of Policy Checkbox */}
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="agreedToTerms"
+                        checked={signupForm.watch("agreedToTerms")}
+                        onCheckedChange={(checked) => signupForm.setValue("agreedToTerms", !!checked)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor="agreedToTerms" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer block">
+                          I have read the terms of policy
+                        </Label>
+                        {signupForm.formState.errors.agreedToTerms && (
+                          <p className="text-xs text-red-500 mt-1">{signupForm.formState.errors.agreedToTerms.message}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </>
               )}

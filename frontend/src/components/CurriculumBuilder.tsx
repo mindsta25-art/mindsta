@@ -203,7 +203,7 @@ export const CurriculumBuilder = ({ curriculum, onChange }: CurriculumBuilderPro
           <CardTitle className="text-lg">Curriculum Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">{curriculum.length}</div>
               <div className="text-sm text-muted-foreground">Sections</div>

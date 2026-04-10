@@ -35,20 +35,26 @@ export const signUpSchema = z.object({
   // Student-specific fields (conditionally required)
   grade: z.string().optional(),
   age: z.string().optional(),
-  schoolName: z.string().optional(),
   // Referral code (optional)
   referralCode: z.string().optional(),
+  // Parent/guardian and terms agreements
+  isParentGuardian: z.boolean().refine((val) => val === true, {
+    message: "You must confirm you are a parent/guardian",
+  }),
+  agreedToTerms: z.boolean().refine((val) => val === true, {
+    message: "You must read and agree to the terms of policy",
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
 }).refine((data) => {
-  // If userType is student, require grade, age, and schoolName
+  // If userType is student, require grade and age (schoolName removed)
   if (data.userType === 'student') {
-    return data.grade && data.age && data.schoolName;
+    return data.grade && data.age;
   }
   return true;
 }, {
-  message: "Grade, age, and school name are required for students",
+  message: "Grade and age are required for students",
   path: ["grade"],
 });
 

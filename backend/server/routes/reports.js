@@ -44,7 +44,6 @@ router.get('/student-progress', requireAdmin, async (req, res) => {
         name: student.fullName,
         email: student.userId?.email,
         grade: student.grade,
-        schoolName: student.schoolName,
         totalLessons,
         completedLessons,
         completionRate: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
@@ -82,7 +81,7 @@ router.get('/student-progress', requireAdmin, async (req, res) => {
     
     if (format === 'csv') {
       return sendCSV(res, reportData, 'student-progress', [
-        'studentId', 'name', 'email', 'grade', 'schoolName', 
+        'studentId', 'name', 'email', 'grade', 
         'totalLessons', 'completedLessons', 'completionRate', 'avgQuizScore'
       ]);
     }

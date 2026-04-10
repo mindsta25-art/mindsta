@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  User, Mail, School, GraduationCap, Calendar, Save, AlertCircle,
+  User, Mail, GraduationCap, Calendar, Save, AlertCircle,
   Shield, Eye, EyeOff, Lock, CheckCircle, BookOpen, Flame, Award,
   TrendingUp, ChevronRight, Pencil, X, KeyRound
 } from 'lucide-react';
@@ -29,7 +29,6 @@ interface StudentInfo {
   fullName: string;
   grade: string;
   age: number;
-  schoolName: string;
   currentStreak?: number;
   longestStreak?: number;
   createdAt: string;
@@ -52,7 +51,6 @@ const Profile = () => {
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');
   const [grade, setGrade] = useState('');
-  const [schoolName, setSchoolName] = useState('');
 
   // Password change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -85,7 +83,6 @@ const Profile = () => {
           setFullName(data.fullName);
           setAge(data.age?.toString() || '');
           setGrade(data.grade);
-          setSchoolName(data.schoolName);
         }
         setCompletedCount(progress.filter(p => p.completed).length);
         const uniqueSubjects = new Set(enrollments.map(e => `${e.subject}-${e.grade}-${e.term}`)).size;
@@ -109,7 +106,6 @@ const Profile = () => {
         fullName,
         age: age ? parseInt(age) : undefined,
         grade,
-        schoolName,
       });
       if (updated) {
         setStudentInfo(updated);
@@ -247,7 +243,6 @@ const Profile = () => {
                     <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                       <span className="inline-flex items-center gap-1"><GraduationCap className="w-3.5 h-3.5" /> Grade {grade}</span>
-                      {schoolName && <span className="inline-flex items-center gap-1"><School className="w-3.5 h-3.5" /> {schoolName}</span>}
                     </p>
                   </div>
                   <div className="flex-shrink-0 pb-1">
@@ -319,7 +314,7 @@ const Profile = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="grid sm:grid-cols-3 gap-5">
+                    <div className="grid sm:grid-cols-2 gap-5">
                       <div className="space-y-1.5">
                         <Label htmlFor="age" className="text-sm font-medium">Age</Label>
                         <Input id="age" type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="Your age" min="5" max="100" />
@@ -333,10 +328,6 @@ const Profile = () => {
                             <SelectItem value="Common Entrance">Common Entrance</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="schoolName" className="text-sm font-medium">School Name</Label>
-                        <Input id="schoolName" value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="Your school" />
                       </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
@@ -353,7 +344,6 @@ const Profile = () => {
                       { icon: Mail, label: 'Email', value: user?.email },
                       { icon: GraduationCap, label: 'Grade', value: `Grade ${grade}` },
                       { icon: Calendar, label: 'Age', value: age ? `${age} years` : '—' },
-                      { icon: School, label: 'School', value: schoolName || '—' },
                     ].map(({ icon: Icon, label, value }) => (
                       <div key={label} className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 mt-0.5">

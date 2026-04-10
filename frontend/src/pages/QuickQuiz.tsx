@@ -318,7 +318,7 @@ const QuickQuiz = () => {
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
                           transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-                          className="text-6xl mb-3"
+                          className="text-4xl sm:text-5xl md:text-6xl mb-2 sm:mb-3"
                         >
                           {grade.emoji}
                         </motion.div>
@@ -327,7 +327,7 @@ const QuickQuiz = () => {
                       </div>
                       <CardContent className="p-8">
                         <div className="text-center mb-6">
-                          <div className="text-5xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">
+                          <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">
                             {percentage}%
                           </div>
                           <p className="text-muted-foreground text-sm">

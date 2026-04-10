@@ -311,7 +311,7 @@ const LessonManagementRedesigned = () => {
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Lesson Management</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Lesson Management</h1>
             <p className="text-muted-foreground">
               Create, edit, and manage your educational content
             </p>

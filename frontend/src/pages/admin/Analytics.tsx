@@ -200,7 +200,7 @@ const Analytics = () => {
       <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground mt-1">Real-time platform insights and metrics</p>
         </div>
         

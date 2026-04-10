@@ -375,8 +375,8 @@ const BrowseTopicsEnhanced = () => {
           <div className="flex items-center gap-3 mb-4">
             <GraduationCap className="w-12 h-12" />
             <div>
-              <h1 className="text-4xl font-bold">Grade {grade} Learning Hub</h1>
-              <p className="text-white/90 text-lg">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Grade {grade} Learning Hub</h1>
+              <p className="text-white/90 text-base sm:text-lg">
                 Explore topics, lessons, and quizzes for your grade
               </p>
             </div>

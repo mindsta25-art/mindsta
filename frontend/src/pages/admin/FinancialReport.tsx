@@ -530,7 +530,7 @@ const FinancialReport = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Financial Report</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financial Report</h1>
             <p className="text-muted-foreground mt-1">
               Comprehensive overview of all transactions and payouts
             </p>
@@ -788,7 +788,7 @@ const FinancialReport = () => {
                     setItemsPerPage(Number(value));
                     setCurrentPage(1);
                   }}>
-                    <SelectTrigger className="w-[100px]">
+                    <SelectTrigger className="w-full sm:w-[100px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

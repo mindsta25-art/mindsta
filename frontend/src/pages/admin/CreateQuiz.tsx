@@ -158,7 +158,7 @@ const CreateQuiz = () => {
           {/* Header */}
           <div className="flex items-center justify-between sticky top-0 bg-background py-4 border-b z-10">
             <div>
-              <h1 className="text-3xl font-bold">Create Quiz</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">Create Quiz</h1>
               <p className="text-muted-foreground mt-1">Create a quiz for an existing lesson</p>
             </div>
             <Button size="sm" variant="outline" onClick={() => navigate("/admin/content")} className="gap-2">

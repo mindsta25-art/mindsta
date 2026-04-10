@@ -435,7 +435,7 @@ const NewsletterSubscribers = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Newsletter Subscribers</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Newsletter Subscribers</h1>
             <p className="text-muted-foreground">
               Manage all newsletter subscriptions and subscribers
             </p>
@@ -540,7 +540,7 @@ const NewsletterSubscribers = () => {
                 </div>
               </div>
               <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -550,7 +550,7 @@ const NewsletterSubscribers = () => {
                 </SelectContent>
               </Select>
               <Select value={filterSource} onValueChange={setFilterSource}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]\">
                   <SelectValue placeholder="Filter by source" />
                 </SelectTrigger>
                 <SelectContent>

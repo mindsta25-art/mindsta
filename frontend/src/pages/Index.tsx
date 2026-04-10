@@ -199,10 +199,10 @@ const Index = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-400/10 rounded-full blur-3xl animate-pulse delay-500" />
         
         {/* Floating Emojis */}
-        <div className="absolute top-10 left-1/4 text-4xl animate-bounce delay-200">⭐</div>
-        <div className="absolute top-32 right-1/4 text-4xl animate-bounce delay-500">🚀</div>
-        <div className="absolute bottom-32 left-1/3 text-4xl animate-bounce delay-700">🎨</div>
-        <div className="absolute bottom-20 right-1/3 text-4xl animate-bounce delay-1000">🎉</div>
+        <div className="absolute top-10 left-1/4 text-xl sm:text-3xl md:text-4xl animate-bounce delay-200">⭐</div>
+        <div className="absolute top-32 right-1/4 text-xl sm:text-3xl md:text-4xl animate-bounce delay-500">🚀</div>
+        <div className="absolute bottom-32 left-1/3 text-xl sm:text-3xl md:text-4xl animate-bounce delay-700">🎨</div>
+        <div className="absolute bottom-20 right-1/3 text-xl sm:text-3xl md:text-4xl animate-bounce delay-1000">🎉</div>
       </div>
 
       {/* Fixed Header */}

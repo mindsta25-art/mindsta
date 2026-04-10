@@ -50,7 +50,8 @@ describe('signUpSchema', () => {
     userType: 'student' as const,
     grade: 'Grade 5',
     age: '10',
-    schoolName: 'Mindsta School',
+    isParentGuardian: true,
+    agreedToTerms: true,
   };
 
   const validReferral = {
@@ -59,6 +60,8 @@ describe('signUpSchema', () => {
     password: 'SecurePass9',
     confirmPassword: 'SecurePass9',
     userType: 'referral' as const,
+    isParentGuardian: true,
+    agreedToTerms: true,
   };
 
   it('passes for valid student data', () => {
@@ -107,7 +110,7 @@ describe('signUpSchema', () => {
     }
   });
 
-  it('rejects student missing grade, age, or schoolName', () => {
+  it('rejects student missing grade or age', () => {
     const { grade: _g, ...noGrade } = validStudent;
     const result = signUpSchema.safeParse(noGrade);
     expect(result.success).toBe(false);

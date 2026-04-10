@@ -273,7 +273,7 @@ export const CoursePreviewDialog = ({
         {/* px-4 sm:px-6 wrapper gives all tab content + footer breathing room on mobile */}
         <div className="px-4 sm:px-6">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
             <TabsTrigger value="reviews">

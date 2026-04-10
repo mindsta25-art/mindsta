@@ -114,7 +114,7 @@ router.get('/check-email', async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, fullName, userType, grade, age, schoolName, referralCode } = req.body;
+    const { email, password, fullName, userType, grade, age, referralCode } = req.body;
 
     // Input validation
     if (!email || !password || !fullName) {
@@ -215,13 +215,12 @@ router.post('/signup', async (req, res) => {
     } catch (_) {}
 
     // Create student record if user type is student
-    if (userType === 'student' && grade && age && schoolName) {
+    if (userType === 'student' && grade && age) {
       await Student.create({
         userId: user._id,
         fullName,
         grade,
         age,
-        schoolName,
       });
     }
 
@@ -395,7 +394,7 @@ router.post('/verify-otp', async (req, res) => {
     };
 
     // Google OAuth users who registered via Google have no Student record yet
-    // (grade/age/schoolName are not provided by Google). Signal the frontend
+    // (grade/age are not provided by Google). Signal the frontend
     // so it can show the complete-profile modal immediately after verification.
     const needsProfileSetup = !!(user.googleId && user.userType === 'student');
     // Likewise, referral users from Google OAuth have no phone number yet.

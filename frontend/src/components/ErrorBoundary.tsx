@@ -1,27 +1,41 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Wifi, WifiOff } from "lucide-react";
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  showOfflineIndicator?: boolean;
+  enableRetry?: boolean;
+  maxRetries?: number;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  retryCount: number;
+  isOnline: boolean;
+  isRetrying: boolean;
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
+  private retryTimeoutId: number | null = null;
+  private onlineCheckInterval: number | null = null;
+
   public state: State = {
     hasError: false,
     error: null,
     errorInfo: null,
+    retryCount: 0,
+    isOnline: navigator.onLine,
+    isRetrying: false,
   };
 
   constructor(props: Props) {
     super(props);
+    this.setupOnlineListener();
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -34,15 +48,42 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Error caught by boundary:", error, errorInfo);
+
     this.setState({
       error,
       errorInfo,
     });
 
+    // Handle specific error types
+    if (this.isChunkLoadError(error)) {
+      this.handleChunkLoadError();
+      return;
+    }
+
+    if (this.isNetworkError(error)) {
+      this.handleNetworkError();
+      return;
+    }
+
+    // Call custom error handler
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo);
+    }
+
     // Log to external service in production
     if (import.meta.env.PROD) {
-      // Add your error logging service here (e.g., Sentry, LogRocket)
-      console.error("Production error:", { error, errorInfo });
+      this.reportErrorToService(error, errorInfo);
+    }
+
+    // Send to analytics
+    if (window.gtag) {
+      window.gtag('event', 'exception', {
+        description: error.toString(),
+        fatal: false,
+        custom_map: {
+          component_stack: errorInfo.componentStack,
+        },
+      });
     }
   }
 
@@ -51,9 +92,127 @@ export default class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      retryCount: 0,
+      isRetrying: false,
     });
     window.location.href = "/";
   };
+
+  handleRetry = async () => {
+    const maxRetries = this.props.maxRetries || 3;
+
+    if (this.state.retryCount >= maxRetries) {
+      return;
+    }
+
+    this.setState({ isRetrying: true });
+
+    // Wait a bit before retrying
+    await new Promise(resolve => {
+      this.retryTimeoutId = window.setTimeout(resolve, 1000 * (this.state.retryCount + 1));
+    });
+
+    this.setState(prevState => ({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      retryCount: prevState.retryCount + 1,
+      isRetrying: false,
+    }));
+  };
+
+  handleReload = () => {
+    window.location.reload();
+  };
+
+  private setupOnlineListener() {
+    const updateOnlineStatus = () => {
+      this.setState({ isOnline: navigator.onLine });
+    };
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // Cleanup on unmount
+    this.onlineCheckInterval = window.setInterval(updateOnlineStatus, 30000); // Check every 30s
+  }
+
+  private isChunkLoadError(error: Error): boolean {
+    return error.message.includes('Loading chunk') ||
+           error.message.includes('Loading CSS chunk') ||
+           error.message.includes('ChunkLoadError');
+  }
+
+  private isNetworkError(error: Error): boolean {
+    return error.message.includes('fetch') ||
+           error.message.includes('network') ||
+           error.message.includes('Failed to fetch');
+  }
+
+  private handleChunkLoadError() {
+    // For chunk load errors, try to reload once
+    if (this.state.retryCount === 0) {
+      console.log('Chunk load error detected, reloading...');
+      window.location.reload();
+    }
+  }
+
+  private handleNetworkError() {
+    // Network errors are handled by the offline indicator
+    console.log('Network error detected');
+  }
+
+  private reportErrorToService(error: Error, errorInfo: ErrorInfo) {
+    // Add your error reporting service here
+    // Example implementations:
+
+    // Sentry
+    // if (window.Sentry) {
+    //   window.Sentry.captureException(error, {
+    //     contexts: {
+    //       react: {
+    //         componentStack: errorInfo.componentStack,
+    //       },
+    //     },
+    //   });
+    // }
+
+    // LogRocket
+    // if (window.LogRocket) {
+    //   window.LogRocket.captureException(error, {
+    //     extra: {
+    //       componentStack: errorInfo.componentStack,
+    //     },
+    //   });
+    // }
+
+    // Custom API endpoint
+    fetch('/api/errors', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        error: error.toString(),
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString(),
+      }),
+    }).catch(() => {
+      // Ignore reporting errors to avoid infinite loops
+    });
+  }
+
+  componentWillUnmount() {
+    if (this.retryTimeoutId) {
+      clearTimeout(this.retryTimeoutId);
+    }
+    if (this.onlineCheckInterval) {
+      clearInterval(this.onlineCheckInterval);
+    }
+  }
 
   render() {
     if (this.state.hasError) {
@@ -75,6 +234,20 @@ export default class ErrorBoundary extends Component<Props, State> {
               <p className="text-muted-foreground">
                 We're sorry for the inconvenience. An unexpected error occurred.
               </p>
+
+              {this.props.showOfflineIndicator !== false && !this.state.isOnline && (
+                <div className="flex items-center justify-center gap-2 text-sm text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-3 py-2 rounded-lg">
+                  <WifiOff className="w-4 h-4" />
+                  <span>You appear to be offline</span>
+                </div>
+              )}
+
+              {this.state.isRetrying && (
+                <div className="flex items-center justify-center gap-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/20 px-3 py-2 rounded-lg">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Retrying...</span>
+                </div>
+              )}
             </div>
 
             {import.meta.env.DEV && this.state.error && (
@@ -102,18 +275,32 @@ export default class ErrorBoundary extends Component<Props, State> {
             )}
 
             <div className="flex flex-col gap-3">
-              <Button 
+              {this.props.enableRetry !== false && this.state.retryCount < (this.props.maxRetries || 3) && (
+                <Button
+                  onClick={this.handleRetry}
+                  disabled={this.state.isRetrying}
+                  className="w-full gap-2"
+                  size="lg"
+                  variant="default"
+                >
+                  <RefreshCw className={`w-4 h-4 ${this.state.isRetrying ? 'animate-spin' : ''}`} />
+                  Try Again {this.state.retryCount > 0 && `(${this.state.retryCount}/${this.props.maxRetries || 3})`}
+                </Button>
+              )}
+
+              <Button
                 onClick={this.handleReset}
                 className="w-full gap-2"
                 size="lg"
+                variant={this.props.enableRetry !== false && this.state.retryCount < (this.props.maxRetries || 3) ? "outline" : "default"}
               >
                 <RefreshCw className="w-4 h-4" />
                 Return to Home
               </Button>
-              
+
               <Button
                 variant="outline"
-                onClick={() => window.location.reload()}
+                onClick={this.handleReload}
                 className="w-full"
                 size="lg"
               >

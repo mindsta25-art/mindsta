@@ -45,10 +45,16 @@ export const addToCart = async (item: {
   term?: string;
   price?: number;
   lessonId?: string;
+  title?: string;
 }): Promise<Cart> => {
   try {
     console.log('[Cart API] Adding to cart:', item);
-    const result = await api.post('/cart/add', item);
+    const endpoint = item.lessonId ? '/cart/add-lesson' : '/cart/add';
+    const payload = item.lessonId
+      ? { lessonId: item.lessonId }
+      : { subject: item.subject, grade: item.grade, term: item.term, price: item.price, title: item.title };
+
+    const result = await api.post(endpoint, payload);
     console.log('[Cart API] Add response:', result);
     
     // Backend returns { message, cart }

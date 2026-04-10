@@ -89,7 +89,6 @@ const UserManagement = () => {
   const [newUserType, setNewUserType] = useState("student");
   const [newUserGrade, setNewUserGrade] = useState("1");
   const [newUserAge, setNewUserAge] = useState("");
-  const [newUserSchool, setNewUserSchool] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [showNewUserPassword, setShowNewUserPassword] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
@@ -391,7 +390,6 @@ const UserManagement = () => {
         ...(newUserType === 'student' && {
           grade: newUserGrade,
           age: newUserAge,
-          schoolName: newUserSchool,
         }),
       });
       
@@ -407,7 +405,6 @@ const UserManagement = () => {
       setNewUserType('student');
       setNewUserGrade('1');
       setNewUserAge('');
-      setNewUserSchool('');
       setShowAddUserModal(false);
     } catch (err: any) {
       toast({
@@ -739,18 +736,21 @@ const UserManagement = () => {
 
         {/* Users Table */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4\">
             <TabsTrigger value="all">
-              All Users ({userTypeCounts.all})
+              <span className="inline sm:hidden text-xs\">All</span>
+              <span className="hidden sm:inline\">All Users</span> ({userTypeCounts.all})
             </TabsTrigger>
             <TabsTrigger value="student">
-              Students ({userTypeCounts.student})
+              <span className="inline sm:hidden text-xs\">Students</span>
+              <span className="hidden sm:inline\">Students</span> ({userTypeCounts.student})
             </TabsTrigger>
-            <TabsTrigger value="referral">
-              Referrals ({userTypeCounts.referral})
+            <TabsTrigger value="referral\">
+              <span className="inline sm:hidden text-xs\">Referrals</span>
+              <span className="hidden sm:inline\">Referrals</span> ({userTypeCounts.referral})
             </TabsTrigger>
-            <TabsTrigger value="admin">
-              Admins ({userTypeCounts.admin})
+            <TabsTrigger value="admin\">
+              <span className=\"hidden md:inline\">Admins</span> ({userTypeCounts.admin})
             </TabsTrigger>
           </TabsList>
 
@@ -1043,16 +1043,6 @@ const UserManagement = () => {
                       disabled={creatingUser}
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="newUserSchool">School Name</Label>
-                  <Input
-                    id="newUserSchool"
-                    value={newUserSchool}
-                    onChange={e => setNewUserSchool(e.target.value)}
-                    placeholder="e.g. Greenfield Academy"
-                    disabled={creatingUser}
-                  />
                 </div>
               </>
             )}

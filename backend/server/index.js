@@ -39,6 +39,12 @@ import adminAlertsRoutes from './routes/admin-alerts.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { startActivityMonitor } from './middleware/activityTracker.js';
 import { startAbandonedCartScheduler } from './services/abandonedCartScheduler.js';
+import { gracefulShutdown } from './services/gracefulShutdownService.js';
+import { monitoringService } from './services/monitoringService.js';
+import { databaseOptimizer } from './services/databaseOptimizerService.js';
+import { cdnService } from './services/cdnService.js';
+import { queueMiddleware } from './services/requestQueueService.js';
+import { performHealthCheck, ping, readinessCheck, livenessCheck } from './services/healthCheckService.js';
 import {
   securityHeaders,
   corsOptions,
@@ -182,6 +188,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // 10. Initialize Passport for OAuth
 app.use(passport.initialize());
 
+// CDN middleware for static assets
+app.use(cdnService.middleware());
+
 // MongoDB Connection with production settings
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
@@ -222,6 +231,32 @@ mongoose.connect(MONGODB_URI, {
 
     try { startActivityMonitor(); } catch (e) { console.error('[ActivityMonitor] Failed to start:', e.message); }
     try { startAbandonedCartScheduler(); } catch (e) { console.error('[AbandonedCart] Failed to start:', e.message); }
+
+    // Initialize robustness services
+    try {
+      await monitoringService.initialize({
+        logLevel: IS_PRODUCTION ? 'info' : 'debug',
+        logDir: path.join(__dirnameLocal, '..', 'logs')
+      });
+      console.log('[Monitoring] Service initialized');
+    } catch (e) { console.error('[Monitoring] Failed to initialize:', e.message); }
+
+    try {
+      await databaseOptimizer.initializeConnection(MONGODB_URI, {
+        maxPoolSize: IS_PRODUCTION ? 20 : 5,
+        serverSelectionTimeoutMS: 30000,
+        socketTimeoutMS: 45000,
+      });
+      console.log('[DatabaseOptimizer] Service initialized');
+    } catch (e) { console.error('[DatabaseOptimizer] Failed to initialize:', e.message); }
+
+    try {
+      await cdnService.initialize();
+      console.log('[CDN] Service initialized');
+    } catch (e) { console.error('[CDN] Failed to initialize:', e.message); }
+
+    // Initialize graceful shutdown
+    gracefulShutdown.initialize(app);
   })
   .catch((error) => {
     console.error('[MongoDB] Connection failed:', error.message);
@@ -272,18 +307,53 @@ app.get('/api', (req, res) => {
 });
 
 // Health check endpoint with detailed status
-app.get('/api/health', (req, res) => {
-  const health = {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: NODE_ENV,
-    uptime: process.uptime(),
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    memory: process.memoryUsage(),
-  };
-  
-  const statusCode = health.mongodb === 'connected' ? 200 : 503;
-  res.status(statusCode).json(health);
+app.get('/api/health', async (req, res) => {
+  try {
+    const healthData = await performHealthCheck();
+    const statusCode = healthData.overall === 'healthy' ? 200 : 503;
+    res.status(statusCode).json(healthData);
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// Readiness check for Kubernetes/load balancers
+app.get('/api/readiness', async (req, res) => {
+  try {
+    const readiness = await readinessCheck();
+    res.status(readiness.ready ? 200 : 503).json(readiness);
+  } catch (error) {
+    res.status(503).json({ ready: false, reason: error.message });
+  }
+});
+
+// Liveness check for container orchestration
+app.get('/api/liveness', async (req, res) => {
+  try {
+    const liveness = await livenessCheck();
+    res.status(liveness.alive ? 200 : 503).json(liveness);
+  } catch (error) {
+    res.status(503).json({ alive: false, reason: error.message });
+  }
+});
+
+// Monitoring stats endpoint (admin only)
+app.get('/api/monitoring/stats', (req, res) => {
+  // TODO: Add admin authentication check
+  const stats = monitoringService.getStats();
+  res.json(stats);
+});
+
+// Queue stats endpoint (admin only)
+app.get('/api/monitoring/queues', (req, res) => {
+  // TODO: Add admin authentication check
+  const { getQueueStats } = await import('./services/requestQueueService.js');
+  const queueStats = getQueueStats();
+  res.json(queueStats);
 });
 
 // Lightweight ping — answers immediately with no DB check.
@@ -292,30 +362,50 @@ app.get('/api/ping', (_req, res) => {
   res.status(200).json({ ok: true });
 });
 
-// API Routes with Rate Limiting
+// API Routes with Rate Limiting and Request Queuing
 
-// Auth routes with strict rate limiting
-app.use('/api/auth/signin', authLimiter);
-app.use('/api/auth/admin-signin', authLimiter);
-app.use('/api/auth/verify-otp', otpLimiter);
-app.use('/api/auth/resend-otp', otpLimiter);
-app.use('/api/auth', apiLimiter, authRoutes);
+// Request monitoring middleware
+app.use('/api', (req, res, next) => {
+  const startTime = Date.now();
+  const originalSend = res.send;
+  const originalJson = res.json;
 
-// Public routes with moderate rate limiting
-app.use('/api/students', apiLimiter, studentRoutes);
-app.use('/api/lessons', apiLimiter, lessonRoutes);
-app.use('/api/quizzes', apiLimiter, quizRoutes);
-app.use('/api/progress', apiLimiter, progressRoutes);
-app.use('/api/referrals', apiLimiter, referralRoutes);
-app.use('/api/analytics', apiLimiter, analyticsRoutes);
-app.use('/api/admin', strictLimiter, adminRoutes);
-app.use('/api/profiles', apiLimiter, profileRoutes);
-app.use('/api/payments', apiLimiter, paymentRoutes);
-app.use('/api/reports', apiLimiter, reportsRoutes);
-app.use('/api/settings', apiLimiter, settingsRoutes);
-app.use('/api/cart', apiLimiter, cartRoutes);
-app.use('/api/wishlist', apiLimiter, wishlistRoutes);
-app.use('/api/notifications', apiLimiter, notificationRoutes);
+  res.send = function(data) {
+    const duration = Date.now() - startTime;
+    monitoringService.logRequest(req, res, duration);
+    return originalSend.call(this, data);
+  };
+
+  res.json = function(data) {
+    const duration = Date.now() - startTime;
+    monitoringService.logRequest(req, res, duration);
+    return originalJson.call(this, data);
+  };
+
+  next();
+});
+
+// Critical routes (auth, payments) - high priority queuing
+app.use('/api/auth/signin', authLimiter, queueMiddleware('critical'));
+app.use('/api/auth/admin-signin', authLimiter, queueMiddleware('critical'));
+app.use('/api/auth/verify-otp', otpLimiter, queueMiddleware('critical'));
+app.use('/api/auth/resend-otp', otpLimiter, queueMiddleware('critical'));
+app.use('/api/auth', apiLimiter, queueMiddleware('standard'), authRoutes);
+app.use('/api/payments', apiLimiter, queueMiddleware('critical'), paymentRoutes);
+
+// Standard routes with queuing
+app.use('/api/students', apiLimiter, queueMiddleware('standard'), studentRoutes);
+app.use('/api/lessons', apiLimiter, queueMiddleware('standard'), lessonRoutes);
+app.use('/api/quizzes', apiLimiter, queueMiddleware('standard'), quizRoutes);
+app.use('/api/progress', apiLimiter, queueMiddleware('standard'), progressRoutes);
+app.use('/api/referrals', apiLimiter, queueMiddleware('standard'), referralRoutes);
+app.use('/api/analytics', apiLimiter, queueMiddleware('standard'), analyticsRoutes);
+app.use('/api/profiles', apiLimiter, queueMiddleware('standard'), profileRoutes);
+app.use('/api/reports', apiLimiter, queueMiddleware('standard'), reportsRoutes);
+app.use('/api/settings', apiLimiter, queueMiddleware('standard'), settingsRoutes);
+app.use('/api/cart', apiLimiter, queueMiddleware('standard'), cartRoutes);
+app.use('/api/wishlist', apiLimiter, queueMiddleware('standard'), wishlistRoutes);
+app.use('/api/notifications', apiLimiter, queueMiddleware('standard'), notificationRoutes);
 app.use('/api/assessment', apiLimiter, assessmentRoutes);
 app.use('/api/bundles', apiLimiter, bundleRoutes);
 app.use('/api/reviews', apiLimiter, reviewRoutes);

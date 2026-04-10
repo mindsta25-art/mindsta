@@ -204,7 +204,7 @@ const NotificationBell = () => {
         </Button>
       </SheetTrigger>
       
-      <SheetContent className="w-full sm:w-[400px] p-0">
+      <SheetContent side="right" className="w-[300px] sm:w-[380px] p-0">
         <SheetHeader className="p-4 sm:p-6 border-b">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-lg sm:text-xl">Notifications</SheetTitle>

@@ -16,6 +16,8 @@
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import { emailCircuitBreaker } from './circuitBreakerService.js';
+import { monitoringService } from './monitoringService.js';
 
 dotenv.config();
 
@@ -91,18 +93,47 @@ const sendMail = async ({ to, subject, html, text, from }) => {
 };
 
 const sendMailWithRetry = async (mailOptions, retries = 2) => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const info = await sendMail(mailOptions);
-      console.log(`[Email] ✅ Email sent to ${mailOptions.to} (id: ${info.messageId})`);
-      return { success: true, message: 'Email sent successfully', messageId: info.messageId };
-    } catch (error) {
-      console.error(`[Email] ❌ Attempt ${attempt}/${retries} failed:`, error.message);
-      if (attempt === retries) {
-        return { success: false, message: 'Email sending failed after retries', error: error.message };
+  // Check circuit breaker before attempting to send
+  if (!emailCircuitBreaker.canExecute()) {
+    const error = new Error('Email service is currently unavailable (circuit breaker open)');
+    monitoringService.createAlert('email_circuit_open', 'Email service circuit breaker is open', 'warning');
+    throw error;
+  }
+
+  const startTime = Date.now();
+
+  try {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const info = await sendMail(mailOptions);
+        console.log(`[Email] ✅ Email sent to ${mailOptions.to} (id: ${info.messageId})`);
+
+        // Record success in circuit breaker
+        emailCircuitBreaker.recordSuccess();
+
+        // Log successful operation
+        monitoringService.logDatabaseOperation('email_send', 'email_service', Date.now() - startTime);
+
+        return { success: true, message: 'Email sent successfully', messageId: info.messageId };
+      } catch (error) {
+        console.error(`[Email] ❌ Attempt ${attempt}/${retries} failed:`, error.message);
+        if (attempt === retries) {
+          // Record failure in circuit breaker
+          emailCircuitBreaker.recordFailure();
+
+          // Log failed operation
+          monitoringService.logDatabaseOperation('email_send', 'email_service', Date.now() - startTime, error);
+
+          return { success: false, message: 'Email sending failed after retries', error: error.message };
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
-      await new Promise(resolve => setTimeout(resolve, 2000));
     }
+  } catch (error) {
+    // Circuit breaker failure
+    emailCircuitBreaker.recordFailure();
+    monitoringService.createAlert('email_service_error', `Email service error: ${error.message}`, 'error');
+    throw error;
   }
 };
 

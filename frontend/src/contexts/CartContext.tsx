@@ -7,11 +7,11 @@ interface CartContextType {
   cart: Cart | null;
   cartCount: number;
   loading: boolean;
-  addToCart: (item: { subject: string; grade: string; term?: string; price?: number; lessonId?: string }) => Promise<void>;
+  addToCart: (item: { subject: string; grade: string; term?: string; price?: number; lessonId?: string; title?: string }) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
-  isInCart: (subject: string, grade: string, term?: string) => boolean;
+  isInCart: (subject: string, grade: string, term?: string, lessonId?: string) => boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -60,13 +60,18 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     }
   }, [user, refreshCart]);
 
-  const addToCart = async (item: { subject: string; grade: string; term?: string; price?: number; lessonId?: string }) => {
+  const addToCart = async (item: { subject: string; grade: string; term?: string; price?: number; lessonId?: string; title?: string }) => {
     if (!user) {
       toast({
         title: 'Please log in',
         description: 'You need to be logged in to add items to cart',
         variant: 'destructive',
       });
+      return;
+    }
+
+    if (loading) {
+      // Prevent multiple simultaneous add operations
       return;
     }
 
@@ -142,11 +147,18 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     }
   };
 
-  const isInCart = (subject: string, grade: string, term?: string): boolean => {
+  const isInCart = (subject: string, grade: string, term?: string, lessonId?: string): boolean => {
     if (!cart) return false;
-    return cart.items.some(
-      item => item.subject === subject && item.grade === grade && item.term === term
-    );
+    
+    if (lessonId) {
+      // For lesson-level items, check if this specific lessonId is in cart
+      return cart.items.some(item => item.lessonId === lessonId);
+    } else {
+      // For subject-level items, check by subject/grade/term
+      return cart.items.some(
+        item => item.subject === subject && item.grade === grade && item.term === term && !item.lessonId
+      );
+    }
   };
 
   return (

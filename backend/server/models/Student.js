@@ -20,10 +20,6 @@ const StudentSchema = new Schema(
       type: Number,
       required: true,
     },
-    schoolName: {
-      type: String,
-      required: true,
-    },
     // Payment gating flag: when true student can access paid content (lessons/exams)
     isPaid: {
       type: Boolean,
