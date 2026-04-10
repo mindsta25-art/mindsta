@@ -550,7 +550,7 @@ const NewsletterSubscribers = () => {
                 </SelectContent>
               </Select>
               <Select value={filterSource} onValueChange={setFilterSource}>
-                <SelectTrigger className="w-full sm:w-[150px]\">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Filter by source" />
                 </SelectTrigger>
                 <SelectContent>

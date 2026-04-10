@@ -349,7 +349,7 @@ app.get('/api/monitoring/stats', (req, res) => {
 });
 
 // Queue stats endpoint (admin only)
-app.get('/api/monitoring/queues', (req, res) => {
+app.get('/api/monitoring/queues', async (req, res) => {
   // TODO: Add admin authentication check
   const { getQueueStats } = await import('./services/requestQueueService.js');
   const queueStats = getQueueStats();

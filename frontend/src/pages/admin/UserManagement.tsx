@@ -736,21 +736,21 @@ const UserManagement = () => {
 
         {/* Users Table */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4\">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
             <TabsTrigger value="all">
-              <span className="inline sm:hidden text-xs\">All</span>
-              <span className="hidden sm:inline\">All Users</span> ({userTypeCounts.all})
+              <span className="inline sm:hidden text-xs">All</span>
+              <span className="hidden sm:inline">All Users</span> ({userTypeCounts.all})
             </TabsTrigger>
             <TabsTrigger value="student">
-              <span className="inline sm:hidden text-xs\">Students</span>
-              <span className="hidden sm:inline\">Students</span> ({userTypeCounts.student})
+              <span className="inline sm:hidden text-xs">Students</span>
+              <span className="hidden sm:inline">Students</span> ({userTypeCounts.student})
             </TabsTrigger>
-            <TabsTrigger value="referral\">
-              <span className="inline sm:hidden text-xs\">Referrals</span>
-              <span className="hidden sm:inline\">Referrals</span> ({userTypeCounts.referral})
+            <TabsTrigger value="referral">
+              <span className="inline sm:hidden text-xs">Referrals</span>
+              <span className="hidden sm:inline">Referrals</span> ({userTypeCounts.referral})
             </TabsTrigger>
-            <TabsTrigger value="admin\">
-              <span className=\"hidden md:inline\">Admins</span> ({userTypeCounts.admin})
+            <TabsTrigger value="admin">
+              <span className="hidden md:inline">Admins</span> ({userTypeCounts.admin})
             </TabsTrigger>
           </TabsList>
 

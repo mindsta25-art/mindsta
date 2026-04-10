@@ -297,18 +297,18 @@ const Settings = () => {
 
         {/* Settings Tabs */}
   <Tabs defaultValue="general" className="space-y-4">
-          <TabsList className=\"grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8\">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8">
             <TabsTrigger value="account" className="gap-1 sm:gap-2">
               <User className="w-4 h-4" />
-              <span className="hidden sm:inline\">Account</span>
+              <span className="hidden sm:inline">Account</span>
             </TabsTrigger>
             <TabsTrigger value="general" className="gap-1 sm:gap-2">
               <SettingsIcon className="w-4 h-4" />
-              <span className="hidden sm:inline\">General</span>
+              <span className="hidden sm:inline">General</span>
             </TabsTrigger>
-            <TabsTrigger value="contact" className="gap-1 sm:gap-2\">
+            <TabsTrigger value="contact" className="gap-1 sm:gap-2">
               <Mail className="w-4 h-4" />
-              <span className="hidden sm:inline\">Contact</span>
+              <span className="hidden sm:inline">Contact</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2">
               <Bell className="w-4 h-4" />
