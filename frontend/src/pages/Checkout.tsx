@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { BookOpen, Star, Users, Clock } from "lucide-react";
 import { getStudentByUserId, initializePayment } from "@/api";
-import { getLessonById, getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
+import { getLessonPreviewById, getSubjectsByGrade, type SubjectInfo } from "@/api/lessons";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/config/siteConfig";
 
@@ -30,6 +30,7 @@ interface EnrichedCartItem {
   duration?: number;
   lessonId?: string; // present for lesson-level purchases
   lessonTitle?: string;
+  imageUrl?: string;
 }
 
 const Checkout = () => {
@@ -76,7 +77,7 @@ const Checkout = () => {
           cart.items.map(async (item) => {
             try {
               if (item.lessonId) {
-                const lesson = await getLessonById(item.lessonId);
+                const lesson = await getLessonPreviewById(item.lessonId);
                 if (lesson) {
                   return {
                     ...item,
@@ -89,6 +90,7 @@ const Checkout = () => {
                     subject: lesson.subject,
                     grade: lesson.grade,
                     term: lesson.term,
+                    imageUrl: lesson.imageUrl || '',
                   } as EnrichedCartItem;
                 }
               }
@@ -158,8 +160,17 @@ const Checkout = () => {
                     <div className="space-y-4">
                       {displayItems.map((item) => (
                         <div key={item._id} className="flex gap-4 pb-4 border-b last:border-b-0">
-                          <div className="w-24 h-16 bg-gradient-to-br from-purple-500 to-purple-700 rounded flex-shrink-0 flex items-center justify-center">
-                            <BookOpen className="w-6 h-6 text-white" />
+                          <div className="w-24 h-16 bg-gradient-to-br from-purple-500 to-purple-700 rounded flex-shrink-0 flex items-center justify-center overflow-hidden relative">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.lessonTitle || item.subject}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            ) : (
+                              <BookOpen className="w-6 h-6 text-white" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-base mb-1">{item.subject}</h3>

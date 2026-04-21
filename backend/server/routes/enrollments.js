@@ -25,8 +25,6 @@ router.get('/check', requireAuth, async (req, res) => {
   try {
     const { subject, grade, term } = req.query;
     
-    console.log('[Check Enrollment] Request params:', { subject, grade, term, userId: req.user.id });
-    
     if (!subject || !grade) {
       return res.status(400).json({ error: 'Subject and grade are required' });
     }
@@ -39,16 +37,6 @@ router.get('/check', requireAuth, async (req, res) => {
       isActive: true,
     });
     
-    console.log('[Check Enrollment] Query result:', enrollment ? 'Found' : 'Not found');
-    
-    // Also log all user enrollments for debugging
-    const allUserEnrollments = await Enrollment.find({ userId: req.user.id, isActive: true });
-    console.log('[Check Enrollment] All user enrollments:', allUserEnrollments.map(e => ({
-      subject: e.subject,
-      grade: e.grade,
-      term: e.term
-    })));
-
     res.json({ hasAccess: !!enrollment, enrollment });
   } catch (error) {
     console.error('[Check Enrollment Error]', error.message);

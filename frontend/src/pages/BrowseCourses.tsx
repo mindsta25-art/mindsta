@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +36,6 @@ import {
   Loader2,
   Play,
   Users,
-  Award,
   Zap,
   X,
   Eye,
@@ -48,12 +47,13 @@ import {
   Flame,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   MoreVertical,
   Package,
   BarChart3,
   Target,
   PlayCircle,
-  ChevronRight,
   PanelLeftOpen,
   PanelLeftClose,
   ShoppingBag,
@@ -65,7 +65,7 @@ import {
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { useToast } from "@/hooks/use-toast";
 import { isEnrolled as isEnrolledUtil } from "@/utils/enrollmentUtils";
-import { getTermsByGrade, getSubjectsByGrade, getLessonsBySubjectAndGrade, getLessonById, type Lesson } from "@/api/lessons";
+import { getLessons, getLessonPreviewById, type Lesson, getLessonsBySubjectAndGrade } from "@/api/lessons";
 import { getQuizzesByFilters } from "@/api/quizzes";
 import { getUserProgress, type UserProgress } from "@/api/progress";
 import { getStudentByUserId } from "@/api";
@@ -98,6 +98,7 @@ interface Course {
   reviewCount: number; // number of reviews
   lessonTitle?: string; // individual lesson title (when card represents one lesson)
   lessonId?: string;    // specific lesson id for direct navigation
+  createdAt?: string;   // ISO date string for "New" badge logic
 }
 
 // Subject → category mapping
@@ -119,7 +120,7 @@ const CATEGORY_COLOR_PALETTE: string[] = [
 
 const Browselessons = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { addToCart, isInCart } = useCart();
   const { wishlist, addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
@@ -127,7 +128,10 @@ const Browselessons = () => {
 
   const [lessons, setlessons] = useState<Course[]>([]);
   const [filteredlessons, setFilteredlessons] = useState<Course[]>([]);
-  const [displayedlessons, setDisplayedlessons] = useState<Course[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+  const [currentRecommendationPage, setCurrentRecommendationPage] = useState(1);
+  const recommendationItemsPerPage = 12;
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedGrade, setSelectedGrade] = useState(searchParams.get('grade') || 'all');
@@ -156,6 +160,7 @@ const Browselessons = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+  const [isPriceFilterActive, setIsPriceFilterActive] = useState(false);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
   const [minRating, setMinRating] = useState(0);
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
@@ -194,15 +199,17 @@ const Browselessons = () => {
   const [selectedCourseForPreview, setSelectedCourseForPreview] = useState<Lesson | null>(null);
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
   
-  // Pagination state
-  const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-
   // Enrollment counts per subject-grade-term (for student count display)
   const [enrollmentCounts, setEnrollmentCounts] = useState<Record<string, number>>({});
   const enrollmentCountsRef = useRef<Record<string, number>>({});
+
+  const maxPriceLimit = useMemo(() => {
+    const maxPriceFromLessons = lessons.reduce((max, course) => {
+      const normalizedPrice = Number.isFinite(course.price) ? course.price : 0;
+      return Math.max(max, normalizedPrice);
+    }, 0);
+    return Math.max(10000, maxPriceFromLessons);
+  }, [lessons]);
 
   const isInitialLoad = useRef(true);
   const isFetchingRef = useRef(false);
@@ -236,9 +243,10 @@ const Browselessons = () => {
   };
 
   // Helper functions
-  const isNewCourse = (lessonCount: number) => {
-    // Consider lessons added in last 7 days as "new" (simplified check)
-    return lessonCount < 5; // Placeholder logic
+  const isNewCourse = (createdAt?: string) => {
+    if (!createdAt) return false;
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return new Date(createdAt).getTime() > sevenDaysAgo;
   };
 
   const isPopular = (course: Course) => {
@@ -353,8 +361,16 @@ const Browselessons = () => {
 
     return Array.from(recommendedSet.values())
       .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
+      .slice(0, 24);
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const recommendations = useMemo(() => getRecommendedlessons(), [lessons, previewedlessons, searchHistory, studentGrade]);
+  const totalRecommendationPages = Math.ceil(recommendations.length / recommendationItemsPerPage);
+  const paginatedRecommendations = recommendations.slice(
+    (currentRecommendationPage - 1) * recommendationItemsPerPage,
+    currentRecommendationPage * recommendationItemsPerPage,
+  );
 
   // Debounced search with better suggestions - shows actual lessons
   useEffect(() => {
@@ -554,9 +570,12 @@ const Browselessons = () => {
       filtered = filtered.filter(course => course.rating >= minRating);
     }
 
-    filtered = filtered.filter(course => 
-      course.price >= priceRange[0] && course.price <= priceRange[1]
-    );
+    // Only apply price filtering when the user explicitly changes the slider.
+    if (isPriceFilterActive) {
+      filtered = filtered.filter(course =>
+        course.price >= priceRange[0] && course.price <= priceRange[1]
+      );
+    }
 
     // Apply sorting
     filtered.sort((a, b) => {
@@ -578,7 +597,22 @@ const Browselessons = () => {
     });
 
     setFilteredlessons(filtered);
-  }, [lessons, showOnlyPurchased, showFreeOnly, searchQuery, selectedTopic, selectedGrade, selectedSubject, selectedTerm, sortBy, selectedDifficulties, minRating, priceRange, selectedCategory]);
+  }, [lessons, showOnlyPurchased, showFreeOnly, searchQuery, selectedTopic, selectedGrade, selectedSubject, selectedTerm, sortBy, selectedDifficulties, minRating, priceRange, selectedCategory, isPriceFilterActive]);
+
+  // Reset to page 1 whenever the filtered list or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredlessons, searchQuery]);
+
+  useEffect(() => {
+    setCurrentRecommendationPage(1);
+  }, [recommendations.length]);
+
+  useEffect(() => {
+    if (currentRecommendationPage > totalRecommendationPages && totalRecommendationPages > 0) {
+      setCurrentRecommendationPage(totalRecommendationPages);
+    }
+  }, [currentRecommendationPage, totalRecommendationPages]);
 
   const updateAvailableSubjects = useCallback(() => {
     // Filter lessons by selected grade first, then extract unique subjects
@@ -615,28 +649,42 @@ const Browselessons = () => {
     // so no need to re-apply cache here. Just fetch fresh data from the API.
     
     try {
-      const [studentData, progress, enrollmentsData] = await Promise.all([
+      const [studentResult, progressResult, enrollmentsResult] = await Promise.allSettled([
         getStudentByUserId(user.id),
         getUserProgress(user.id),
         getEnrollments()
       ]);
-      
+
+      const studentData = studentResult.status === 'fulfilled' ? studentResult.value : null;
+      const progress = progressResult.status === 'fulfilled' ? progressResult.value : [];
+      const enrollmentsData = enrollmentsResult.status === 'fulfilled' ? enrollmentsResult.value : [];
+
+      if (studentResult.status !== 'fulfilled') {
+        console.warn('Warning: Failed to load student profile.', studentResult.reason);
+      }
+      if (progressResult.status !== 'fulfilled') {
+        console.warn('Warning: Failed to load user progress.', progressResult.reason);
+      }
+      if (enrollmentsResult.status !== 'fulfilled') {
+        console.warn('Warning: Failed to load enrollments.', enrollmentsResult.reason);
+      }
+
       // Cache enrollments to localStorage for faster subsequent loads
       localStorage.setItem('user_enrollments', JSON.stringify(enrollmentsData));
-      // Keep enrollmentsRef in sync immediately so any in-flight fetchlessonsForGrade
-      // calls pick up the real data before they call setlessons.
       enrollmentsRef.current = enrollmentsData;
 
-      setStudentGrade(studentData.grade);
-      setUserProgress(progress);
-      setEnrollments(enrollmentsData);
+      if (studentData?.grade) {
+        setStudentGrade(studentData.grade);
+      }
+      setUserProgress(progress || []);
+      setEnrollments(enrollmentsData || []);
 
       // Re-stamp any lessons already in state with the fresh enrollments
       setlessons(prevlessons => {
         if (prevlessons.length === 0) return prevlessons;
         return prevlessons.map(course => ({
           ...course,
-          enrolled: enrollmentsData.some(e => isEnrolledUtil(e, course.subject, course.grade, course.term, course.lessonId)),
+          enrolled: (enrollmentsData || []).some(e => isEnrolledUtil(e, course.subject, course.grade, course.term, course.lessonId)),
         }));
       });
       
@@ -657,9 +705,6 @@ const Browselessons = () => {
 
   // useEffects after function definitions
   useEffect(() => {
-    // Use default items per page (settings endpoint requires admin access)
-    setItemsPerPage(12);
-    
     if (user?.id) {
       fetchStudentInfo();
     } else {
@@ -739,26 +784,16 @@ const Browselessons = () => {
   }, [enrollments]); // lessons no longer needed as dep since we use functional update
 
   useEffect(() => {
-    // Load ALL grades on initial load only after enrollments have been fetched
-    // Wait for enrollments to be loaded (even if empty array)
-    if (enrollments !== null && loadedGradesRef.current.size === 0 && !isFetchingRef.current) {
-      const loadAllGrades = async () => {
-        // Load enrolled grades first so "My Purchased" tab is accurate immediately
-        const enrolledGrades = [...new Set(enrollments.map(e => String(e.grade)))];
-        const orderedGrades = [
-          ...enrolledGrades.filter(g => grades.includes(g)),
-          ...grades.filter(g => !enrolledGrades.includes(g)),
-        ];
-        console.log('[Browselessons] Loading grades in priority order:', orderedGrades);
-        for (const grade of orderedGrades) {
-          await fetchlessonsForGrade(grade);
-        }
-      };
-      loadAllGrades();
+    // Load ALL lessons at once (same approach as My Learning) once user + enrollments are ready
+    if (!authLoading && user?.id && enrollments !== null && loadedGradesRef.current.size === 0 && !isFetchingRef.current) {
+      fetchAllLessonsAtOnce();
+    } else if (!authLoading && !user?.id) {
+      setLoading(false);
     }
-  }, [enrollments]);
+  }, [authLoading, user?.id, enrollments]);
 
-  // Separate effect for fetching lessons when grade changes
+  // Separate effect for fetching a single grade when user explicitly switches grade filter
+  // (only needed if lessons haven't loaded yet for some reason)
   useEffect(() => {
     if (selectedGrade !== 'all' && !loadedGrades.has(selectedGrade) && loadedGrades.size > 0) {
       fetchlessonsForGrade(selectedGrade);
@@ -807,25 +842,14 @@ const Browselessons = () => {
     updateAvailableSubjects();
   }, [updateAvailableSubjects]);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [filteredlessons]);
-
-  // Update displayed lessons when page or filtered lessons change
-  // When a search query is active, show ALL results on one page (no pagination)
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      setDisplayedlessons(filteredlessons);
+    // Keep the default price range aligned with available data without enabling filtering.
+    if (!isPriceFilterActive) {
+      setPriceRange([0, maxPriceLimit]);
     } else {
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      setDisplayedlessons(filteredlessons.slice(0, endIndex));
-      setHasMore(endIndex < filteredlessons.length);
-      // Scroll to top smoothly when page changes
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setPriceRange(([min, max]) => [min, Math.min(max, maxPriceLimit)]);
     }
-  }, [currentPage, filteredlessons, itemsPerPage, searchQuery]);
+  }, [maxPriceLimit, isPriceFilterActive]);
 
   // Ctrl+K / Cmd+K keyboard shortcut to focus search
   useEffect(() => {
@@ -852,52 +876,130 @@ const Browselessons = () => {
     setSearchParams(params);
   }, [searchQuery, selectedGrade, selectedSubject, selectedTerm, selectedTopic, selectedCategory, setSearchParams]);
 
-  // Intersection Observer for auto-loading more lessons
-  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !searchQuery.trim()) {
-          loadMoreLessons();
+  /**
+   * Fetch ALL lessons and ALL quizzes in 2 parallel requests — same approach as My Learning.
+   * This replaces the old per-grade waterfall (7 × 2 = 14 requests → 2 requests total).
+   */
+  const fetchAllLessonsAtOnce = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setLoading(true);
+
+    try {
+      // Fetch enrollment counts + all lessons + all quizzes in parallel
+      const [allLessons, allQuizzes] = await Promise.all([
+        getLessons().catch(err => {
+          console.error('[Browselessons] lessons fetch failed:', err);
+          return [] as Lesson[];
+        }),
+        getQuizzesByFilters().catch(() => [] as any[]),
+      ]);
+
+      // Fetch enrollment counts once
+      if (Object.keys(enrollmentCountsRef.current).length === 0) {
+        try {
+          const { api: _api } = await import('@/lib/apiClient');
+          const counts = await _api.get('/subjects/enrollment-counts');
+          if (counts && typeof counts === 'object') {
+            enrollmentCountsRef.current = counts;
+            setEnrollmentCounts(counts);
+          }
+        } catch (err) {
+          console.error('[Browselessons] Could not fetch enrollment counts:', err);
         }
-      },
-      { threshold: 0.15, rootMargin: '100px' }
-    );
+      }
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
+      // Build quiz count map: lessonId → count
+      const quizCountMap: Record<string, number> = {};
+      for (const quiz of allQuizzes) {
+        if (quiz.lessonId) quizCountMap[quiz.lessonId] = (quizCountMap[quiz.lessonId] || 0) + 1;
+      }
+
+      const allCourses: Course[] = [];
+      const subjectsSet = new Set<string>();
+
+      for (const lesson of allLessons) {
+        subjectsSet.add(lesson.subject);
+
+        const gradeValue = lesson.grade;
+        const lessonEnrollCount = enrollmentCountsRef.current[`lesson|${lesson.id}`] || 0;
+        const subjectEnrollCount = enrollmentCountsRef.current[`${lesson.subject}|${gradeValue}|${lesson.term}`] || 0;
+        const studentCount = lessonEnrollCount || subjectEnrollCount;
+
+        const enrolled = enrollmentsRef.current.some(e =>
+          isEnrolledUtil(e, lesson.subject, gradeValue, lesson.term, lesson.id)
+        );
+
+        const lessonDuration = lesson.duration || 30;
+        const durationDisplay = lessonDuration >= 60
+          ? `${Math.ceil(lessonDuration / 60)}h`
+          : `${lessonDuration}m`;
+        const lessonCompleted = userProgress.some(p => p.lessonId === lesson.id && p.completed);
+
+        const validDifficulty = lesson.difficulty &&
+          ['beginner', 'intermediate', 'advanced', 'easy', 'medium', 'hard', 'Beginner', 'Intermediate', 'Advanced'].includes(lesson.difficulty)
+          ? lesson.difficulty as Course['difficulty']
+          : 'beginner' as const;
+
+        allCourses.push({
+          id: lesson.id,
+          subject: lesson.subject,
+          grade: gradeValue,
+          term: lesson.term,
+          lessonTitle: lesson.title,
+          lessonId: lesson.id,
+          lessonCount: 1,
+          quizCount: quizCountMap[lesson.id] || 0,
+          description: lesson.description?.trim() || '',
+          difficulty: validDifficulty,
+          estimatedHours: Math.ceil(lessonDuration / 60),
+          durationDisplay,
+          completionRate: lessonCompleted ? 100 : 0,
+          enrolled,
+          price: lesson.price ?? 0,
+          rating: lesson.rating ?? 0,
+          studentCount,
+          imageUrl: lesson.imageUrl || undefined,
+          topics: [lesson.title],
+          lessonIds: [lesson.id],
+          reviewCount: 0,
+          createdAt: lesson.createdAt,
+        });
+      }
+
+      setAvailableSubjects(Array.from(subjectsSet).sort());
+
+      // Mark all grades as loaded
+      const allGrades = new Set(grades);
+      setLoadedGrades(allGrades);
+      loadedGradesRef.current = allGrades;
+
+      setlessons(allCourses);
+      isInitialLoad.current = false;
+    } catch (error) {
+      console.error('[Browselessons] Error fetching all lessons:', error);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
     }
-
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, searchQuery]);
-
-  const loadMoreLessons = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-
-    setLoadingMore(true);
-    // Simulate loading delay for better UX
-    setTimeout(() => {
-      setCurrentPage(prev => prev + 1);
-      setLoadingMore(false);
-    }, 300);
-  }, [loadingMore, hasMore]);
+  };
 
   const fetchlessonsForGrade = async (grade: string) => {
-    if (loadedGradesRef.current.has(grade) || isFetchingRef.current) return; // Already loaded or currently fetching
-    
+    // Per-grade deduplication: skip if already loaded
+    if (loadedGradesRef.current.has(grade)) return;
+    // Mark as in-flight immediately (before any await) to prevent duplicate concurrent calls
+    isFetchingRef.current = true;
+
     try {
-      isFetchingRef.current = true;
       // Show the main loading spinner only on the very first load (before any grade is loaded)
       setLoading(loadedGradesRef.current.size === 0);
-      
+
       const gradeValue = grade === "Common Entrance" ? "Common Entrance" : grade;
       const newlessons: Course[] = [];
       const subjectsSet = new Set<string>();
 
-      const terms = await getTermsByGrade(gradeValue);
-
-      // Fetch enrollment counts if not yet loaded
+      // Fetch enrollment counts once (shared across all grades)
       if (Object.keys(enrollmentCountsRef.current).length === 0) {
         try {
           const { api } = await import('@/lib/apiClient');
@@ -911,89 +1013,67 @@ const Browselessons = () => {
         }
       }
 
-      // Fetch all subjects for all terms in parallel
-      const subjectsPromises = terms.map(term => 
-        getSubjectsByGrade(gradeValue, term.name)
-          .then(subjects => ({ term: term.name, subjects }))
-          .catch(err => {
-            console.error(`Error fetching subjects for ${gradeValue} ${term.name}:`, err);
-            return { term: term.name, subjects: [] };
-          })
-      );
+      // Fetch all lessons + quizzes for this grade in parallel (2 requests total)
+      const [gradeLessons, gradeQuizzes] = await Promise.all([
+        getLessons(undefined, gradeValue).catch(err => {
+          console.error(`[Browselessons] lessons fetch failed for grade ${gradeValue}:`, err);
+          return [] as Lesson[];
+        }),
+        getQuizzesByFilters(undefined, gradeValue).catch(() => [] as any[]),
+      ]);
 
-      const termSubjects = await Promise.all(subjectsPromises);
+      const quizCountMap: Record<string, number> = {};
+      for (const quiz of gradeQuizzes) {
+        if (quiz.lessonId) quizCountMap[quiz.lessonId] = (quizCountMap[quiz.lessonId] || 0) + 1;
+      }
 
-      // Fetch lessons AND quiz counts for all subject-term combinations in parallel
-      const lessonPromises = termSubjects.flatMap(({ term, subjects }) =>
-        subjects.map(subject =>
-          Promise.all([
-            getLessonsBySubjectAndGrade(subject.name, gradeValue, term),
-            getQuizzesByFilters(subject.name, gradeValue, term)
-          ])
-            .then(([lessons, quizzes]) => ({ subject, term, lessons, quizzes, gradeValue }))
-            .catch(err => {
-              console.error(`Error fetching data for ${subject.name}:`, err);
-              return { subject, term, lessons: [], quizzes: [], gradeValue };
-            })
-        )
-      );
+      for (const lesson of gradeLessons) {
+        subjectsSet.add(lesson.subject);
 
-      const allLessons = await Promise.all(lessonPromises);
+        const lessonEnrollCount = enrollmentCountsRef.current[`lesson|${lesson.id}`] || 0;
+        const subjectEnrollCount = enrollmentCountsRef.current[`${lesson.subject}|${gradeValue}|${lesson.term}`] || 0;
+        const studentCount = lessonEnrollCount || subjectEnrollCount;
 
-      // Process all results — push one card per individual lesson so each lesson is separately browseable
-      allLessons.forEach(({ subject, term, lessons, quizzes, gradeValue }) => {
-        if (lessons.length > 0) {
-          subjectsSet.add(subject.name);
-          
-          const validDifficulty = subject.difficulty && 
-            ['beginner', 'intermediate', 'advanced', 'easy', 'medium', 'hard', 'Beginner', 'Intermediate', 'Advanced'].includes(subject.difficulty)
-            ? subject.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'easy' | 'medium' | 'hard' | 'Beginner' | 'Intermediate' | 'Advanced'
-            : 'beginner' as const;
+        const enrolled = enrollmentsRef.current.some(e =>
+          isEnrolledUtil(e, lesson.subject, gradeValue, lesson.term, lesson.id)
+        );
 
-          // Push one card per individual lesson so each lesson appears as a separate entry
-          lessons.forEach(lesson => {
-            // Per-lesson enrollment count takes priority; fall back to subject-level count
-            const lessonEnrollCount = enrollmentCountsRef.current[`lesson|${lesson.id}`] || 0;
-            const subjectEnrollCount = enrollmentCountsRef.current[`${subject.name}|${gradeValue}|${term}`] || 0;
-            const studentCount = lessonEnrollCount || subjectEnrollCount;
-            // Check enrollment per lesson — only mark enrolled if there's a matching enrollment
-            // for this specific lessonId (new) OR a subject-level enrollment (legacy/backward compat)
-            const enrolled = enrollmentsRef.current.some(e =>
-              isEnrolledUtil(e, subject.name, gradeValue, term, lesson.id)
-            );
+        const lessonDuration = lesson.duration || 30;
+        const durationDisplay = lessonDuration >= 60
+          ? `${Math.ceil(lessonDuration / 60)}h`
+          : `${lessonDuration}m`;
+        const lessonCompleted = userProgress.some(p => p.lessonId === lesson.id && p.completed);
 
-            const lessonDuration = lesson.duration || 30;
-            const durationDisplay = lessonDuration >= 60
-              ? `${Math.ceil(lessonDuration / 60)}h`
-              : `${lessonDuration}m`;
-            const lessonCompleted = userProgress.some(p => p.lessonId === lesson.id && p.completed);
+        const validDifficulty = lesson.difficulty &&
+          ['beginner', 'intermediate', 'advanced', 'easy', 'medium', 'hard', 'Beginner', 'Intermediate', 'Advanced'].includes(lesson.difficulty)
+          ? lesson.difficulty as Course['difficulty']
+          : 'beginner' as const;
 
-            newlessons.push({
-              id: lesson.id,
-              subject: subject.name,
-              grade: grade,
-              term: term,
-              lessonTitle: lesson.title,
-              lessonId: lesson.id,
-              lessonCount: 1,
-              quizCount: quizzes.some(q => q.lessonId === lesson.id) ? 1 : 0,
-              description: lesson.description?.trim() || '',
-              difficulty: validDifficulty,
-              estimatedHours: Math.ceil(lessonDuration / 60),
-              durationDisplay,
-              completionRate: lessonCompleted ? 100 : 0,
-              enrolled,
-              price: subject.price || 0,
-              rating: subject.rating || 0,
-              studentCount,
-              imageUrl: lesson.imageUrl || undefined,
-              topics: [lesson.title],
-              lessonIds: [lesson.id],
-              reviewCount: 0,
-            });
-          });
-        }
-      });
+        newlessons.push({
+          id: lesson.id,
+          subject: lesson.subject,
+          grade,
+          term: lesson.term,
+          lessonTitle: lesson.title,
+          lessonId: lesson.id,
+          lessonCount: 1,
+          quizCount: quizCountMap[lesson.id] || 0,
+          description: lesson.description?.trim() || '',
+          difficulty: validDifficulty,
+          estimatedHours: Math.ceil(lessonDuration / 60),
+          durationDisplay,
+          completionRate: lessonCompleted ? 100 : 0,
+          enrolled,
+          price: lesson.price ?? 0,
+          rating: lesson.rating ?? 0,
+          studentCount,
+          imageUrl: lesson.imageUrl || undefined,
+          topics: [lesson.title],
+          lessonIds: [lesson.id],
+          reviewCount: 0,
+          createdAt: lesson.createdAt,
+        });
+      }
 
       // Merge with existing subjects instead of replacing
       setAvailableSubjects(prev => {
@@ -1044,27 +1124,9 @@ const Browselessons = () => {
     }
   };
 
-  const loadRemainingGrades = async (excludeGrade: string) => {
-    setIsLoadingBackground(true);
-    // Use ref so we always see newly-loaded grades, not the stale closure value
-    const remainingGrades = grades.filter(g => g !== excludeGrade && !loadedGradesRef.current.has(g));
-    
-    for (const grade of remainingGrades) {
-      await fetchlessonsForGrade(grade);
-      // Small delay to prevent overwhelming the server
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    
-    setIsLoadingBackground(false);
-  };
-
   const fetchlessons = async () => {
-    // Legacy function - redirect to new implementation
-    if (studentGrade) {
-      await fetchlessonsForGrade(studentGrade);
-    } else {
-      await fetchlessonsForGrade(grades[0]);
-    }
+    // Legacy fallback — use the bulk loader
+    await fetchAllLessonsAtOnce();
   };
 
   const handleAddToCart = (course: Course) => {
@@ -1086,6 +1148,16 @@ const Browselessons = () => {
       lessonId: course.lessonId, // pass the specific lesson ID for per-lesson enrollment
       title: course.lessonTitle || course.subject,
     });
+
+    // Cache thumbnail so the cart dialog (StudentHeader hover card) can show the real image
+    const imgUrl = course.imageUrl || course.thumbnail || '';
+    if (imgUrl) {
+      const imgKey = course.lessonId
+        ? `cart_img_lesson:${course.lessonId}`
+        : `cart_img_subj:${encodeURIComponent(course.subject)}:${course.grade}:${encodeURIComponent(course.term || '')}`;
+      try { localStorage.setItem(imgKey, imgUrl); } catch { /* storage full – ignore */ }
+    }
+
     toast({
       title: "Added to cart",
       description: `${course.subject} has been added to your cart.`
@@ -1149,67 +1221,111 @@ const Browselessons = () => {
       // Otherwise fetch all lessons for the subject/grade/term.
       let lessons: Lesson[];
       if (course.lessonId) {
-        const single = await getLessonById(course.lessonId);
+        const single = await getLessonPreviewById(course.lessonId);
         lessons = single ? [single] : [];
       } else {
         lessons = await getLessonsBySubjectAndGrade(course.subject, course.grade, course.term);
       }
-      
-      if (lessons.length > 0) {
-        // Build a composite "course" object: each lesson becomes one curriculum section
-        const compositeCourse: Lesson = {
-          id: lessons[0].id,
-          title: course.lessonId ? (lessons[0].title || course.subject) : course.subject,
+
+      // Build a preview from the API data if available, otherwise fall back to the card data
+      const buildComposite = (lessonList: Lesson[]): Lesson => {
+        if (lessonList.length > 0) {
+          return {
+            id: lessonList[0].id,
+            title: course.lessonId ? (lessonList[0].title || course.subject) : course.subject,
+            subtitle: `Grade ${course.grade}${course.term ? ` • ${course.term}` : ''}`,
+            description: lessonList[0].description || course.description,
+            subject: course.subject,
+            grade: course.grade,
+            term: lessonList[0].term,
+            difficulty: (lessonList[0].difficulty || course.difficulty) as Lesson['difficulty'],
+            duration: lessonList.reduce((sum, l) => sum + (l.duration || 0), 0),
+            imageUrl: course.imageUrl || lessonList[0].imageUrl,
+            whatYouWillLearn: lessonList[0].whatYouWillLearn,
+            requirements: lessonList[0].requirements,
+            targetAudience: lessonList[0].targetAudience,
+            learningObjectives: lessonList[0].learningObjectives,
+            price: course.price,
+            rating: course.rating,
+            ratingsCount: course.reviewCount || 0,
+            enrolledStudents: course.studentCount,
+            createdAt: lessonList[0].createdAt,
+            quizCount: course.quizCount,
+            curriculum: lessonList.map((lesson, idx) => ({
+              title: lesson.title,
+              description: lesson.description,
+              order: idx,
+              lectures: lesson.curriculum && lesson.curriculum.length > 0
+                ? lesson.curriculum.flatMap(section => section.lectures)
+                : [{
+                    title: lesson.title,
+                    type: 'video' as const,
+                    duration: lesson.duration || 30,
+                    order: 0,
+                    isPreview: idx === 0,
+                  }],
+            })),
+          };
+        }
+        // Fallback: build from card data when API returned nothing
+        return {
+          id: course.id,
+          title: course.lessonTitle || course.subject,
           subtitle: `Grade ${course.grade}${course.term ? ` • ${course.term}` : ''}`,
-          description: lessons[0].description || course.description,
+          description: course.description,
           subject: course.subject,
           grade: course.grade,
-          term: lessons[0].term,
-          difficulty: (lessons[0].difficulty || course.difficulty) as Lesson['difficulty'],
-          duration: lessons.reduce((sum, l) => sum + (l.duration || 0), 0),
-          imageUrl: course.imageUrl || lessons[0].imageUrl,
-          whatYouWillLearn: lessons[0].whatYouWillLearn,
-          requirements: lessons[0].requirements,
-          targetAudience: lessons[0].targetAudience,
-          learningObjectives: lessons[0].learningObjectives,
+          term: course.term,
+          difficulty: course.difficulty as Lesson['difficulty'],
+          duration: course.estimatedHours * 60,
+          imageUrl: course.imageUrl,
           price: course.price,
           rating: course.rating,
           ratingsCount: course.reviewCount || 0,
           enrolledStudents: course.studentCount,
-          createdAt: lessons[0].createdAt,
+          createdAt: course.createdAt,
           quizCount: course.quizCount,
-          // Each lesson becomes a section; expose its existing curriculum lectures, or a single placeholder entry
-          curriculum: lessons.map((lesson, idx) => ({
-            title: lesson.title,
-            description: lesson.description,
-            order: idx,
-            lectures: lesson.curriculum && lesson.curriculum.length > 0
-              ? lesson.curriculum.flatMap(section => section.lectures)
-              : [{
-                  title: lesson.title,
-                  type: 'video' as const,
-                  duration: lesson.duration || 30,
-                  order: 0,
-                  isPreview: idx === 0,
-                }],
-          })),
+          curriculum: [{
+            title: course.lessonTitle || course.subject,
+            description: course.description,
+            order: 0,
+            lectures: [{
+              title: course.lessonTitle || course.subject,
+              type: 'video' as const,
+              duration: course.estimatedHours * 60 || 30,
+              order: 0,
+              isPreview: true,
+            }],
+          }],
         };
-        setSelectedCourseForPreview(compositeCourse);
-        setPreviewDialogOpen(true);
-      } else {
-        toast({
-          title: "No Content",
-          description: "No lessons yet.",
-          variant: "destructive"
-        });
-      }
+      };
+
+      setSelectedCourseForPreview(buildComposite(lessons));
+      setPreviewDialogOpen(true);
     } catch (error) {
       console.error('Error loading course preview:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load course preview. Please try again.",
-        variant: "destructive"
-      });
+      // Even on hard error, show the dialog with whatever card data we have
+      const fallback: Lesson = {
+        id: course.id,
+        title: course.lessonTitle || course.subject,
+        subtitle: `Grade ${course.grade}${course.term ? ` • ${course.term}` : ''}`,
+        description: course.description,
+        subject: course.subject,
+        grade: course.grade,
+        term: course.term,
+        difficulty: course.difficulty as Lesson['difficulty'],
+        duration: course.estimatedHours * 60,
+        imageUrl: course.imageUrl,
+        price: course.price,
+        rating: course.rating,
+        ratingsCount: course.reviewCount || 0,
+        enrolledStudents: course.studentCount,
+        createdAt: course.createdAt,
+        quizCount: course.quizCount,
+        curriculum: [],
+      };
+      setSelectedCourseForPreview(fallback);
+      setPreviewDialogOpen(true);
     } finally {
       setLoadingPreviewId(null);
     }
@@ -1226,7 +1342,8 @@ const Browselessons = () => {
     setSortBy('popular');
     setSelectedDifficulties([]);
     setMinRating(0);
-    setPriceRange([0, 10000]);
+    setPriceRange([0, maxPriceLimit]);
+    setIsPriceFilterActive(false);
   };
 
   // Returns the enrolled course that was most recently accessed
@@ -1614,7 +1731,7 @@ const Browselessons = () => {
 
             {/* ── Desktop Filters (always visible) / Mobile Filters (collapsible) ── */}
             <AnimatePresence initial={false}>
-              {(showMobileFilters || true) && (
+              {(
                 <motion.div
                   key="filters-panel"
                   initial={false}
@@ -1838,20 +1955,27 @@ const Browselessons = () => {
                     <div className="space-y-3">
                       <label className="text-sm font-semibold">
                         Price Range: {formatCurrency(priceRange[0])} - {formatCurrency(priceRange[1])}
+                        {!isPriceFilterActive && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">(not applied)</span>
+                        )}
                       </label>
                       <div className="space-y-2">
                         <input
                           type="range"
                           min="0"
-                          max="10000"
+                          max={maxPriceLimit}
                           step="500"
                           value={priceRange[1]}
-                          onChange={(e) => setPriceRange([0, Number(e.target.value)])}
+                          onChange={(e) => {
+                            const selectedMax = Number(e.target.value);
+                            setPriceRange([0, selectedMax]);
+                            setIsPriceFilterActive(selectedMax < maxPriceLimit);
+                          }}
                           className="w-full"
                         />
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>₦0</span>
-                          <span>₦10,000</span>
+                          <span>{formatCurrency(maxPriceLimit)}</span>
                         </div>
                       </div>
                     </div>
@@ -1865,7 +1989,8 @@ const Browselessons = () => {
                       onClick={() => {
                         setSelectedDifficulties([]);
                         setMinRating(0);
-                        setPriceRange([0, 10000]);
+                        setPriceRange([0, maxPriceLimit]);
+                        setIsPriceFilterActive(false);
                       }}
                     >
                       <X className="w-4 h-4 mr-2" />
@@ -2029,9 +2154,6 @@ const Browselessons = () => {
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     {enrollments.length} enrolled • {filteredlessons.filter(c => !c.enrolled).length} available
-                    {displayedlessons.length < filteredlessons.length && (
-                      <> • Showing {displayedlessons.length} of {filteredlessons.length}</>
-                    )}
                     {isLoadingBackground && (
                       <> • Loading more grades...</>
                     )}
@@ -2356,13 +2478,14 @@ const Browselessons = () => {
             </Card>
           </motion.div>
         ) : (
+          <>
           <motion.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8 mb-10"
           >
-            {displayedlessons.map((course) => (
+            {(searchQuery.trim() ? filteredlessons : filteredlessons.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)).map((course) => (
               <motion.div
                 key={course.id}
                 variants={fadeInUp}
@@ -2398,8 +2521,9 @@ const Browselessons = () => {
                     )}
                     {/* Center icon fallback */}
                     {!(course.imageUrl || course.thumbnail) && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <BookOpen className="w-8 h-8 text-white/80" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+                        <span className="text-2xl font-extrabold text-white/90 leading-none">{course.subject.charAt(0).toUpperCase()}</span>
+                        <span className="text-[9px] font-semibold text-white/60 uppercase tracking-wide">{course.grade === 'Common Entrance' ? 'CE' : `Gr ${course.grade}`}</span>
                       </div>
                     )}
                     {/* Status badge */}
@@ -2409,7 +2533,7 @@ const Browselessons = () => {
                           <CheckCircle className="w-3.5 h-3.5 text-white" />
                         </div>
                       </div>
-                    ) : isNewCourse(course.lessonCount) ? (
+                    ) : isNewCourse(course.createdAt) ? (
                       <div className="absolute top-2 left-2">
                         <span className="bg-amber-400 text-amber-900 text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase leading-none">New</span>
                       </div>
@@ -2565,7 +2689,7 @@ const Browselessons = () => {
                     
                     {/* Top Left Badges */}
                     <div className="absolute top-2 left-2 flex flex-col gap-1">
-                      {isNewCourse(course.lessonCount) && !course.enrolled && (
+                      {isNewCourse(course.createdAt) && !course.enrolled && (
                         <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 shadow-lg">
                           <Sparkles className="w-3 h-3 mr-1" />
                           NEW
@@ -2590,10 +2714,11 @@ const Browselessons = () => {
                     )}
                     
                     {!(course.imageUrl || course.thumbnail) && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
-                          <BookOpen className="w-10 h-10 text-white" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                          <span className="text-4xl font-extrabold text-white leading-none">{course.subject.charAt(0).toUpperCase()}</span>
                         </div>
+                        <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">{course.grade === 'Common Entrance' ? 'Common Entrance' : `Grade ${course.grade}`}</span>
                       </div>
                     )}
                     
@@ -2626,34 +2751,81 @@ const Browselessons = () => {
                     </div>
                   </div>
 
-                  <CardHeader className="pb-3 pt-5">
+                  <CardHeader className="pb-2 pt-4">
                     <div className="cursor-pointer" onClick={() => handleViewCourse(course)}>
-                      <CardTitle className="text-xl font-bold group-hover:text-purple-600 transition-colors line-clamp-2 mb-3">
+                      {/* Rating row */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        {course.rating > 0 ? (
+                          <>
+                            <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">{course.rating.toFixed(1)}</span>
+                            <div className="flex items-center gap-0.5">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3 h-3 ${
+                                    i < Math.round(course.rating)
+                                      ? 'fill-amber-400 text-amber-400'
+                                      : 'text-gray-300 dark:text-gray-600'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            {course.reviewCount > 0 && (
+                              <span className="text-xs text-muted-foreground">({course.reviewCount})</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No ratings yet</span>
+                        )}
+                        {course.studentCount > 0 && (
+                          <>
+                            <span className="text-muted-foreground/40 text-xs">·</span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                              <Users className="w-3 h-3" />
+                              {course.studentCount.toLocaleString()} students
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <CardTitle className="text-lg font-extrabold group-hover:text-purple-600 transition-colors line-clamp-2 leading-snug mb-1.5">
                         {course.lessonTitle || course.subject}
                       </CardTitle>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap mb-2">
                         {course.lessonTitle && (
-                          <><span className="font-medium text-foreground/70">{course.subject}</span><span>•</span></>
+                          <span className="font-semibold text-foreground/60">{course.subject}</span>
                         )}
-                        <div className="flex items-center gap-1">
-                          <GraduationCap className="w-4 h-4 text-purple-600" />
-                          <span className="font-medium">
-                            {course.grade === "Common Entrance" ? "Common Entrance" : `Grade ${course.grade}`}
-                          </span>
+                        {course.lessonTitle && <span>·</span>}
+                        <div className="flex items-center gap-0.5">
+                          <GraduationCap className="w-3 h-3 text-purple-500" />
+                          <span>{course.grade === "Common Entrance" ? "Common Entrance" : `Grade ${course.grade}`}</span>
                         </div>
-                        <span>•</span>
-                        <span className="font-medium">{course.term}</span>
+                        <span>·</span>
+                        <span>{course.term}</span>
+                        {course.durationDisplay && (
+                          <>
+                            <span>·</span>
+                            <Clock className="w-3 h-3" />
+                            <span>{course.durationDisplay}</span>
+                          </>
+                        )}
+                        {course.quizCount > 0 && (
+                          <>
+                            <span>·</span>
+                            <Trophy className="w-3 h-3" />
+                            <span>{course.quizCount} quiz</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     {/* Progress Bar for Enrolled lessons */}
                     {course.enrolled && course.completionRate > 0 && (
-                      <div className="space-y-1 mb-3">
+                      <div className="space-y-1 mb-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-medium text-purple-600">Progress</span>
                           <span className="font-bold">{course.completionRate}%</span>
                         </div>
-                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300"
                             style={{ width: `${course.completionRate}%` }}
@@ -2662,126 +2834,62 @@ const Browselessons = () => {
                       </div>
                     )}
 
-                    <CardDescription className="text-sm line-clamp-2 leading-relaxed">
+                    <CardDescription className="text-xs line-clamp-2 leading-relaxed">
                       {course.description}
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="pt-0 pb-5 flex flex-col gap-4">
-                    {/* Course Stats Grid */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center gap-2 text-sm bg-purple-50 dark:bg-purple-950/30 p-2 rounded-lg">
-                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center">
-                          <BookOpen className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-foreground">{course.lessonCount}</p>
-                          <p className="text-xs text-muted-foreground">Lessons</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm bg-blue-50 dark:bg-blue-950/30 p-2 rounded-lg">
-                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                          <Trophy className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-foreground">{course.quizCount}</p>
-                          <p className="text-xs text-muted-foreground">Quizzes</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm bg-green-50 dark:bg-green-950/30 p-2 rounded-lg">
-                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-foreground">
-                            {course.durationDisplay || (course.estimatedHours > 0 ? `${course.estimatedHours}h` : '30m')}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Duration</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm bg-amber-50 dark:bg-amber-950/30 p-2 rounded-lg">
-                        <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/50 rounded-lg flex items-center justify-center">
-                          <Star className="w-4 h-4 text-amber-600 fill-amber-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-foreground">{course.rating}</p>
-                          <p className="text-xs text-muted-foreground">Rating</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Price and Student Count */}
-                    <div className="flex items-center justify-between py-3 border-t border-purple-100 dark:border-purple-900/30">
-                      <div>
-                        {course.enrolled ? (
-                          <p className="text-sm font-semibold text-green-600 flex items-center gap-1">
-                            <CheckCircle className="w-4 h-4" />
-                            Course Enrolled
-                          </p>
-                        ) : (
-                          <p className="text-2xl font-bold text-purple-600">{formatCurrency(course.price)}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                          <Users className="w-3 h-3" />
-                          {course.studentCount}+ students
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3 h-3 ${
-                              i < Math.floor(course.rating)
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex flex-col gap-2">
+                  <CardContent className="pt-0 pb-4 flex flex-col gap-3 mt-auto">
+                    {/* Price, CTA, Preview */}
+                    <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
                       {course.enrolled ? (
                         <Button 
-                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group font-bold"
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md font-bold"
                           onClick={() => handleViewCourse(course)}
                         >
-                          <PlayCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                          <PlayCircle className="w-4 h-4 mr-2" />
                           {course.completionRate > 0 ? 'Continue Learning' : 'Start Learning'}
                         </Button>
                       ) : (
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline"
-                            className="flex-1 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:text-purple-900 dark:hover:text-purple-100"
-                            onClick={() => handlePreviewCourse(course)}
-                            disabled={loadingPreviewId === course.id}
-                          >
-                            {loadingPreviewId === course.id ? (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <Eye className="w-4 h-4 mr-2" />
-                            )}
-                            Preview
-                          </Button>
-                          <Button 
-                            className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 group"
-                            onClick={() => handleAddToCart(course)}
-                            disabled={isInCart(course.subject, course.grade, course.term, course.lessonId)}
-                          >
-                            {isInCart(course.subject, course.grade, course.term, course.lessonId) ? (
-                              <>
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                In Cart
-                              </>
-                            ) : (
-                              <>
-                                <ShoppingCart className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                Add to Cart
-                              </>
-                            )}
-                          </Button>
+                        <div className="space-y-2">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-2xl font-extrabold text-gray-900 dark:text-white leading-none">
+                              {formatCurrency(course.price)}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline"
+                              size="sm"
+                              className="flex-shrink-0 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-purple-700 dark:text-purple-300 px-3"
+                              onClick={() => handlePreviewCourse(course)}
+                              disabled={loadingPreviewId === course.id}
+                            >
+                              {loadingPreviewId === course.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <Button 
+                              className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md font-bold"
+                              size="sm"
+                              onClick={() => handleAddToCart(course)}
+                              disabled={isInCart(course.subject, course.grade, course.term, course.lessonId)}
+                            >
+                              {isInCart(course.subject, course.grade, course.term, course.lessonId) ? (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-1.5" />
+                                  In Cart
+                                </>
+                              ) : (
+                                <>
+                                  <ShoppingCart className="w-4 h-4 mr-1.5 group-hover:scale-110 transition-transform" />
+                                  Add to Cart
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2790,141 +2898,79 @@ const Browselessons = () => {
               </motion.div>
             ))}
           </motion.div>
-        )}
 
-        {/* Load More Button — Udemy-style infinite scroll */}
-        {!loading && !searchQuery.trim() && hasMore && (
-          <div className="flex justify-center pt-6 pb-8">
-            <Button
-              onClick={loadMoreLessons}
-              disabled={loadingMore}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              {loadingMore ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Loading more lessons...
-                </>
-              ) : (
-                <>
-                  Load More Lessons
-                  <svg className="w-4 h-4 ml-2" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {/* Invisible trigger for auto-loading */}
-        {!loading && !searchQuery.trim() && hasMore && (
-          <div ref={loadMoreRef} className="h-10" />
-        )}
-
-        {/* Pagination Controls — hidden while search is active */}
-        {!loading && !searchQuery.trim() && filteredlessons.length > itemsPerPage && (
-          <div className="flex flex-col items-center gap-3 pt-6 pb-12 border-t border-purple-100 dark:border-purple-900/30">
-            <p className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredlessons.length)} of {filteredlessons.length} lessons
-            </p>
-            <div className="flex items-center gap-1 sm:gap-2">
-              {/* First page — desktop only */}
-              {Math.ceil(filteredlessons.length / itemsPerPage) > 5 && (
-                <Button
-                  variant="outline" size="sm"
-                  className="hidden sm:flex w-9 h-9 p-0"
-                  onClick={() => { setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  disabled={currentPage === 1}
-                  aria-label="First page"
-                >
-                  «
+          {/* Pagination Controls — shown when not searching */}
+          {!loading && !searchQuery.trim() && filteredlessons.length > itemsPerPage && (
+            <div className="flex flex-col items-center gap-3 mt-10 pt-6 border-t">
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredlessons.length)}–{Math.min(currentPage * itemsPerPage, filteredlessons.length)} of {filteredlessons.length} lesson{filteredlessons.length !== 1 ? 's' : ''}
+              </p>
+              <div className="flex items-center gap-1 sm:gap-2">
+                {Math.ceil(filteredlessons.length / itemsPerPage) > 5 && (
+                  <Button variant="outline" size="sm" className="hidden sm:flex w-9 h-9 p-0"
+                    onClick={() => { setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    disabled={currentPage === 1} aria-label="First page">
+                    «
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5 sm:px-3"
+                  onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage === 1}>
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="sr-only sm:not-sr-only">Prev</span>
                 </Button>
-              )}
 
-              {/* Prev */}
-              <Button
-                variant="outline" size="sm"
-                className="gap-1 h-9 px-2.5 sm:px-3"
-                onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                disabled={currentPage === 1}
-              >
-                <span className="sr-only sm:not-sr-only">Prev</span>
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </Button>
-
-              {/* Page numbers */}
-              <div className="flex items-center gap-1">
-                {(() => {
-                  const totalPages = Math.ceil(filteredlessons.length / itemsPerPage);
-                  // On mobile: show at most 3 page buttons; on desktop up to 7
-                  // We'll render a responsive set and hide extras via CSS
-                  const pages: number[] = [];
-                  if (totalPages <= 5) {
-                    for (let i = 1; i <= totalPages; i++) pages.push(i);
-                  } else if (currentPage <= 3) {
-                    pages.push(1, 2, 3, -1, totalPages);
-                  } else if (currentPage >= totalPages - 2) {
-                    pages.push(1, -1, totalPages - 2, totalPages - 1, totalPages);
-                  } else {
-                    pages.push(1, -1, currentPage - 1, currentPage, currentPage + 1, -2, totalPages);
-                  }
-                  return pages.map((page, idx) => {
-                    if (page < 0) {
-                      return (
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const totalPages = Math.ceil(filteredlessons.length / itemsPerPage);
+                    const pages: number[] = [];
+                    if (totalPages <= 5) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else if (currentPage <= 3) {
+                      pages.push(1, 2, 3, -1, totalPages);
+                    } else if (currentPage >= totalPages - 2) {
+                      pages.push(1, -1, totalPages - 2, totalPages - 1, totalPages);
+                    } else {
+                      pages.push(1, -1, currentPage - 1, currentPage, currentPage + 1, -2, totalPages);
+                    }
+                    return pages.map((page, idx) => {
+                      if (page < 0) return (
                         <span key={`e-${idx}`} className="hidden sm:inline-flex w-9 h-9 items-center justify-center text-muted-foreground text-sm">…</span>
                       );
-                    }
-                    const isCurrent = currentPage === page;
-                    // On mobile: only show current page ±1 and first/last
-                    const showOnMobile = Math.abs(page - currentPage) <= 1 || page === 1 || page === totalPages;
-                    return (
-                      <Button
-                        key={page}
-                        variant={isCurrent ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                        className={`w-9 h-9 p-0 ${
-                          isCurrent
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0 shadow-sm'
-                            : ''
-                        } ${!showOnMobile ? 'hidden sm:inline-flex' : ''}`}
-                        aria-label={`Page ${page}`}
-                        aria-current={isCurrent ? 'page' : undefined}
-                      >
-                        {page}
-                      </Button>
-                    );
-                  });
-                })()}
-              </div>
+                      const isCurrent = currentPage === page;
+                      const showOnMobile = Math.abs(page - currentPage) <= 1 || page === 1 || page === totalPages;
+                      return (
+                        <Button key={page} variant={isCurrent ? 'default' : 'outline'} size="sm"
+                          onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                          className={`w-9 h-9 p-0 ${isCurrent ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-0 shadow-sm' : ''} ${!showOnMobile ? 'hidden sm:inline-flex' : ''}`}
+                          aria-current={isCurrent ? 'page' : undefined}>
+                          {page}
+                        </Button>
+                      );
+                    });
+                  })()}
+                </div>
 
-              {/* Next */}
-              <Button
-                variant="outline" size="sm"
-                className="gap-1 h-9 px-2.5 sm:px-3"
-                onClick={() => { setCurrentPage(p => Math.min(Math.ceil(filteredlessons.length / itemsPerPage), p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                disabled={currentPage >= Math.ceil(filteredlessons.length / itemsPerPage)}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="sr-only sm:not-sr-only">Next</span>
-              </Button>
-
-              {/* Last page — desktop only */}
-              {Math.ceil(filteredlessons.length / itemsPerPage) > 5 && (
-                <Button
-                  variant="outline" size="sm"
-                  className="hidden sm:flex w-9 h-9 p-0"
-                  onClick={() => { setCurrentPage(Math.ceil(filteredlessons.length / itemsPerPage)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  disabled={currentPage >= Math.ceil(filteredlessons.length / itemsPerPage)}
-                  aria-label="Last page"
-                >
-                  »
+                <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5 sm:px-3"
+                  onClick={() => { setCurrentPage(p => Math.min(Math.ceil(filteredlessons.length / itemsPerPage), p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage >= Math.ceil(filteredlessons.length / itemsPerPage)}>
+                  <span className="sr-only sm:not-sr-only">Next</span>
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
-              )}
+                {Math.ceil(filteredlessons.length / itemsPerPage) > 5 && (
+                  <Button variant="outline" size="sm" className="hidden sm:flex w-9 h-9 p-0"
+                    onClick={() => { setCurrentPage(Math.ceil(filteredlessons.length / itemsPerPage)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    disabled={currentPage >= Math.ceil(filteredlessons.length / itemsPerPage)} aria-label="Last page">
+                    »
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
+          </>
         )}
+
+
 
         {/* Results Summary — shown only during search */}
         {!loading && filteredlessons.length > 0 && searchQuery.trim() && (
@@ -3066,7 +3112,6 @@ const Browselessons = () => {
 
         {/* Recommended for You Section */}
         {(() => {
-          const recommendations = getRecommendedlessons();
           if (loading || recommendations.length === 0) return null;
 
           const reasonStyles: Record<string, {
@@ -3090,7 +3135,7 @@ const Browselessons = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="mb-12"
+              className="mt-8 sm:mt-12 mb-12"
             >
               {/* Section Header */}
               <div className="relative mb-5 sm:mb-8">
@@ -3137,7 +3182,7 @@ const Browselessons = () => {
 
               {/* Cards — same mobile horizontal / desktop vertical split as main grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                {recommendations.map((rec, index) => {
+                {paginatedRecommendations.map((rec, index) => {
                   const course: Course = rec.course;
                   const { reason, reasonType } = rec;
                   const style = reasonStyles[reasonType] ?? reasonStyles['popular'];
@@ -3290,6 +3335,103 @@ const Browselessons = () => {
                   );
                 })}
               </div>
+
+              {recommendations.length > recommendationItemsPerPage && (
+                <div className="flex flex-col items-center gap-3 mt-8 pt-6 border-t border-purple-100 dark:border-purple-900/30">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                    Showing {Math.min((currentRecommendationPage - 1) * recommendationItemsPerPage + 1, recommendations.length)}–{Math.min(currentRecommendationPage * recommendationItemsPerPage, recommendations.length)} of {recommendations.length} recommendations
+                  </p>
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    {totalRecommendationPages > 5 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hidden sm:flex w-9 h-9 p-0"
+                        onClick={() => { setCurrentRecommendationPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        disabled={currentRecommendationPage === 1}
+                        aria-label="First recommendations page"
+                      >
+                        «
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 h-9 px-2.5 sm:px-3"
+                      onClick={() => { setCurrentRecommendationPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      disabled={currentRecommendationPage === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span className="sr-only sm:not-sr-only">Prev</span>
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const pages: number[] = [];
+                        if (totalRecommendationPages <= 5) {
+                          for (let i = 1; i <= totalRecommendationPages; i++) pages.push(i);
+                        } else if (currentRecommendationPage <= 3) {
+                          pages.push(1, 2, 3, -1, totalRecommendationPages);
+                        } else if (currentRecommendationPage >= totalRecommendationPages - 2) {
+                          pages.push(1, -1, totalRecommendationPages - 2, totalRecommendationPages - 1, totalRecommendationPages);
+                        } else {
+                          pages.push(1, -1, currentRecommendationPage - 1, currentRecommendationPage, currentRecommendationPage + 1, -2, totalRecommendationPages);
+                        }
+                        return pages.map((page, idx) => {
+                          if (page < 0) {
+                            return (
+                              <span key={`rec-e-${idx}`} className="hidden sm:inline-flex w-9 h-9 items-center justify-center text-muted-foreground text-sm">
+                                …
+                              </span>
+                            );
+                          }
+
+                          const isCurrent = currentRecommendationPage === page;
+                          const showOnMobile = Math.abs(page - currentRecommendationPage) <= 1 || page === 1 || page === totalRecommendationPages;
+
+                          return (
+                            <Button
+                              key={page}
+                              variant={isCurrent ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => { setCurrentRecommendationPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                              className={`w-9 h-9 p-0 ${isCurrent ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-0 shadow-sm' : ''} ${!showOnMobile ? 'hidden sm:inline-flex' : ''}`}
+                              aria-current={isCurrent ? 'page' : undefined}
+                            >
+                              {page}
+                            </Button>
+                          );
+                        });
+                      })()}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 h-9 px-2.5 sm:px-3"
+                      onClick={() => { setCurrentRecommendationPage(p => Math.min(totalRecommendationPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      disabled={currentRecommendationPage >= totalRecommendationPages}
+                    >
+                      <span className="sr-only sm:not-sr-only">Next</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+
+                    {totalRecommendationPages > 5 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hidden sm:flex w-9 h-9 p-0"
+                        onClick={() => { setCurrentRecommendationPage(totalRecommendationPages); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        disabled={currentRecommendationPage >= totalRecommendationPages}
+                        aria-label="Last recommendations page"
+                      >
+                        »
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.div>
           );
         })()}

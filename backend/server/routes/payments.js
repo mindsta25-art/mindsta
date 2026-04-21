@@ -144,17 +144,26 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
     const rate = profile.commissionRate || 0.1; // Default 10%
     const commission = Math.round((amount || 0) * rate);
 
-    // Create referral transaction
-    const transaction = await ReferralTransaction.create({
-      referrerId: referral.referrerId,
-      referralId: referral._id,
-      userId,
-      studentId,
-      paymentId,
-      amountPaid: amount,
-      commissionAmount: commission,
-      status: 'pending',
-    });
+    // Create referral transaction (unique index on paymentId prevents race-condition duplicates)
+    let transaction;
+    try {
+      transaction = await ReferralTransaction.create({
+        referrerId: referral.referrerId,
+        referralId: referral._id,
+        userId,
+        studentId,
+        paymentId,
+        amountPaid: amount,
+        commissionAmount: commission,
+        status: 'pending',
+      });
+    } catch (createErr) {
+      if (createErr.code === 11000) {
+        console.log(`[Referral] Duplicate key — commission already recorded for payment ${paymentId}, skipping`);
+        return;
+      }
+      throw createErr;
+    }
 
     // Update referral doc
     referral.status = 'completed';
@@ -197,7 +206,7 @@ async function handleReferralCommission({ userId, studentId, paymentId, amount }
           }
         });
         
-        console.log(`[Referral Notification] Commission notification sent to ${referrer.email}`);
+        console.log(`[Referral Notification] Commission notification sent (referrer: ${referrer._id})`);
 
         // Admin alert for referral purchase
         try {

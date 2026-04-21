@@ -81,7 +81,9 @@ const app = express();
 // (fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR and false 403s)
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const NODE_ENV = process.env.npm_lifecycle_event === 'dev'
+  ? 'development'
+  : (process.env.NODE_ENV || 'development');
 const IS_PRODUCTION = NODE_ENV === 'production';
 
 // Resolve local path details for diagnostic logging (ESM equivalent of __dirname)
@@ -371,12 +373,14 @@ app.use('/api', (req, res, next) => {
   const originalJson = res.json;
 
   res.send = function(data) {
+    if (res.headersSent) return this;
     const duration = Date.now() - startTime;
     monitoringService.logRequest(req, res, duration);
     return originalSend.call(this, data);
   };
 
   res.json = function(data) {
+    if (res.headersSent) return this;
     const duration = Date.now() - startTime;
     monitoringService.logRequest(req, res, duration);
     return originalJson.call(this, data);
@@ -395,6 +399,13 @@ app.use('/api/payments', apiLimiter, queueMiddleware('critical'), paymentRoutes)
 
 // Standard routes with queuing
 app.use('/api/students', apiLimiter, queueMiddleware('standard'), studentRoutes);
+// Lesson text-search — lightweight read, bypasses queue to avoid 504 on search-as-you-type
+app.use('/api/lessons/search', apiLimiter, (req, res, next) => {
+  const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  req.url = '/search' + qs;
+  lessonRoutes(req, res, next);
+});
+// Standard lesson routes with queuing
 app.use('/api/lessons', apiLimiter, queueMiddleware('standard'), lessonRoutes);
 app.use('/api/quizzes', apiLimiter, queueMiddleware('standard'), quizRoutes);
 app.use('/api/progress', apiLimiter, queueMiddleware('standard'), progressRoutes);
@@ -420,6 +431,7 @@ app.use('/api/gamification', apiLimiter, gamificationRoutes);
 app.use('/api/newsletter', apiLimiter, newsletterRoutes);
 app.use('/api/tickets', apiLimiter, ticketsRoutes);
 app.use('/api/admin-alerts', strictLimiter, adminAlertsRoutes);
+app.use('/api/admin', apiLimiter, queueMiddleware('standard'), adminRoutes);
 
 // 404 handler for unmatched routes
 app.use(notFoundHandler);
@@ -445,18 +457,59 @@ export default app;
 
 // Only start server if not running in Vercel (serverless environment)
 if (process.env.VERCEL !== '1') {
-  const server = app.listen(PORT, () => {
-    console.log(`[Server] Listening on port ${PORT} (${NODE_ENV})`);
-    if (!IS_PRODUCTION) {
-      console.log(`[Server] Health: http://localhost:${PORT}/api/health`);
-    }
-    // Signal PM2 that the app is ready (required when wait_ready: true in ecosystem.config)
-    if (process.send) process.send('ready');
-  });
+  const normalizePort = (portValue) => {
+    const parsed = Number(portValue);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+    return 3000;
+  };
+
+  const preferredPort = normalizePort(PORT);
+  let activePort = preferredPort;
+  let server = null;
+
+  const startServer = (portToUse) => {
+    activePort = portToUse;
+    const nextServer = app.listen(portToUse);
+
+    nextServer.once('listening', () => {
+      console.log(`[Server] Listening on port ${portToUse} (${NODE_ENV})`);
+      if (!IS_PRODUCTION) {
+        console.log(`[Server] Health: http://localhost:${portToUse}/api/health`);
+      }
+      // Signal PM2 that the app is ready (required when wait_ready: true in ecosystem.config)
+      if (process.send) process.send('ready');
+    });
+
+    nextServer.once('error', (error) => {
+      console.error('[Server] Error:', error.message);
+
+      if (error.code === 'EADDRINUSE') {
+        if (!IS_PRODUCTION) {
+          const fallbackPort = portToUse + 1;
+          console.warn(`[Server] Port ${portToUse} in use. Retrying on ${fallbackPort}...`);
+          startServer(fallbackPort);
+          return;
+        }
+
+        console.error(`[Server] Port ${portToUse} already in use.`);
+      }
+
+      process.exit(1);
+    });
+
+    server = nextServer;
+  };
+
+  startServer(preferredPort);
 
   // Graceful shutdown — close DB connections and finish in-flight requests
   const shutdown = (signal) => {
     console.log(`[Server] ${signal} received — shutting down gracefully...`);
+    if (!server) {
+      process.exit(0);
+      return;
+    }
+
     server.close(async () => {
       try {
         await mongoose.connection.close();
@@ -470,12 +523,4 @@ if (process.env.VERCEL !== '1') {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT',  () => shutdown('SIGINT'));
-
-  server.on('error', (error) => {
-    console.error('[Server] Error:', error.message);
-    if (error.code === 'EADDRINUSE') {
-      console.error(`[Server] Port ${PORT} already in use.`);
-    }
-    process.exit(1);
-  });
 }

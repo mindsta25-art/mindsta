@@ -61,6 +61,31 @@ class CircuitBreaker {
     }
   }
 
+  /**
+   * Returns true if a call is allowed through right now.
+   * Also transitions OPEN → HALF_OPEN when the recovery window has elapsed.
+   */
+  canExecute() {
+    if (this.state === 'OPEN') {
+      if (Date.now() >= this.nextAttemptTime) {
+        this.state = 'HALF_OPEN';
+        return true;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /** Alias for onSuccess() — records a successful operation. */
+  recordSuccess() {
+    this.onSuccess();
+  }
+
+  /** Alias for onFailure() — records a failed operation. */
+  recordFailure() {
+    this.onFailure();
+  }
+
   getState() {
     return {
       state: this.state,

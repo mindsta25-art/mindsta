@@ -112,14 +112,32 @@ export const getSubjectsByGrade = async (grade: string, term?: string): Promise<
 };
 
 /**
+ * Lightweight server-side search — used by the header search box and search page.
+ */
+export const searchLessons = async (q: string, grade?: string, subject?: string, limit = 20): Promise<Lesson[]> => {
+  try {
+    const params = new URLSearchParams();
+    if (q.trim()) params.append('q', q.trim());
+    if (grade) params.append('grade', grade);
+    if (subject) params.append('subject', subject);
+    params.append('limit', String(limit));
+    const result = await api.get(`/lessons/search?${params.toString()}`);
+    return result;
+  } catch (error) {
+    return [];
+  }
+};
+
+/**
  * Get all lessons
  */
-export const getLessons = async (subject?: string, grade?: string, term?: string): Promise<Lesson[]> => {
+export const getLessons = async (subject?: string, grade?: string, term?: string, enrolledOnly?: boolean): Promise<Lesson[]> => {
   try {
     const params = new URLSearchParams();
     if (subject) params.append('subject', subject);
     if (grade) params.append('grade', grade);
     if (term) params.append('term', term);
+    if (enrolledOnly) params.append('enrolledOnly', 'true');
     
     const result = await api.get(`/lessons?${params.toString()}`);
     return result;
@@ -158,13 +176,35 @@ export const getDraftLessons = async (): Promise<Lesson[]> => {
 
 /**
  * Get lesson by ID
+ * Returns null if lesson not found or not enrolled (403)
  */
 export const getLessonById = async (id: string): Promise<Lesson | null> => {
   try {
     const result = await api.get(`/lessons/${id}`);
     return result;
-  } catch (error) {
+  } catch (error: any) {
+    // Handle 403 Forbidden (not enrolled)
+    if (error?.response?.status === 403) {
+      console.warn(`Access denied to lesson ${id}: Not enrolled`);
+      return null;
+    }
     console.error('Error fetching lesson:', error);
+    return null;
+  }
+};
+
+/**
+ * Get lesson preview metadata for cart/checkout and browse preview.
+ */
+export const getLessonPreviewById = async (id: string): Promise<Lesson | null> => {
+  try {
+    const result = await api.get(`/lessons/${id}/preview`);
+    return result;
+  } catch (error: any) {
+    if (error?.response?.status === 404) {
+      return null;
+    }
+    console.error(`Error fetching lesson preview ${id}:`, error);
     return null;
   }
 };

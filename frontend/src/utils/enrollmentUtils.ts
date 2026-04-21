@@ -37,7 +37,6 @@ export function isEnrolled(enrollment, subject, grade, term, lessonId?: string) 
 
   // Subject-level check (no lessonId requested) — any enrollment for this
   // subject+grade+term grants access (used for subject page access control).
-  console.log(`✅ Enrollment match: ${lessonsubject} (Grade ${courseGrade}, Term: ${courseTerm || 'N/A'})`);
   return true;
 }
 

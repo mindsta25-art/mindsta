@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Quiz } from "@/components/Quiz";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,7 +36,7 @@ import {
   CheckCircle2,
   Target
 } from "lucide-react";
-import { getLessonsBySubjectAndGrade, getUserProgress, getStudentByUserId, getLessonById } from "@/api";
+import { getLessonsBySubjectAndGrade, getUserProgress, getStudentByUserId } from "@/api";
 import { recordStudyTime } from "@/api/gamification";
 import { getQuizByLessonId, getQuizzesByFilters, getQuizById } from "@/api/quizzes";
 import { upsertProgress } from "@/api/progress";
@@ -47,20 +46,7 @@ import { getCourseReviews, getReviewStats, createCourseReview, markReviewHelpful
 import { getCourseQuestions, createCourseQuestion, addCourseAnswer, upvoteQuestion, upvoteAnswer } from "@/api/courseQuestions";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
-
-/** Strip HTML tags and return plain text */
-const stripHtml = (html: string): string => {
-  if (!html) return '';
-  return html
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
+import { useCart } from "@/contexts/CartContext";
 
 interface Lesson {
   id: string;
@@ -73,9 +59,6 @@ interface Lesson {
   targetAudience?: string[];
   duration?: number;
   videoUrl?: string;
-  imageUrl?: string;
-  imageDisplaySize?: string;
-  imageObjectFit?: string;
 }
 
 interface Progress {
@@ -99,16 +82,15 @@ const SubjectLessonsPage = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { addToCart, isInCart } = useCart();
   const [studentName, setStudentName] = useState<string>("");
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [loadingData, setLoadingData] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean>(false);
   const [checkingAccess, setCheckingAccess] = useState<boolean>(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileLessonsOpen, setMobileLessonsOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState("overview");
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<any | null>(null);
@@ -126,19 +108,16 @@ const SubjectLessonsPage = () => {
     if (!hasAccess || !user) return;
     sessionStartRef.current = Date.now();
     minutesRecordedRef.current = 0;
-    // Record 5 min every 5 minutes — but only when the tab is visible
+    // Record 5 min every 5 minutes while actively on the page
     const interval = setInterval(() => {
-      if (document.visibilityState !== 'hidden') {
-        minutesRecordedRef.current += 5;
-        recordStudyTime(5).catch(() => {});
-      }
+      minutesRecordedRef.current += 5;
+      recordStudyTime(5).catch(() => {});
     }, 5 * 60 * 1000);
     return () => {
       clearInterval(interval);
-      // On unmount only credit active time (visible tab elapsed)
       const totalElapsed = Math.round((Date.now() - sessionStartRef.current) / 60000);
       const remaining = totalElapsed - minutesRecordedRef.current;
-      if (remaining > 0 && remaining < 120 && document.visibilityState !== 'hidden') {
+      if (remaining > 0 && remaining < 120) {
         recordStudyTime(remaining).catch(() => {});
       }
     };
@@ -165,11 +144,25 @@ const SubjectLessonsPage = () => {
   // Get term from URL query params
   const termParam = searchParams.get('term');
   const gradeParam = searchParams.get('grade') || grade;
-  const lessonIdParam = searchParams.get('lessonId');
   
-  // React Router already decodes URL params — do NOT call decodeURIComponent again
-  // (double-decoding would crash on subject names containing literal '%' characters)
-  const subjectName = subject ?? '';
+  // Decode and use subject name directly - React Router already decodes URL params
+  // So "Computer%20Science" becomes "Computer Science"
+  const subjectName = subject ? decodeURIComponent(subject) : '';
+  const normalizedTerm = termParam
+    ? termParam.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    : undefined;
+  const courseAlreadyInCart = Boolean(subjectName && gradeParam && isInCart(subjectName, gradeParam, normalizedTerm));
+
+  const handleAddCourseToCart = async () => {
+    if (!subjectName || !gradeParam) return;
+
+    await addToCart({
+      subject: subjectName,
+      grade: gradeParam,
+      term: normalizedTerm,
+      title: subjectName,
+    });
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -184,7 +177,10 @@ const SubjectLessonsPage = () => {
       try {
         setCheckingAccess(true);
         
-        const termName = termParam ? termParam.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : undefined;
+        const termName = normalizedTerm;
+        console.log('[SubjectLessons] URL params:', { subject, grade, termParam });
+        console.log('[SubjectLessons] Converted values:', { subjectName, gradeParam, termName });
+        console.log('[SubjectLessons] Checking access for:', { subjectName, gradeParam, termName });
         // Dual check: API-level check + frontend fallback using all enrollments
         const [accessCheck, allEnrollments] = await Promise.allSettled([
           checkAccess(subjectName, gradeParam, termName),
@@ -196,6 +192,7 @@ const SubjectLessonsPage = () => {
         const frontendHasAccess = enrollmentList.some(e =>
           isEnrolledUtil(e, subjectName, gradeParam, termName)
         );
+        console.log('[SubjectLessons] API access:', apiHasAccess, '| Frontend check:', frontendHasAccess);
         setHasAccess(apiHasAccess || frontendHasAccess);
 
         const studentData = await getStudentByUserId(user.id);
@@ -212,7 +209,9 @@ const SubjectLessonsPage = () => {
         const progressData = await getUserProgress(user.id);
 
         // Fetch quizzes for the subject
+        console.log('[SubjectLessons] Fetching quizzes with:', { subjectName, gradeParam, termName });
         const quizzesData = await getQuizzesByFilters(subjectName, gradeParam, termName);
+        console.log('[SubjectLessons] Fetched quizzes:', quizzesData);
 
         setLessons(lessonsData.map(l => ({
           id: l.id,
@@ -225,7 +224,6 @@ const SubjectLessonsPage = () => {
           targetAudience: l.targetAudience,
           duration: l.duration || 30,
           videoUrl: l.videoUrl,
-          imageUrl: l.imageUrl,
         })));
         setQuizzes(quizzesData);
         setProgress(progressData.map(p => ({
@@ -234,55 +232,18 @@ const SubjectLessonsPage = () => {
           videoWatchPercent: p.videoWatchPercent,
         })));
         
-        // Auto-select the lesson from URL param, or fall back to first lesson
+        // Auto-select first lesson and pre-load its quiz so the Complete button is correctly gated
         if (lessonsData.length > 0 && !selectedLesson) {
-          const targetLesson = lessonIdParam
-            ? (lessonsData.find(l => l.id === lessonIdParam) || lessonsData[0])
-            : lessonsData[0];
-          // Fetch full content via :id endpoint — this enforces the backend enrollment gate
+          setSelectedLesson({
+            id: lessonsData[0].id,
+            title: lessonsData[0].title,
+            description: lessonsData[0].description,
+            content: lessonsData[0].content || '',
+            duration: lessonsData[0].duration || 30,
+            videoUrl: lessonsData[0].videoUrl,
+          });
           try {
-            const fullLesson = await getLessonById(targetLesson.id);
-            setSelectedLesson(fullLesson ? {
-              id: fullLesson.id,
-              title: fullLesson.title,
-              description: fullLesson.description,
-              content: fullLesson.content || '',
-              overview: (fullLesson as any).overview,
-              whatYouWillLearn: fullLesson.whatYouWillLearn,
-              requirements: fullLesson.requirements,
-              targetAudience: fullLesson.targetAudience,
-              duration: fullLesson.duration || 30,
-              videoUrl: fullLesson.videoUrl,
-              imageUrl: fullLesson.imageUrl,
-            } : {
-              id: targetLesson.id,
-              title: targetLesson.title,
-              description: targetLesson.description,
-              content: '',
-              duration: targetLesson.duration || 30,
-              imageUrl: targetLesson.imageUrl,
-            });
-          } catch {
-            setSelectedLesson({
-              id: targetLesson.id,
-              title: targetLesson.title,
-              description: targetLesson.description,
-              content: '',
-              duration: targetLesson.duration || 30,
-              imageUrl: targetLesson.imageUrl,
-            });
-          }
-          // Record lesson access immediately (Udemy-style progress tracking)
-          if (user?.id && targetLesson.id) {
-            upsertProgress({
-              userId: user.id,
-              lessonId: targetLesson.id,
-              completed: false,
-              lastAccessedAt: new Date(),
-            }).catch(() => {});
-          }
-          try {
-            const firstLessonQuiz = await getQuizByLessonId(targetLesson.id);
+            const firstLessonQuiz = await getQuizByLessonId(lessonsData[0].id);
             if (firstLessonQuiz && firstLessonQuiz.questions && firstLessonQuiz.questions.length > 0) {
               setQuizTitle(firstLessonQuiz.title || "Lesson Quiz");
               const mapped = firstLessonQuiz.questions.map((q: any, idx: number) => ({
@@ -300,7 +261,6 @@ const SubjectLessonsPage = () => {
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setFetchError("Failed to load course content. Please check your connection and try again.");
       } finally {
         setLoadingData(false);
         setCheckingAccess(false);
@@ -516,7 +476,7 @@ const SubjectLessonsPage = () => {
 
   const handleVideoTimeUpdate = (seconds: number) => {
     latestVideoPositionRef.current = seconds;
-    // Debounce backend saves — save to backend at most every 30 seconds
+    // Debounce backend saves — save to backend at most every 60 seconds
     if (!videoProgressSaveRef.current && selectedLesson?.id && user) {
       videoProgressSaveRef.current = setTimeout(() => {
         videoProgressSaveRef.current = null;
@@ -528,7 +488,7 @@ const SubjectLessonsPage = () => {
           videoWatchPercent: latestWatchPercentRef.current,
           lastAccessedAt: new Date(),
         }).catch(() => {});
-      }, 30_000);
+      }, 60_000);
     }
   };
 
@@ -544,39 +504,22 @@ const SubjectLessonsPage = () => {
     if (selectedLesson?.id) {
       localStorage.removeItem(LS_VIDEO_KEY(selectedLesson.id));
     }
-    // Cancel any pending debounced save — we're doing a full save now
-    if (videoProgressSaveRef.current) {
-      clearTimeout(videoProgressSaveRef.current);
-      videoProgressSaveRef.current = null;
-    }
     latestWatchPercentRef.current = 100;
-
-    // Auto-complete if no quiz (Udemy-style: video finish = lesson done)
-    const hasQuiz = quizQuestions.length > 0;
-    const autoComplete = !hasQuiz;
-
     if (selectedLesson?.id && user) {
       upsertProgress({
         userId: user.id,
         lessonId: selectedLesson.id,
-        completed: autoComplete,
+        completed: false,
         videoPosition: 0,
         videoWatchPercent: 100,
         lastAccessedAt: new Date(),
-      }).then(async () => {
-        // Refresh progress so the sidebar checkmarks update immediately
-        if (user?.id) {
-          const updated = await getUserProgress(user.id);
-          setProgress(updated.map((p: any) => ({ lessonId: p.lessonId, completed: p.completed || false })));
-        }
       }).catch(() => {});
     }
-
     toast({
-      title: autoComplete ? "Lesson Complete! 🎉" : "Video Complete! 🎬",
-      description: autoComplete
-        ? "Great job! Lesson marked as complete — keep going!"
-        : "Great job! Head to the Quiz tab to test your knowledge and complete this lesson.",
+      title: "Video Complete! 🎬",
+      description: selectedQuiz
+        ? "Great job! Head to the Quiz tab to test your knowledge."
+        : "Excellent! Mark the lesson as complete when you're ready.",
     });
   };
 
@@ -666,7 +609,6 @@ const SubjectLessonsPage = () => {
   };
 
   const handleLessonClick = async (lesson: Lesson) => {
-    // Set basic info immediately for instant UI feedback
     setSelectedLesson(lesson);
     setCurrentTab("content");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -680,31 +622,7 @@ const SubjectLessonsPage = () => {
         lastAccessedAt: new Date(),
       }).catch(() => {});
     }
-
-    // Fetch full lesson content via :id endpoint — triggers the backend enrollment gate
-    try {
-      const fullLesson = await getLessonById(lesson.id);
-      if (fullLesson) {
-        setSelectedLesson(prev => prev?.id === fullLesson.id ? {
-          ...prev,
-          content: fullLesson.content || '',
-          videoUrl: fullLesson.videoUrl,
-          overview: (fullLesson as any).overview,
-          whatYouWillLearn: fullLesson.whatYouWillLearn,
-          requirements: fullLesson.requirements,
-          targetAudience: fullLesson.targetAudience,
-        } : prev);
-      }
-    } catch (error: any) {
-      if (error?.response?.status === 403) {
-        toast({
-          title: 'Course not purchased',
-          description: 'Please purchase this course to access lesson content.',
-          variant: 'destructive',
-        });
-      }
-    }
-
+    
     // Fetch quiz for the selected lesson
     if (lesson.id) {
       setLoadingQuiz(true);
@@ -794,47 +712,17 @@ const SubjectLessonsPage = () => {
     );
   }
 
-  if (fetchError) {
-    return (
-      <div className="min-h-screen bg-background">
-        <StudentHeader studentName={studentName} />
-        <div className="pt-24 container mx-auto px-4 flex items-center justify-center" style={{minHeight: 'calc(100vh - 96px)'}}>
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">&#9888;&#65039;</span>
-            </div>
-            <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-            <p className="text-muted-foreground mb-6">{fetchError}</p>
-            <div className="flex gap-3 justify-center">
-              <Button variant="outline" onClick={() => navigate('/browse')}>Browse lessonss</Button>
-              <Button onClick={() => { setFetchError(null); setLoadingData(true); window.location.reload(); }}>Try Again</Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background">
         <StudentHeader studentName={studentName} />
-        <main className="pt-24 pb-16 container mx-auto px-4">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/browse')}
-            className="gap-2 mb-6"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Browse
-          </Button>
-          
+        <main className="pt-24 pb-16 container mx-auto px-4 sm:px-6">
           <Card className="max-w-2xl mx-auto">
-            <CardContent className="py-16 text-center">
+            <CardContent className="px-4 py-12 sm:px-6 sm:py-16 text-center">
               <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
                 <Lock className="w-8 h-8 text-purple-600 dark:text-purple-300" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Course Not Purchased</h2>
+              <h2 className="text-2xl font-bold mb-2">Lesson Not Purchased</h2>
               <p className="text-muted-foreground mb-6">
                 You need to purchase this course to access its lessons.
               </p>
@@ -844,13 +732,10 @@ const SubjectLessonsPage = () => {
                   Grade {gradeParam}{termParam ? ` • ${termParam.split('-').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ')}` : ''}
                 </p>
               </div>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={() => navigate('/browse')} variant="outline">
-                  Browse lessons
-                </Button>
-                <Button onClick={() => navigate('/cart')} className="gap-2">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={handleAddCourseToCart} className="gap-2 w-full sm:w-auto" disabled={courseAlreadyInCart}>
                   <ShoppingCart className="w-4 h-4" />
-                  Go to Cart
+                  {courseAlreadyInCart ? 'Added to Cart' : 'Add to Cart'}
                 </Button>
               </div>
             </CardContent>
@@ -860,37 +745,9 @@ const SubjectLessonsPage = () => {
     );
   }
 
+  const completedCount = lessons.filter(l => isLessonCompleted(l.id)).length;
+  const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
   const totalDuration = lessons.reduce((sum, l) => sum + (l.duration || 30), 0);
-
-  // When navigated from a specific lesson card (lessonId in URL), only show that lesson in the sidebar
-  const sidebarLessons = (() => {
-    if (!lessonIdParam) return lessons;
-    const filtered = lessons.filter(l => l.id === lessonIdParam);
-    return filtered.length > 0 ? filtered : lessons;
-  })();
-
-  // All stats are scoped to sidebarLessons so that when a specific lesson is selected
-  // counts reflect only the purchased lesson, not the entire subject.
-  const sidebarLessonIds = new Set(sidebarLessons.map(l => l.id));
-  const completedCount = sidebarLessons.filter(l => isLessonCompleted(l.id)).length;
-  const progressPercent = sidebarLessons.length > 0 ? Math.round((completedCount / sidebarLessons.length) * 100) : 0;
-
-  // Duration to display in sidebar header — matches what sidebarLessons shows
-  const sidebarDuration = sidebarLessons.reduce((sum, l) => sum + (l.duration || 30), 0);
-
-  // Quiz count scoped to whichever lessons are shown in the sidebar.
-  // When a specific lesson is selected via lessonIdParam, use the already-loaded selectedQuiz
-  // (fetched via getQuizByLessonId which is a direct lookup and more reliable than the
-  // filter-based getQuizzesByFilters which can miss quizzes with mismatched metadata).
-  const sidebarQuizCount = lessonIdParam
-    ? (selectedQuiz !== null ? 1 : 0)
-    : quizzes.filter(q => sidebarLessonIds.has(q.lessonId)).length;
-
-  // Duration shown in stats / header — per selected lesson when navigating from a card,
-  // otherwise the full course total
-  const displayDuration = lessonIdParam && selectedLesson
-    ? (selectedLesson.duration || 30)
-    : totalDuration;
 
   return (
     <div className="min-h-screen bg-background">
@@ -918,20 +775,21 @@ const SubjectLessonsPage = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="gap-2"
+            >
+              {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              <span className="hidden sm:inline">
+                {sidebarOpen ? 'Hide' : 'Show'} Curriculum
+              </span>
+            </Button>
             <div className="hidden lg:flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md">
               <Award className="w-4 h-4 text-yellow-600" />
-              <span className="text-sm font-medium">{completedCount}/{sidebarLessons.length} Completed</span>
+              <span className="text-sm font-medium">{completedCount}/{lessons.length} Completed</span>
             </div>
-            {/* Mobile lesson list button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="lg:hidden gap-1.5 border-purple-300 text-purple-700 dark:text-purple-300"
-              onClick={() => setMobileLessonsOpen(true)}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span className="font-semibold">{completedCount}/{sidebarLessons.length}</span>
-            </Button>
           </div>
         </div>
         <Progress value={progressPercent} className="h-1" />
@@ -967,7 +825,7 @@ const SubjectLessonsPage = () => {
                           videoUrl={selectedLesson.videoUrl}
                           title={selectedLesson.title}
                           lessonId={selectedLesson.id}
-                          enableDownload={false}
+                          enableDownload={true}
                           startAt={showResumeBanner ? videoResumePos : 0}
                           onTimeUpdate={handleVideoTimeUpdate}
                           onProgress={handleVideoProgress}
@@ -977,15 +835,6 @@ const SubjectLessonsPage = () => {
                     ) : (
                       <Card className="overflow-hidden">
                         <div className="relative aspect-video bg-gradient-to-br from-purple-900 to-blue-900">
-                          {selectedLesson.imageUrl && (
-                            <img
-                              src={selectedLesson.imageUrl}
-                              alt={selectedLesson.title}
-                              className="absolute inset-0 w-full h-full opacity-50"
-                              style={{ objectFit: (selectedLesson.imageObjectFit as any) || 'cover' }}
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          )}
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="text-center">
                               <PlayCircle className="w-20 h-20 text-white/80 mx-auto mb-4" />
@@ -1006,7 +855,7 @@ const SubjectLessonsPage = () => {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            <span>{selectedLesson.duration != null ? `${selectedLesson.duration} min` : 'Duration not set'}</span>
+                            <span>{selectedLesson.duration} minutes</span>
                           </div>
                           {isLessonCompleted(selectedLesson.id) && (
                             <Badge className="bg-green-600 hover:bg-green-700">
@@ -1017,6 +866,63 @@ const SubjectLessonsPage = () => {
                         </div>
                       </div>
                       <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            const currentIndex = lessons.findIndex(l => l.id === selectedLesson.id);
+                            if (currentIndex > 0) {
+                              const prev = lessons[currentIndex - 1];
+                              setSelectedLesson(prev);
+                              setSelectedQuiz(null); setQuizQuestions([]); setQuizTitle("");
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                              try {
+                                const q = await getQuizByLessonId(prev.id);
+                                if (q && q.questions?.length > 0) {
+                                  setSelectedQuiz(q);
+                                  setQuizQuestions(q.questions.map((ques: any, idx: number) => ({
+                                    id: ques.id || String(idx + 1), question: ques.question,
+                                    options: ques.options, correct_answer: ques.options[ques.correctAnswer] ?? '',
+                                    explanation: ques.explanation || null, order_number: idx + 1,
+                                  })));
+                                  setQuizTitle(q.title);
+                                }
+                              } catch {/* no quiz for this lesson */}
+                            }
+                          }}
+                          disabled={lessons.findIndex(l => l.id === selectedLesson.id) === 0}
+                          className="gap-2"
+                        >
+                          <ArrowLeft className="w-4 h-4" />
+                          <span className="hidden sm:inline">Previous</span>
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            const currentIndex = lessons.findIndex(l => l.id === selectedLesson.id);
+                            if (currentIndex < lessons.length - 1) {
+                              const next = lessons[currentIndex + 1];
+                              setSelectedLesson(next);
+                              setSelectedQuiz(null); setQuizQuestions([]); setQuizTitle("");
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                              try {
+                                const q = await getQuizByLessonId(next.id);
+                                if (q && q.questions?.length > 0) {
+                                  setSelectedQuiz(q);
+                                  setQuizQuestions(q.questions.map((ques: any, idx: number) => ({
+                                    id: ques.id || String(idx + 1), question: ques.question,
+                                    options: ques.options, correct_answer: ques.options[ques.correctAnswer] ?? '',
+                                    explanation: ques.explanation || null, order_number: idx + 1,
+                                  })));
+                                  setQuizTitle(q.title);
+                                }
+                              } catch {/* no quiz */}
+                            }
+                          }}
+                          disabled={lessons.findIndex(l => l.id === selectedLesson.id) === lessons.length - 1}
+                          className="gap-2"
+                        >
+                          <span className="hidden sm:inline">Next</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
                         <Button
                           onClick={async () => {
                             if (!selectedLesson?.id || !user?.id || isLessonCompleted(selectedLesson.id)) return;
@@ -1064,7 +970,7 @@ const SubjectLessonsPage = () => {
                   <div className="bg-gradient-to-br from-purple-100 via-pink-50 to-orange-50 dark:from-purple-950/30 dark:via-pink-950/20 dark:to-orange-950/20 p-8 border-b">
                     <div className="container mx-auto px-4 max-w-5xl">
                       <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">{subjectName}</h1>
-                      <p className="text-sm sm:text-base text-muted-foreground mb-6">
+                      <p className="text-muted-foreground mb-6">
                         {grade === "Common Entrance" ? "Common Entrance" : `Grade ${gradeParam}`}
                         {termParam ? ` • ${termParam.split('-').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ')}` : ''}
                       </p>
@@ -1072,12 +978,7 @@ const SubjectLessonsPage = () => {
                       <div className="flex flex-wrap gap-4 text-sm">
                         <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-900/80 px-4 py-2 rounded-lg">
                           <Clock className="w-4 h-4 text-purple-600" />
-                          <span className="font-medium">
-                            {displayDuration >= 60
-                              ? `${Math.floor(displayDuration / 60)}h ${displayDuration % 60}m`
-                              : `${displayDuration}m`}
-                            {lessonIdParam ? '' : ' total'}
-                          </span>
+                          <span className="font-medium">{Math.floor(totalDuration / 60)}h {totalDuration % 60}m total</span>
                         </div>
                         <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-900/80 px-4 py-2 rounded-lg">
                           <BookOpen className="w-4 h-4 text-blue-600" />
@@ -1128,7 +1029,7 @@ const SubjectLessonsPage = () => {
                       {/* Show first lesson's overview if available */}
                       {lessons.length > 0 && lessons[0].overview ? (
                         <div className="prose dark:prose-invert max-w-none">
-                          <p className="text-muted-foreground whitespace-pre-wrap">{stripHtml(lessons[0].overview)}</p>
+                          <p className="text-muted-foreground whitespace-pre-wrap">{lessons[0].overview}</p>
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground italic">
@@ -1138,6 +1039,7 @@ const SubjectLessonsPage = () => {
                       
                       <div className="border-t pt-4">
                         <h4 className="font-semibold mb-3">What You'll Learn</h4>
+                        {/* Show first lesson's whatYouWillLearn if available */}
                         {lessons.length > 0 && lessons[0].whatYouWillLearn && lessons[0].whatYouWillLearn.length > 0 ? (
                           <ul className="space-y-2">
                             {lessons[0].whatYouWillLearn.map((item, index) => (
@@ -1191,9 +1093,9 @@ const SubjectLessonsPage = () => {
                       <CardTitle>Course Statistics</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center p-4 bg-muted rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">{sidebarLessons.length}</div>
+                          <div className="text-2xl font-bold text-purple-600">{lessons.length}</div>
                           <div className="text-sm text-muted-foreground">Lessons</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
@@ -1201,25 +1103,13 @@ const SubjectLessonsPage = () => {
                           <div className="text-sm text-muted-foreground">Completed</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {displayDuration >= 60
-                              ? `${Math.floor(displayDuration / 60)}h${displayDuration % 60 > 0 ? ` ${displayDuration % 60}m` : ''}`
-                              : `${displayDuration}m`}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Video Time</div>
+                          <div className="text-2xl font-bold text-blue-600">{Math.floor(totalDuration / 60)}h</div>
+                          <div className="text-sm text-muted-foreground">Total Time</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
                           <div className="text-2xl font-bold text-yellow-600">{progressPercent}%</div>
                           <div className="text-sm text-muted-foreground">Progress</div>
                         </div>
-                      </div>
-                      {/* Progress bar */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{completedCount} of {sidebarLessons.length} lessons completed</span>
-                          <span>{progressPercent}%</span>
-                        </div>
-                        <Progress value={progressPercent} className="h-2" />
                       </div>
                     </CardContent>
                   </Card>
@@ -1232,7 +1122,7 @@ const SubjectLessonsPage = () => {
 
                       {/* Brief description — skip if it looks like a plain URL */}
                       {(() => {
-                        const raw = stripHtml(selectedLesson.description || '');
+                        const raw = (selectedLesson.description || '').replace(/<[^>]*>/g, '').trim();
                         const isUrl = /^https?:\/\//.test(raw) || /^www\./.test(raw);
                         if (!raw || isUrl) return null;
                         return (
@@ -1241,7 +1131,10 @@ const SubjectLessonsPage = () => {
                               <CardTitle>Description</CardTitle>
                             </CardHeader>
                             <CardContent className="overflow-hidden">
-                              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{raw}</p>
+                              <div
+                                className="prose prose-sm dark:prose-invert max-w-none break-words [&_table]:w-full [&_table]:overflow-x-auto [&_table]:block [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_img]:max-w-full [&_*]:max-w-full"
+                                dangerouslySetInnerHTML={{ __html: selectedLesson.description }}
+                              />
                             </CardContent>
                           </Card>
                         );
@@ -1249,7 +1142,7 @@ const SubjectLessonsPage = () => {
 
                       {/* Fallback if no description is useful */}
                       {(() => {
-                        const raw = stripHtml(selectedLesson.description || '');
+                        const raw = (selectedLesson.description || '').replace(/<[^>]*>/g, '').trim();
                         const isUrl = /^https?:\/\//.test(raw) || /^www\./.test(raw);
                         if (!raw || isUrl) {
                           return (
@@ -1433,112 +1326,83 @@ const SubjectLessonsPage = () => {
                       </Dialog>
                     </CardHeader>
                     <CardContent>
-                      {loadingReviews ? (
-                        <div className="text-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-                        </div>
-                      ) : reviews.length === 0 ? (
-                        <div className="text-center py-12">
-                          <Star className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground font-medium">No reviews yet</p>
-                          <p className="text-sm text-muted-foreground mt-1">Be the first to review this course!</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {reviews.map((review) => (
-                            <div key={review._id} className="border rounded-lg p-4">
-                              <div className="flex items-start justify-between mb-2">
-                                <div>
-                                  <p className="font-medium text-sm">{review.studentName || review.userName || 'Student'}</p>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    {[1, 2, 3, 4, 5].map(star => (
-                                      <Star
-                                        key={star}
-                                        className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
-                                      />
-                                    ))}
-                                    <span className="text-xs text-muted-foreground ml-2">
-                                      {new Date(review.createdAt).toLocaleDateString()}
-                                    </span>
+                      {/* Lessons Section */}
+                      {lessons.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                            <BookOpen className="w-4 h-4" />
+                            Lessons ({lessons.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {lessons.map((lesson, index) => {
+                              const completed = isLessonCompleted(lesson.id);
+                              return (
+                                <div
+                                  key={lesson.id}
+                                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                                    selectedLesson?.id === lesson.id
+                                      ? 'bg-primary/10 border-primary'
+                                      : completed
+                                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
+                                      : 'hover:bg-muted'
+                                  }`}
+                                  onClick={() => handleLessonClick(lesson)}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${completed ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
+                                      {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-medium text-sm leading-tight mb-1">
+                                        {lesson.title}
+                                      </h4>
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{lesson.duration} min</span>
+                                        {completed && (
+                                          <>
+                                            <span>•</span>
+                                            <CheckCircle className="w-3 h-3 text-green-600" />
+                                            <span className="text-green-600">Completed</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              {review.review && (
-                                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{review.review}</p>
-                              )}
-                              <div className="flex gap-3 mt-3 pt-3 border-t">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1.5 h-7 text-xs"
-                                  onClick={() => handleMarkHelpful(review._id, true)}
-                                >
-                                  <ThumbsUp className="w-3 h-3" />
-                                  Helpful ({review.helpful || 0})
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1.5 h-7 text-xs"
-                                  onClick={() => handleMarkHelpful(review._id, false)}
-                                >
-                                  <ThumbsDown className="w-3 h-3" />
-                                  Not Helpful ({review.notHelpful || 0})
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
+                      {/* Q&A Ask Form */}
+                      <div className="mt-8">
+                        <label className="text-sm font-medium mb-2 block">Your Question</label>
+                        <Textarea
+                          placeholder="What would you like to know about this course?"
+                          value={newQuestionText}
+                          onChange={(e) => setNewQuestionText(e.target.value)}
+                          rows={4}
+                        />
+                        <Button 
+                          onClick={handleSubmitQuestion} 
+                          disabled={submittingQuestion || !newQuestionText.trim()}
+                          className="w-full mt-4"
+                        >
+                          {submittingQuestion ? 'Posting...' : 'Post Question'}
+                        </Button>
+                      </div>
                     </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="discussion" className="space-y-6">
-                  {/* Ask a Question */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5" />
-                        Ask a Question
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <Textarea
-                        placeholder="What would you like to know about this course?"
-                        value={newQuestionText}
-                        onChange={(e) => setNewQuestionText(e.target.value)}
-                        rows={3}
-                      />
-                      <Button
-                        onClick={handleSubmitQuestion}
-                        disabled={submittingQuestion || !newQuestionText.trim()}
-                        className="gap-2"
-                      >
-                        <Send className="w-4 h-4" />
-                        {submittingQuestion ? 'Posting...' : 'Post Question'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  {/* Questions List */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5" />
-                        Questions {questions.length > 0 && `(${questions.length})`}
-                      </CardTitle>
-                    </CardHeader>
                     <CardContent>
                       {loadingQuestions ? (
                         <div className="text-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                         </div>
                       ) : questions.length === 0 ? (
                         <div className="text-center py-12">
                           <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground font-medium">No questions yet</p>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-muted-foreground">No questions yet</p>
+                          <p className="text-sm text-muted-foreground mt-2">
                             Ask a question to get help from instructors and peers
                           </p>
                         </div>
@@ -1660,18 +1524,18 @@ const SubjectLessonsPage = () => {
                   <div className="p-6">
                     <h3 className="font-bold text-lg mb-1">Lesson Content</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {sidebarQuizCount} quiz{sidebarQuizCount !== 1 ? 'zes' : ''} • {sidebarDuration >= 60 ? `${Math.floor(sidebarDuration / 60)}h ${sidebarDuration % 60}m` : `${sidebarDuration}m`}
+                      {lessons.length} lessons • {quizzes.length} quizzes • {Math.floor(totalDuration / 60)}h {totalDuration % 60}m
                     </p>
                     <div className="space-y-4">
                       {/* Lessons Section */}
-                      {sidebarLessons.length > 0 && (
+                      {lessons.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
                             <BookOpen className="w-4 h-4" />
-                            Lessons ({sidebarLessons.length})
+                            Lessons ({lessons.length})
                           </h4>
                           <div className="space-y-2">
-                            {sidebarLessons.map((lesson, index) => {
+                            {lessons.map((lesson, index) => {
                               const completed = isLessonCompleted(lesson.id);
                               return (
                                 <div
@@ -1686,26 +1550,10 @@ const SubjectLessonsPage = () => {
                                   onClick={() => handleLessonClick(lesson)}
                                 >
                                   <div className="flex items-start gap-2">
-                                    {lesson.imageUrl ? (
-                                      <div className="flex-shrink-0 relative w-10 h-10 rounded-lg overflow-hidden mt-0.5">
-                                        <img
-                                          src={lesson.imageUrl}
-                                          alt={lesson.title}
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                        />
-                                        {completed && (
-                                          <div className="absolute inset-0 bg-green-600/70 flex items-center justify-center">
-                                            <CheckCircle className="w-5 h-5 text-white" />
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${completed ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
-                                        {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
-                                      </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${completed ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
+                                      {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
+                                    </div>
+                    <div className="flex-1 min-w-0">
                                       <h4 className="font-medium text-sm leading-tight mb-1">
                                         {lesson.title}
                                       </h4>
@@ -1752,102 +1600,6 @@ const SubjectLessonsPage = () => {
           </AnimatePresence>
         </div>
       </main>
-
-      {/* Mobile Lesson Drawer */}
-      <Sheet open={mobileLessonsOpen} onOpenChange={setMobileLessonsOpen}>
-        <SheetContent side="bottom" className="h-[75vh] px-0 pb-0 rounded-t-2xl">
-          <SheetHeader className="px-5 pt-5 pb-3 border-b">
-            <SheetTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-purple-600" />
-              Lessons
-            </SheetTitle>
-            <p className="text-sm text-muted-foreground">
-              {sidebarLessons.length} lesson{sidebarLessons.length !== 1 ? 's' : ''} • {sidebarQuizCount} quiz{sidebarQuizCount !== 1 ? 'zes' : ''} • {sidebarDuration >= 60 ? `${Math.floor(sidebarDuration / 60)}h ${sidebarDuration % 60}m` : `${sidebarDuration}m`}
-            </p>
-            {/* Mini progress bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{completedCount} of {sidebarLessons.length} completed</span>
-                <span className="font-semibold text-purple-600">{progressPercent}%</span>
-              </div>
-              <Progress value={progressPercent} className="h-1.5" />
-            </div>
-          </SheetHeader>
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-2 pb-10">
-              {sidebarLessons.map((lesson, index) => {
-                const completed = isLessonCompleted(lesson.id);
-                return (
-                  <div
-                    key={lesson.id}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all active:scale-[0.98] ${
-                      selectedLesson?.id === lesson.id
-                        ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-400'
-                        : completed
-                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
-                        : 'border-transparent bg-muted/50 hover:bg-muted'
-                    }`}
-                    onClick={() => {
-                      handleLessonClick(lesson);
-                      setMobileLessonsOpen(false);
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      {lesson.imageUrl ? (
-                        <div className="flex-shrink-0 relative w-14 h-10 rounded-lg overflow-hidden">
-                          <img
-                            src={lesson.imageUrl}
-                            alt={lesson.title}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                          {completed && (
-                            <div className="absolute inset-0 bg-green-600/70 flex items-center justify-center">
-                              <CheckCircle className="w-4 h-4 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${completed ? 'bg-green-600 text-white' : selectedLesson?.id === lesson.id ? 'bg-purple-600 text-white' : 'bg-muted-foreground/20 text-muted-foreground'}`}>
-                          {completed ? <CheckCircle className="w-4 h-4" /> : index + 1}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`font-semibold text-sm leading-tight truncate ${
-                          selectedLesson?.id === lesson.id ? 'text-purple-700 dark:text-purple-300' : ''
-                        }`}>
-                          {lesson.title}
-                        </h4>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                          <Clock className="w-3 h-3" />
-                          <span>{lesson.duration} min</span>
-                          {completed && <span className="text-green-600 font-medium">• Completed</span>}
-                          {!completed && (getLessonWatchPercent(lesson.id) > 0 || Number(localStorage.getItem(LS_VIDEO_KEY(lesson.id)) || '0') > 30) && (
-                            <span className="text-blue-500 font-medium">
-                              {getLessonWatchPercent(lesson.id) > 0 ? `• ${getLessonWatchPercent(lesson.id)}% watched` : '• In progress'}
-                            </span>
-                          )}
-                        </div>
-                        {!completed && getLessonWatchPercent(lesson.id) > 0 && (
-                          <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-blue-500 rounded-full transition-all"
-                              style={{ width: `${getLessonWatchPercent(lesson.id)}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <ChevronRight className={`w-4 h-4 flex-shrink-0 ${
-                        selectedLesson?.id === lesson.id ? 'text-purple-600' : 'text-muted-foreground'
-                      }`} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };

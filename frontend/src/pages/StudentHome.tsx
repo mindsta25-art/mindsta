@@ -151,7 +151,7 @@ const StudentHome = () => {
           getStudentByUserId(user.id),
           getUserProgress(user.id),
           getEnrollments(),
-          getLessons(),
+          getLessons(undefined, undefined, undefined, true),
         ]);
 
         if (!studentData) {
@@ -402,17 +402,8 @@ const StudentHome = () => {
     });
 
     return Array.from(courseMap.values())
-      .sort((a, b) => {
-        // Sort by most recent engagement: use lastAccessed if available, otherwise
-        // fall back to enrollmentDate so newly purchased (not-yet-started) lessons
-        // appear near the top instead of being buried under older accessed lessons.
-        const aDate = a.lastAccessed ?? a.enrollmentDate;
-        const bDate = b.lastAccessed ?? b.enrollmentDate;
-        if (!aDate && !bDate) return 0;
-        if (!aDate) return 1;
-        if (!bDate) return -1;
-        return bDate.getTime() - aDate.getTime();
-      })
+      .filter(course => course.lastAccessed !== undefined)
+      .sort((a, b) => b.lastAccessed!.getTime() - a.lastAccessed!.getTime())
       .slice(0, 8);
   })();
 
@@ -583,7 +574,7 @@ const StudentHome = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <StudentHeader studentName={studentInfo?.fullName} />
         <div className="pt-2 flex items-center justify-center min-h-screen">
-          <Card className="max-w-md mx-4">
+          <Card className="w-full max-w-md mx-4">
             <CardContent className="pt-6 text-center">
               <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -596,15 +587,16 @@ const StudentHome = () => {
               <p className="text-gray-600 dark:text-gray-400 mb-6">
                 {error}
               </p>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={handleRetry} className="bg-indigo-600 hover:bg-indigo-700">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={handleRetry} className="bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto">
                   Try Again
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => navigate('/browse')}
+                  className="w-full sm:w-auto"
                 >
-                  Browse lessonss
+                  Browse Courses
                 </Button>
               </div>
             </CardContent>
@@ -733,90 +725,169 @@ const StudentHome = () => {
             </motion.div>
           )}
 
-          {/* Subject Performance Overview */}
-          {enrolledLessons.length > 0 && (
+          {/* Subject Performance Overview — temporarily hidden */}
+          {false && enrolledLessons.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.15 }}
               className="mb-6 sm:mb-8"
             >
-              <Card className="shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-indigo-100 dark:border-indigo-900/30">
-                <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30">
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                    Your Subject Performance
-                  </CardTitle>
+              <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-indigo-100 dark:border-indigo-900/30 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/30 dark:to-blue-950/30 pb-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      Your Subject Performance
+                    </CardTitle>
+                    <span className="text-xs text-muted-foreground bg-white dark:bg-gray-800 px-2.5 py-1 rounded-full border">
+                      {Array.from(new Set(enrolledLessons.map(l => `${l.subject}|${l.grade}|${l.term || ''}`  ))).length} subject{Array.from(new Set(enrolledLessons.map(l => `${l.subject}|${l.grade}|${l.term || ''}`))).length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
                 </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                    {Array.from(new Set(enrolledLessons.map(l => l.subject))).slice(0, 8).map((subject, idx) => {
-                      const subjectLessons = enrolledLessons.filter(l => l.subject === subject);
-                      const subjectProgress = progress.filter(p => 
+                <CardContent className="p-4 sm:p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from(
+                      new Map(
+                        enrolledLessons.map(l => {
+                          const key = `${l.subject}|${l.grade}|${l.term || ''}`;
+                          return [key, { subject: l.subject, grade: l.grade, term: l.term }] as [string, { subject: string; grade: string; term?: string }];
+                        })
+                      ).values()
+                    ).slice(0, 9).map(({ subject, grade, term }, idx) => {
+                      const subjectLessons = enrolledLessons.filter(l =>
+                        l.subject === subject && l.grade === grade && (l.term || '') === (term || '')
+                      );
+                      const subjectProgress = progress.filter(p =>
                         subjectLessons.some(l => l.id === p.lessonId)
                       );
                       const completedInSubject = subjectProgress.filter(p => p.completed).length;
-                      const percentage = subjectLessons.length > 0 
-                        ? Math.round((completedInSubject / subjectLessons.length) * 100) 
+                      const percentage = subjectLessons.length > 0
+                        ? Math.round((completedInSubject / subjectLessons.length) * 100)
                         : 0;
-                      
+
+                      // Average quiz score (only entries with a score)
+                      const quizEntries = subjectProgress.filter(p => typeof p.quizScore === 'number');
+                      const avgQuiz = quizEntries.length > 0
+                        ? Math.round(quizEntries.reduce((s, p) => s + (p.quizScore ?? 0), 0) / quizEntries.length)
+                        : null;
+
+                      // Total study time in minutes
+                      const totalMins = Math.round(
+                        subjectProgress.reduce((s, p) => s + (p.timeSpent ?? 0), 0) / 60
+                      );
+
+                      // Last accessed across all lessons in this subject
+                      const lastAccessDates = subjectProgress
+                        .map(p => p.lastAccessedAt ? new Date(p.lastAccessedAt) : null)
+                        .filter(Boolean) as Date[];
+                      const lastAccessed = lastAccessDates.length > 0
+                        ? lastAccessDates.reduce((latest, d) => d > latest ? d : latest)
+                        : null;
+
+                      // Performance tier
+                      const perfLevel = percentage >= 80 ? 'excellent' : percentage >= 50 ? 'good' : percentage > 0 ? 'progress' : 'not-started';
+                      const perfConfig = {
+                        excellent:    { label: 'Excellent',    color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', ring: 'text-emerald-500', border: 'border-l-emerald-500', Icon: CheckCircle },
+                        good:         { label: 'Good',         color: 'text-blue-600 dark:text-blue-400',       bg: 'bg-blue-50 dark:bg-blue-900/20',         ring: 'text-blue-500',    border: 'border-l-blue-500',    Icon: TrendingUp },
+                        progress:     { label: 'In Progress',  color: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-50 dark:bg-amber-900/20',       ring: 'text-amber-500',   border: 'border-l-amber-500',   Icon: PlayCircle },
+                        'not-started':{ label: 'Not Started',  color: 'text-gray-500 dark:text-gray-400',       bg: 'bg-gray-50 dark:bg-gray-800/50',         ring: 'text-gray-400',    border: 'border-l-gray-400',    Icon: BookOpen },
+                      }[perfLevel];
+
+                      const gradient = getSubjectGradient(subject);
+
                       return (
                         <motion.div
-                          key={subject}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 0.1 * idx }}
-                          className="relative"
+                          key={`${subject}|${grade}|${term || ''}`}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.07 * idx }}
                         >
-                          <Card className="hover:shadow-lg transition-all cursor-pointer group" onClick={() => {
-                            const lesson = subjectLessons[0];
-                            navigate(`/subjects/${lesson.grade}/${lesson.subject}${lesson.term ? `?term=${lesson.term}` : ''}`);
-                          }}>
-                            <CardContent className="p-3 sm:p-4">
-                              <div className="flex flex-col items-center text-center">
-                                <div className="relative mb-2">
-                                  <svg className="w-16 h-16 sm:w-20 sm:h-20" viewBox="0 0 80 80">
+                          <Card
+                            className={`hover:shadow-lg transition-all cursor-pointer group border-l-4 ${perfConfig.border} overflow-hidden`}
+                            onClick={() => {
+                              const p = new URLSearchParams();
+                              if (term) p.set('term', term);
+                              navigate(`/subjects/${grade}/${encodeURIComponent(subject)}${p.toString() ? `?${p}` : ''}`);
+                            }}
+                          >
+                            <CardContent className="p-4">
+                              {/* Header row */}
+                              <div className="flex items-start justify-between gap-2 mb-3">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                                    <BookOpen className="w-4 h-4 text-white" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="font-semibold text-sm leading-tight line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                      {subject}
+                                    </h4>
+                                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                      Grade {grade}{term ? ` · ${term}` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${perfConfig.bg} ${perfConfig.color}`}>
+                                  <perfConfig.Icon className="w-3 h-3" />
+                                  {perfConfig.label}
+                                </span>
+                              </div>
+
+                              {/* Progress ring + bar */}
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="relative flex-shrink-0">
+                                  <svg className="w-14 h-14" viewBox="0 0 56 56">
+                                    <circle cx="28" cy="28" r="22" stroke="currentColor" strokeWidth="5" fill="none" className="text-gray-200 dark:text-gray-700" />
                                     <circle
-                                      cx="40"
-                                      cy="40"
-                                      r="30"
-                                      stroke="currentColor"
-                                      strokeWidth="6"
-                                      fill="none"
-                                      className="text-gray-200 dark:text-gray-700"
-                                    />
-                                    <circle
-                                      cx="40"
-                                      cy="40"
-                                      r="30"
-                                      stroke="currentColor"
-                                      strokeWidth="6"
-                                      fill="none"
-                                      strokeDasharray={`${2 * Math.PI * 30}`}
-                                      strokeDashoffset={`${2 * Math.PI * 30 * (1 - percentage / 100)}`}
-                                      className="text-indigo-600 dark:text-indigo-400 transition-all duration-1000"
+                                      cx="28" cy="28" r="22"
+                                      stroke="currentColor" strokeWidth="5" fill="none"
+                                      strokeDasharray={`${2 * Math.PI * 22}`}
+                                      strokeDashoffset={`${2 * Math.PI * 22 * (1 - percentage / 100)}`}
+                                      className={`${perfConfig.ring} transition-all duration-1000`}
                                       strokeLinecap="round"
-                                      transform="rotate(-90 40 40)"
+                                      transform="rotate(-90 28 28)"
                                     />
-                                    <text
-                                      x="40"
-                                      y="40"
-                                      textAnchor="middle"
-                                      dominantBaseline="central"
-                                      className="fill-current text-foreground"
-                                      fontSize="14"
-                                      fontWeight="700"
-                                    >
+                                    <text x="28" y="28" textAnchor="middle" dominantBaseline="central" className="fill-current text-foreground" fontSize="11" fontWeight="700">
                                       {percentage}%
                                     </text>
                                   </svg>
                                 </div>
-                                <h4 className="text-xs sm:text-sm font-semibold mb-1 line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                  {subject}
-                                </h4>
-                                <p className="text-xs text-muted-foreground">
-                                  {completedInSubject}/{subjectLessons.length} complete
-                                </p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[10px] text-muted-foreground mb-1">
+                                    {completedInSubject} of {subjectLessons.length} lesson{subjectLessons.length !== 1 ? 's' : ''} done
+                                  </div>
+                                  <div className="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-700 bg-gradient-to-r ${gradient}`}
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                    {avgQuiz !== null && (
+                                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                        <Star className="w-3 h-3 text-amber-500" />
+                                        {avgQuiz}% quiz avg
+                                      </span>
+                                    )}
+                                    {totalMins > 0 && (
+                                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                        <Clock className="w-3 h-3 text-blue-500" />
+                                        {totalMins}m studied
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Footer */}
+                              <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700/50">
+                                <span className="text-[10px] text-muted-foreground/60">
+                                  {lastAccessed ? `Last: ${formatRelativeTime(lastAccessed)}` : 'Not yet started'}
+                                </span>
+                                <span className={`text-[10px] font-semibold flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity ${perfConfig.color}`}>
+                                  {percentage === 100 ? 'Review' : percentage === 0 ? 'Start' : 'Continue'}
+                                  <ChevronRight className="w-3 h-3" />
+                                </span>
                               </div>
                             </CardContent>
                           </Card>
@@ -873,13 +944,13 @@ const StudentHome = () => {
             </motion.div>
           )}
 
-          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             {/* Quick Actions */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="lg:col-span-2 flex flex-col"
+              className="flex flex-col"
             >
               <Card className="shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3 border-b border-gray-100 dark:border-gray-700">
@@ -913,7 +984,7 @@ const StudentHome = () => {
 
               {/* Continue Learning */}
               {recentlessons.length > 0 ? (
-                <Card className="mt-4 sm:mt-5 shadow-sm hover:shadow-md transition-shadow flex flex-col flex-1">
+                <Card className="mt-4 sm:mt-5 shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-base">
@@ -936,7 +1007,7 @@ const StudentHome = () => {
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-4 flex-1">
+                  <CardContent className="pt-4">
                     <div className="space-y-3">
                       {recentlessons.map((course, idx) => {
                         const continueLessonId = course.nextLesson?.id ?? course.lessonId;
@@ -1038,7 +1109,7 @@ const StudentHome = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="mt-4 sm:mt-5 shadow-sm flex flex-col flex-1">
+                <Card className="mt-4 sm:mt-5 shadow-sm">
                   <CardContent className="py-10 flex flex-col items-center text-center gap-3">
                     <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
                       <BookOpen className="w-6 h-6 text-indigo-500" />

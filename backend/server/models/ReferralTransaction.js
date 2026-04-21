@@ -19,5 +19,6 @@ const ReferralTransactionSchema = new Schema(
 );
 
 ReferralTransactionSchema.index({ referrerId: 1, createdAt: -1 });
+ReferralTransactionSchema.index({ paymentId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.ReferralTransaction || mongoose.model('ReferralTransaction', ReferralTransactionSchema);

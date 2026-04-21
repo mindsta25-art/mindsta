@@ -24,7 +24,6 @@ import {
 import { getUserProgress } from '@/api/progress';
 import { getStudentByUserId } from '@/api/students';
 import { getEnrollments } from '@/api/enrollments';
-import { getLessons } from '@/api/lessons';
 import { getAnalytics, getAchievements, getMastery } from '@/api/gamification';
 
 const ProgressPage = () => {

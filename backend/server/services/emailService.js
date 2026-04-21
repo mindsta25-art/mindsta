@@ -39,7 +39,9 @@ const FROM_ADDRESS = resendClient
   ? (process.env.RESEND_FROM || 'Mindsta <onboarding@resend.dev>')
   : (process.env.EMAIL_USER ? `Mindsta <${process.env.EMAIL_USER}>` : 'Mindsta <onboarding@resend.dev>');
 
-console.log(`[Email] 📬 Sending from: ${FROM_ADDRESS}`);
+if (process.env.NODE_ENV !== 'production') {
+  console.log('[Email] 📬 Email service configured (from address set)');
+}
 
 // ── Nodemailer (local dev fallback only) ──────────────────────────────────
 const createLocalTransporter = () => {
@@ -963,12 +965,6 @@ If you didn't create an account, please ignore this email.
 © ${new Date().getFullYear()} Mindsta. All rights reserved.
   `.trim();
 
-  // Always log OTP to server console for emergency recovery
-  console.log(`[Email] ========================================`);
-  console.log(`[Email] VERIFICATION OTP`);
-  console.log(`[Email] To: ${email} | OTP: ${otp}`);
-  console.log(`[Email] ========================================`);
-
   const mailOptions = {
     from: FROM_ADDRESS,
     to: email,
@@ -979,7 +975,6 @@ If you didn't create an account, please ignore this email.
 
   // Throws on failure — caught by signup route which then deletes the pending user
   await sendMail(mailOptions);
-  console.log(`[Email] ✅ Verification OTP sent successfully to ${email}`);
   return { success: true, message: 'OTP email sent successfully' };
 };
 

@@ -36,7 +36,6 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/add-topic', requireAuth, async (req, res) => {
   try {
     console.log('[Cart] POST /add-topic called by user:', req.user?.id);
-    console.log('[Cart] Request body:', req.body);
     
     const { topicId } = req.body;
 
@@ -97,7 +96,6 @@ router.post('/add-topic', requireAuth, async (req, res) => {
 router.post('/add-lesson', requireAuth, async (req, res) => {
   try {
     console.log('[Cart] POST /add-lesson called by user:', req.user?.id);
-    console.log('[Cart] Request body:', req.body);
     
     const { lessonId } = req.body;
 
@@ -157,7 +155,6 @@ router.post('/add-lesson', requireAuth, async (req, res) => {
 router.post('/add', requireAuth, async (req, res) => {
   try {
     console.log('[Cart] POST /add called by user:', req.user?.id);
-    console.log('[Cart] Request body:', req.body);
     
     const { subject, grade, term, price = 0, title = 'Item', lessonId } = req.body;
 

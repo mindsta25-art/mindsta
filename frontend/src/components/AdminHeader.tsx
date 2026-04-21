@@ -4,6 +4,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -128,18 +129,26 @@ export function AdminHeader() {
       {/* Right — actions */}
       <div className="flex items-center gap-1">
         {/* Theme Toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          className="rounded-full h-9 w-9"
-        >
-          {theme === "dark" ? (
-            <Sun className="w-4 h-4" />
-          ) : (
-            <Moon className="w-4 h-4" />
-          )}
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="rounded-full h-9 w-9 hover:bg-muted"
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Admin Alert Bell */}
         <AdminAlertBell />

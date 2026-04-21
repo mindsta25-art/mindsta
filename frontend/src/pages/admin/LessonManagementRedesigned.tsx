@@ -263,6 +263,20 @@ const LessonManagementRedesigned = () => {
   const confirmDelete = async () => {
     if (!lessonToDelete) return;
     
+    // Handle local draft deletion (no API call needed)
+    if (lessonToDelete === LOCAL_DRAFT_ID) {
+      localStorage.removeItem('mindsta_lesson_draft');
+      setSavedDraft(null);
+      setLocalDraftLesson(null);
+      toast({
+        title: "Draft Cleared",
+        description: "The unsaved draft has been removed.",
+      });
+      setDeleteConfirmOpen(false);
+      setLessonToDelete(null);
+      return;
+    }
+    
     try {
       await deleteLesson(lessonToDelete);
       toast({
@@ -365,7 +379,7 @@ const LessonManagementRedesigned = () => {
                   <p className="text-xs text-foreground/80">
                     Saved lesson draft available from {new Date(savedDraft.timestamp).toLocaleString()}.
                   </p>
-                  <Button size="xs" variant="outline" onClick={() => navigate('/admin/create-lesson')}>
+                  <Button size="sm" variant="outline" onClick={() => navigate('/admin/create-lesson')}>
                     Continue Draft
                   </Button>
                 </div>

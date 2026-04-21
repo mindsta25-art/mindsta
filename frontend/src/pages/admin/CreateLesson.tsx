@@ -39,6 +39,9 @@ const CreateLesson = () => {
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
   const [curriculum, setCurriculum] = useState<Section[]>([]);
+  // Tracks whether the user attempted to submit — shows red borders on empty required fields
+  const [showErrors, setShowErrors] = useState(false);
+  const fe = (val: string | undefined | null) => showErrors && !val?.trim();
 
   const initialForm = {
     title: "",
@@ -154,22 +157,6 @@ const CreateLesson = () => {
     return () => window.clearTimeout(timeoutId);
   }, [form, curriculum, isEditing]);
 
-  // Auto-fill duration from direct video files
-  useEffect(() => {
-    const url = form.videoUrl?.trim();
-    if (!url) return;
-    if (/^https?:\/\/.+\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.onloadedmetadata = () => {
-        const minutes = Math.ceil(video.duration / 60);
-        if (minutes > 0 && isFinite(minutes)) {
-          setForm(prev => ({ ...prev, duration: minutes }));
-        }
-      };
-      video.src = url;
-    }
-  }, [form.videoUrl]);
 
   const saveProgressDraft = () => {
     setIsSavingProgress(true);
@@ -246,7 +233,13 @@ const CreateLesson = () => {
     if (!form.term) missing.push("Term");
     if (!form.difficulty) missing.push("Difficulty");
     if (missing.length > 0) {
+      setShowErrors(true);
       toast({ title: "Missing Required Fields", description: `Please fill in: ${missing.join(", ")}`, variant: "destructive" });
+      // Scroll to the first card that has errors
+      setTimeout(() => {
+        const el = document.querySelector('[data-field-error="true"]');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
       return;
     }
     if (form.title.length < 5) {
@@ -326,14 +319,16 @@ const CreateLesson = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2" data-field-error={fe(form.title) || undefined}>
                     <Label htmlFor="title">Lesson Title *</Label>
                     <Input
                       id="title"
                       value={form.title}
                       onChange={(e) => setForm({ ...form, title: e.target.value })}
                       placeholder="e.g., Introduction to Algebra"
+                      className={fe(form.title) ? "border-destructive focus-visible:ring-destructive" : ""}
                     />
+                    {fe(form.title) && <p className="text-xs text-destructive">Title is required</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="subtitle">Subtitle (Optional)</Label>
@@ -346,7 +341,7 @@ const CreateLesson = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2" data-field-error={fe(form.description) || undefined}>
                   <Label htmlFor="description">Short Description *</Label>
                   <Textarea
                     id="description"
@@ -354,8 +349,13 @@ const CreateLesson = () => {
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     placeholder="Brief description that appears in lesson cards"
                     rows={2}
+                    className={fe(form.description) ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
-                  <p className="text-xs text-muted-foreground">Keep it concise — this appears in lesson previews</p>
+                  {fe(form.description) ? (
+                    <p className="text-xs text-destructive">Description is required</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Keep it concise — this appears in lesson previews</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -368,23 +368,24 @@ const CreateLesson = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2" data-field-error={fe(form.subject) || undefined}>
                   <Label>Subject *</Label>
                   <Select value={form.subject} onValueChange={(v) => setForm({ ...form, subject: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                    <SelectTrigger className={fe(form.subject) ? "border-destructive" : ""}><SelectValue placeholder="Select subject" /></SelectTrigger>
                     <SelectContent>
                       {subjects.map((s) => (
                         <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {fe(form.subject) && <p className="text-xs text-destructive">Subject is required</p>}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2" data-field-error={fe(form.grade) || undefined}>
                     <Label>Grade Level *</Label>
                     <Select value={form.grade} onValueChange={(v) => setForm({ ...form, grade: v })}>
-                      <SelectTrigger><SelectValue placeholder="Grade" /></SelectTrigger>
+                      <SelectTrigger className={fe(form.grade) ? "border-destructive" : ""}><SelectValue placeholder="Grade" /></SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6].map((g) => (
                           <SelectItem key={g} value={g.toString()}>Grade {g}</SelectItem>
@@ -392,28 +393,31 @@ const CreateLesson = () => {
                         <SelectItem value="Common Entrance">Common Entrance</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fe(form.grade) && <p className="text-xs text-destructive">Grade is required</p>}
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2" data-field-error={fe(form.term) || undefined}>
                     <Label>Academic Term *</Label>
                     <Select value={form.term} onValueChange={(v) => setForm({ ...form, term: v })}>
-                      <SelectTrigger><SelectValue placeholder="Term" /></SelectTrigger>
+                      <SelectTrigger className={fe(form.term) ? "border-destructive" : ""}><SelectValue placeholder="Term" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="First Term">First Term</SelectItem>
                         <SelectItem value="Second Term">Second Term</SelectItem>
                         <SelectItem value="Third Term">Third Term</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fe(form.term) && <p className="text-xs text-destructive">Term is required</p>}
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2" data-field-error={fe(form.difficulty) || undefined}>
                     <Label>Difficulty *</Label>
                     <Select value={form.difficulty} onValueChange={(v) => setForm({ ...form, difficulty: v })}>
-                      <SelectTrigger><SelectValue placeholder="Difficulty" /></SelectTrigger>
+                      <SelectTrigger className={fe(form.difficulty) ? "border-destructive" : ""}><SelectValue placeholder="Difficulty" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="beginner">🟢 Beginner</SelectItem>
                         <SelectItem value="intermediate">🟡 Intermediate</SelectItem>
                         <SelectItem value="advanced">🔴 Advanced</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fe(form.difficulty) && <p className="text-xs text-destructive">Difficulty is required</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="duration">Duration (minutes)</Label>
@@ -426,9 +430,7 @@ const CreateLesson = () => {
                       placeholder="30"
                     />
                     <p className="text-xs text-muted-foreground">
-                      {/^https?:\/\/.+\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(form.videoUrl || '')
-                        ? "⚡ Auto-filled from video file"
-                        : "Enter duration in minutes. Auto-filled for direct video files (not YouTube)."}
+                      Enter the lesson duration in minutes manually.
                     </p>
                   </div>
                 </div>
@@ -552,7 +554,6 @@ const CreateLesson = () => {
                       videoUrl={form.videoUrl}
                       title={form.title || "Lesson Preview"}
                       enableDownload={false}
-                      onDurationDetected={(mins) => setForm((prev) => ({ ...prev, duration: mins }))}
                     />
                   </div>
                 )}

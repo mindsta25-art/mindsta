@@ -12,11 +12,11 @@ import { User, Student, Referral } from '../models/index.js';
 import { sendReferralSignupEmail, sendPasswordResetEmail, sendVerificationOTP, sendEmailVerifiedEmail, sendWelcomeEmail } from '../services/emailService.js';
 import passport from '../config/passport.js';
 import { createAdminAlert } from './admin-alerts.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireAuthIgnoreExpiry } from '../middleware/auth.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = '30d';
 
 // Generate 6-digit OTP
 const generateOTP = () => {
@@ -254,7 +254,7 @@ router.post('/signup', async (req, res) => {
             referredUserId: user._id,
             status: 'pending', // Will be completed when user makes first payment
           });
-          console.log(`[Auth] Referral tracked: ${referrer.email} referred ${email}`);
+          console.log(`[Auth] Referral tracked: referrer=${referrer._id} → new user=${user._id}`);
 
           // Create admin alert for referral signup
           try {
@@ -644,7 +644,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
-    console.log(`[Auth] Password changed for user: ${user.email}`);
+    console.log(`[Auth] Password changed for user: ${user._id}`);
 
     res.json({ 
       success: true, 
@@ -731,7 +731,7 @@ router.post('/reset-password', async (req, res) => {
     user.passwordResetExpires = undefined;
     await user.save();
 
-    console.log(`[Auth] Password reset for user: ${user.email}`);
+    console.log(`[Auth] Password reset for user: ${user._id}`);
 
     res.json({ success: true, message: 'Password has been reset successfully' });
   } catch (error) {
@@ -801,7 +801,7 @@ router.put('/notification-preferences', requireAuth, async (req, res) => {
 
     await user.save();
 
-    console.log(`[Auth] Notification preferences updated for user: ${user.email}`);
+    console.log(`[Auth] Notification preferences updated for user: ${user._id}`);
 
     res.json({ 
       success: true, 
@@ -839,7 +839,7 @@ router.put('/privacy-settings', requireAuth, async (req, res) => {
 
     await user.save();
 
-    console.log(`[Auth] Privacy settings updated for user: ${user.email}`);
+    console.log(`[Auth] Privacy settings updated for user: ${user._id}`);
 
     res.json({ 
       success: true, 
@@ -1185,5 +1185,49 @@ router.get('/google/callback',
     }
   }
 );
+
+/**
+ * POST /api/auth/refresh
+ * Silently refresh a JWT and return a new 30-day token.
+ * Accepts EXPIRED tokens within a 90-day grace period so users who return after a
+ * long break (e.g. > 30 days) are refreshed automatically instead of being logged out.
+ * Does NOT use requireAuth (which rejects expired tokens) — uses ignoreExpiration instead.
+ */
+router.post('/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    // Verify signature only — allow expired tokens so returning users can refresh
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid token signature' });
+    }
+
+    // Reject tokens older than 90 days as an extra security measure
+    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+    if (payload.iat && (Date.now() - payload.iat * 1000) > NINETY_DAYS_MS) {
+      return res.status(401).json({ error: 'Token too old — please sign in again' });
+    }
+
+    const userId = payload.userId || payload.id;
+    const user = await User.findById(userId).select('_id email userType isVerified').lean();
+    if (!user) return res.status(401).json({ error: 'User not found' });
+
+    const newToken = jwt.sign(
+      { userId: user._id.toString(), email: user.email, userType: user.userType },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.json({ token: newToken });
+  } catch (err) {
+    console.error('[Auth] Token refresh error:', err.message);
+    res.status(500).json({ error: 'Failed to refresh token' });
+  }
+});
 
 export default router;

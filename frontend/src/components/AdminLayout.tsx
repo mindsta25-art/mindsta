@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -337,7 +338,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     setSidebarCounts(prev => ({ ...prev, [key]: 0 }));
 
   return (
-    <>
+    <TooltipProvider>
     <div className="flex h-screen bg-gradient-to-br from-background to-muted">
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
@@ -371,36 +372,54 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <div className="flex items-center gap-1">
               {/* Toggle Button - Desktop only */}
               {!sidebarCollapsed && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="h-7 w-7 hidden lg:flex text-white hover:bg-white/20"
-                >
-                  <Menu className="w-4 h-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                      className="h-7 w-7 hidden lg:flex text-white hover:bg-white/20"
+                      aria-label="Collapse sidebar"
+                    >
+                      <Menu className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Collapse sidebar</TooltipContent>
+                </Tooltip>
               )}
               {/* Close button for mobile */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden text-white hover:bg-white/20 h-7 w-7"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden text-white hover:bg-white/20 h-7 w-7"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-label="Close menu"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Close menu</TooltipContent>
+              </Tooltip>
             </div>
           </div>
           {/* Collapsed toggle */}
           {sidebarCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarCollapsed(false)}
-              className="hidden lg:flex absolute bottom-1 right-1 h-6 w-6 text-white/70 hover:bg-white/20"
-            >
-              <ChevronRight className="w-3 h-3" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="hidden lg:flex absolute bottom-1 right-1 h-6 w-6 text-white/70 hover:bg-white/20"
+                  aria-label="Expand sidebar"
+                >
+                  <ChevronRight className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Expand sidebar</TooltipContent>
+            </Tooltip>
           )}
         </div>
 
@@ -638,13 +657,20 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
         {/* Mobile Header */}
         <div className="lg:hidden sticky top-0 z-30 bg-card border-b border-border px-4 flex items-center justify-between h-14">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(true)}
+                className="hover:bg-muted"
+                aria-label="Open menu"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Open menu</TooltipContent>
+          </Tooltip>
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600">
               <BookOpen className="w-4 h-4 text-white" />
@@ -717,7 +743,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    </>
+    </TooltipProvider>
   );
 };
 

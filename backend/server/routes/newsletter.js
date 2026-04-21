@@ -176,7 +176,7 @@ router.post('/send', requireAuth, async (req, res) => {
         await sendNewsletterEmail(subscriber.email, subscriberName, subject, message);
         sentCount++;
       } catch (emailError) {
-        console.error(`Failed to send to ${subscriber.email}:`, emailError.message);
+        console.error(`[Newsletter] Failed to send (subscriber: ${subscriber._id}):`, emailError.message);
         failedCount++;
       }
     }

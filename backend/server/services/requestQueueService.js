@@ -38,8 +38,12 @@ class RequestQueue extends EventEmitter {
         timestamp: Date.now(),
         timeoutId: setTimeout(() => {
           this.stats.timedOut++;
+          // Remove from queue if still pending, or from processing if already started
           this.removeFromQueue(requestId);
+          this.processing.delete(requestId);
           reject(new Error('Request timeout'));
+          // Unblock the next queued request so a stale slot doesn't permanently reduce concurrency
+          setImmediate(() => this.process());
         }, this.timeout),
       };
 
@@ -124,8 +128,8 @@ export const requestQueues = {
 
   // Standard operations (API calls, data retrieval)
   standard: new RequestQueue({
-    maxConcurrent: 20,
-    maxQueueSize: 200,
+    maxConcurrent: 50,
+    maxQueueSize: 500,
     timeout: 30000,
   }),
 
@@ -157,11 +161,13 @@ export const queueMiddleware = (queueType = 'standard') => {
           const originalJson = res.json;
 
           res.send = function(data) {
+            if (res.headersSent) return this;
             resolve(data);
             return originalSend.call(this, data);
           };
 
           res.json = function(data) {
+            if (res.headersSent) return this;
             resolve(data);
             return originalJson.call(this, data);
           };

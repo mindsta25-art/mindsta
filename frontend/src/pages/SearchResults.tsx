@@ -24,23 +24,18 @@ import {
   Search,
   Filter,
   Clock,
-  Target,
-  GraduationCap,
   ArrowRight,
   Loader2,
   X,
   CheckCircle,
   PlayCircle,
-  ShoppingCart,
-  ChevronLeft,
-  ChevronRight
+  ShoppingCart
 } from 'lucide-react';
-import { getAllLessons, type Lesson } from '@/api/lessons';
+import { searchLessons, type Lesson } from '@/api/lessons';
 import { getEnrollments, type Enrollment } from '@/api/enrollments';
 import { isEnrolled as isEnrolledUtil } from '@/utils/enrollmentUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useWishlist } from '@/contexts/WishlistContext';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -62,7 +57,6 @@ export default function SearchResults() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { addToCart, isInCart } = useCart();
-  const { addToWishlist, isInWishlist } = useWishlist();
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [allLessons, setAllLessons] = useState<Lesson[]>([]);
@@ -72,63 +66,45 @@ export default function SearchResults() {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const RESULTS_PER_PAGE = 12;
 
   const GRADES = ['1', '2', '3', '4', '5', '6', 'Common Entrance'];
 
-  // Fetch all lessons + enrollments
+  // Fetch matching lessons from the server whenever query or filters change.
+  // Enrollments are fetched once on mount.
   useEffect(() => {
-    const fetchLessons = async () => {
+    if (user !== undefined) {
+      getEnrollments().then(e => setEnrollments(e ?? []));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchResults = async () => {
       setLoading(true);
       try {
-        const [lessons, userEnrollments] = await Promise.allSettled([
-          getAllLessons(),
-          user ? getEnrollments() : Promise.resolve([]),
-        ]);
-        setAllLessons(lessons.status === 'fulfilled' ? lessons.value || [] : []);
-        setEnrollments(userEnrollments.status === 'fulfilled' ? userEnrollments.value : []);
+        const lessons = await searchLessons(
+          searchQuery,
+          selectedGrade !== 'all' ? selectedGrade : undefined,
+          selectedSubject !== 'all' ? selectedSubject : undefined,
+          200,
+        );
+        setAllLessons(lessons ?? []);
       } catch (error) {
         console.error('Error fetching lessons:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchLessons();
-  }, [user]);
+    fetchResults();
+  }, [searchQuery, selectedGrade, selectedSubject]);
 
-  // Filter lessons based on search query and filters
+  // Client-side difficulty filter only (text/grade/subject handled server-side)
   useEffect(() => {
-    let results = [...allLessons];
-
-    // Text search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      results = results.filter(lesson => 
-        lesson.title?.toLowerCase().includes(query) ||
-        lesson.description?.toLowerCase().includes(query) ||
-        lesson.subject?.toLowerCase().includes(query)
-      );
+    if (selectedDifficulty === 'all') {
+      setFilteredLessons(allLessons);
+    } else {
+      setFilteredLessons(allLessons.filter(l => l.difficulty?.toLowerCase() === selectedDifficulty.toLowerCase()));
     }
-
-    // Grade filter
-    if (selectedGrade !== 'all') {
-      results = results.filter(lesson => lesson.grade === selectedGrade);
-    }
-
-    // Subject filter
-    if (selectedSubject !== 'all') {
-      results = results.filter(lesson => lesson.subject === selectedSubject);
-    }
-
-    // Difficulty filter
-    if (selectedDifficulty !== 'all') {
-      results = results.filter(lesson => lesson.difficulty?.toLowerCase() === selectedDifficulty.toLowerCase());
-    }
-
-    setFilteredLessons(results);
-    setCurrentPage(1);
-  }, [searchQuery, allLessons, selectedGrade, selectedSubject, selectedDifficulty]);
+  }, [allLessons, selectedDifficulty]);
 
   // Update URL when search query changes
   const handleSearch = (e: React.FormEvent) => {
@@ -153,6 +129,17 @@ export default function SearchResults() {
 
   const isLessonPurchased = (lesson: Lesson): boolean => {
     return enrollments.some(e => isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term, lesson.id));
+  };
+
+  const handleAddLessonToCart = async (lesson: Lesson) => {
+    await addToCart({
+      subject: lesson.subject,
+      grade: lesson.grade,
+      term: lesson.term,
+      price: lesson.price,
+      lessonId: lesson.id,
+      title: lesson.title,
+    });
   };
 
   // Build the same URL that MyLearning uses so clicking a search result opens
@@ -294,19 +281,14 @@ export default function SearchResults() {
         </motion.div>
 
         {/* Results Summary */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-6">
+          <p className="text-sm text-muted-foreground break-words">
             {loading ? (
               'Searching...'
             ) : (
               <>
                 Found <strong>{filteredLessons.length}</strong> {filteredLessons.length === 1 ? 'result' : 'results'}
                 {searchQuery && <> for "<strong>{searchQuery}</strong>"</>}
-                {filteredLessons.length > RESULTS_PER_PAGE && (
-                  <span className="ml-2">
-                    — showing {Math.min((currentPage - 1) * RESULTS_PER_PAGE + 1, filteredLessons.length)}–{Math.min(currentPage * RESULTS_PER_PAGE, filteredLessons.length)}
-                  </span>
-                )}
               </>
             )}
           </p>
@@ -345,7 +327,7 @@ export default function SearchResults() {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
           >
             <AnimatePresence>
-              {filteredLessons.slice((currentPage - 1) * RESULTS_PER_PAGE, currentPage * RESULTS_PER_PAGE).map((lesson) => (
+              {filteredLessons.map((lesson) => (
                 <motion.div
                   key={lesson.id}
                   variants={fadeInUp}
@@ -408,8 +390,8 @@ export default function SearchResults() {
                           )}
                         </div>
 
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
+                        <CardContent className="p-4 flex h-[calc(100%-10rem)] flex-col">
+                          <div className="flex items-start justify-between gap-2 mb-2">
                             <Badge variant="outline" className="text-xs">
                               {lesson.subject}
                             </Badge>
@@ -428,20 +410,47 @@ export default function SearchResults() {
                             {lesson.description}
                           </p>
 
-                          <div className="flex items-center justify-between">
+                          <div className="mt-auto space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              {purchased ? (
+                                <span className="text-sm font-bold text-green-600 flex items-center gap-1">
+                                  <CheckCircle className="w-4 h-4" />
+                                  Purchased
+                                </span>
+                              ) : (
+                                <span className="text-sm font-bold text-indigo-600">
+                                  {formatPrice(lesson.price)}
+                                </span>
+                              )}
+                              <ArrowRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all ${
+                                purchased ? 'text-green-600' : 'text-indigo-600'
+                              }`} />
+                            </div>
+
                             {purchased ? (
-                              <span className="text-sm font-bold text-green-600 flex items-center gap-1">
-                                <CheckCircle className="w-4 h-4" />
-                                Purchased
-                              </span>
+                              <Button
+                                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  navigate(buildSubjectUrl(lesson));
+                                }}
+                              >
+                                <PlayCircle className="w-4 h-4 mr-2" />
+                                Continue Learning
+                              </Button>
                             ) : (
-                              <span className="text-sm font-bold text-indigo-600">
-                                {formatPrice(lesson.price)}
-                              </span>
+                              <Button
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                                disabled={isInCart(lesson.subject, lesson.grade, lesson.term, lesson.id)}
+                                onClick={async (event) => {
+                                  event.stopPropagation();
+                                  await handleAddLessonToCart(lesson);
+                                }}
+                              >
+                                <ShoppingCart className="w-4 h-4 mr-2" />
+                                {isInCart(lesson.subject, lesson.grade, lesson.term, lesson.id) ? 'Added to Cart' : 'Add to Cart'}
+                              </Button>
                             )}
-                            <ArrowRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all ${
-                              purchased ? 'text-green-600' : 'text-indigo-600'
-                            }`} />
                           </div>
                         </CardContent>
                       </Card>
@@ -451,68 +460,6 @@ export default function SearchResults() {
               ))}
             </AnimatePresence>
           </motion.div>
-
-          {/* Pagination Controls */}
-          {filteredLessons.length > RESULTS_PER_PAGE && (
-            <div className="flex justify-center items-center gap-2 mt-10 pt-6 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                disabled={currentPage === 1}
-                className="gap-1"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </Button>
-
-              <div className="flex items-center gap-1">
-                {(() => {
-                  const totalPages = Math.ceil(filteredLessons.length / RESULTS_PER_PAGE);
-                  const pages: number[] = [];
-                  if (totalPages <= 7) {
-                    for (let i = 1; i <= totalPages; i++) pages.push(i);
-                  } else if (currentPage <= 4) {
-                    for (let i = 1; i <= 5; i++) pages.push(i);
-                    pages.push(-1); pages.push(totalPages);
-                  } else if (currentPage >= totalPages - 3) {
-                    pages.push(1); pages.push(-1);
-                    for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-                  } else {
-                    pages.push(1); pages.push(-1);
-                    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-                    pages.push(-2); pages.push(totalPages);
-                  }
-                  return pages.map((page, idx) =>
-                    page < 0 ? (
-                      <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground text-sm">…</span>
-                    ) : (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                        className={currentPage === page ? 'bg-indigo-600 hover:bg-indigo-700 text-white w-9' : 'w-9'}
-                      >
-                        {page}
-                      </Button>
-                    )
-                  );
-                })()}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setCurrentPage(p => Math.min(Math.ceil(filteredLessons.length / RESULTS_PER_PAGE), p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                disabled={currentPage >= Math.ceil(filteredLessons.length / RESULTS_PER_PAGE)}
-                className="gap-1"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
           </>
         )}
       </main>

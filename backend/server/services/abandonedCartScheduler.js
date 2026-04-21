@@ -52,7 +52,7 @@ export const runAbandonedCartCheck = async () => {
         // Stamp so we don't email again
         await Cart.updateOne({ _id: cart._id }, { $set: { abandonedEmailSentAt: new Date() } });
 
-        console.log(`[AbandonedCart] ✅ Reminder sent to ${user.email}`);
+        console.log(`[AbandonedCart] ✅ Reminder sent (cart: ${cart._id})`);
       } catch (userErr) {
         console.error(`[AbandonedCart] ❌ Failed for cart ${cart._id}:`, userErr.message);
       }

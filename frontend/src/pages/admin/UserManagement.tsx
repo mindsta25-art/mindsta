@@ -144,8 +144,8 @@ const UserManagement = () => {
         fullName: profile.fullName,
         userType: profile.userType,
         createdAt: profile.createdAt || new Date().toISOString(),
-        status: "active",
-        isOnline: profile.isOnline || false,
+        status: profile.status || "active",
+        isOnline: profile.isOnline ?? false,
         lastActiveAt: profile.lastActiveAt,
       }));
 

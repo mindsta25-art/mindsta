@@ -67,6 +67,9 @@ export default function ReferralDashboard() {
   const [requestingPayout, setRequestingPayout] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  // Loading states for lazy-loaded tabs
+  const [loadingReferrals, setLoadingReferrals] = useState(false);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem('needsReferralProfileSetup') === 'true') {
@@ -79,12 +82,20 @@ export default function ReferralDashboard() {
   }, []);
 
   useEffect(() => {
-    // Lazy load tab data
+    // Lazy load tab data with loading states
     if (activeTab === 'referrals' && user?.id) {
-      getReferralsByUserId(user.id).then(setReferrals).catch(() => {});
+      setLoadingReferrals(true);
+      getReferralsByUserId(user.id)
+        .then(setReferrals)
+        .catch(() => {})
+        .finally(() => setLoadingReferrals(false));
     }
     if (activeTab === 'commissions') {
-      getMyReferralTransactions().then(setTransactions).catch(() => {});
+      setLoadingTransactions(true);
+      getMyReferralTransactions()
+        .then(setTransactions)
+        .catch(() => {})
+        .finally(() => setLoadingTransactions(false));
     }
   }, [activeTab, user?.id]);
 
@@ -577,7 +588,11 @@ export default function ReferralDashboard() {
                   <CardDescription>People who signed up via your link/code</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {referrals.length === 0 ? (
+                  {loadingReferrals ? (
+                    <div className="py-8 flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                    </div>
+                  ) : referrals.length === 0 ? (
                     <motion.p 
                       className="text-center text-gray-500 py-8"
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -645,47 +660,81 @@ export default function ReferralDashboard() {
               transition={{ duration: 0.4 }}
             >
               {/* Payout Request Card */}
-              {(dashboard.pendingEarnings ?? 0) > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.1 }}
-                  className="mb-4"
-                >
-                  <Card className="border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
-                    <CardContent className="pt-4">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div>
-                          <p className="text-lg font-bold text-green-900 dark:text-green-300">
-                            ₦{(dashboard.pendingEarnings ?? 0).toLocaleString()} available
-                          </p>
-                          <p className="text-sm text-green-700 dark:text-green-400 mt-0.5">
-                            Pending commissions ready to be paid out
-                          </p>
-                        </div>
-                        <Button
-                          onClick={handleRequestPayout}
-                          disabled={requestingPayout}
-                          className="bg-green-600 hover:bg-green-700 text-white shrink-0"
-                        >
-                          {requestingPayout ? (
-                            <><span className="animate-spin mr-2">⏳</span>Processing...</>
-                          ) : (
-                            <>💳 Request Payout</>
-                          )}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
+              {(() => {
+                const hasPendingPayoutRequest = dashboard.recentTransactions?.some(tx => tx.status === 'requested') ?? false;
+                const pendingAmount = dashboard.pendingEarnings ?? 0;
+                if (pendingAmount <= 0) return null;
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="mb-4"
+                  >
+                    {hasPendingPayoutRequest ? (
+                      <Card className="border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
+                        <CardContent className="pt-4">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                              <p className="text-lg font-bold text-blue-900 dark:text-blue-300">
+                                ₦{pendingAmount.toLocaleString()} — Payout Requested
+                              </p>
+                              <p className="text-sm text-blue-700 dark:text-blue-400 mt-0.5">
+                                Your payout request is awaiting admin confirmation. You'll be notified once processed.
+                              </p>
+                            </div>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-sm font-semibold shrink-0">
+                              ⏳ Processing
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card className="border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
+                        <CardContent className="pt-4">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                              <p className="text-lg font-bold text-green-900 dark:text-green-300">
+                                ₦{pendingAmount.toLocaleString()} available
+                              </p>
+                              <p className="text-sm text-green-700 dark:text-green-400 mt-0.5">
+                                {dashboard.hasBankDetails
+                                  ? 'Pending commissions ready to be paid out'
+                                  : 'Add your bank details in Settings before requesting payout'}
+                              </p>
+                            </div>
+                            <Button
+                              onClick={dashboard.hasBankDetails ? handleRequestPayout : () => navigate('/referral/settings')}
+                              disabled={requestingPayout}
+                              className={dashboard.hasBankDetails ? "bg-green-600 hover:bg-green-700 text-white shrink-0" : "shrink-0"}
+                              variant={dashboard.hasBankDetails ? "default" : "outline"}
+                            >
+                              {requestingPayout ? (
+                                <><span className="animate-spin mr-2">⏳</span>Processing...</>
+                              ) : dashboard.hasBankDetails ? (
+                                <>💳 Request Payout</>
+                              ) : (
+                                <>⚙️ Add Bank Details</>
+                              )}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </motion.div>
+                );
+              })()}
               <Card>
                 <CardHeader>
                   <CardTitle>Commission History</CardTitle>
                   <CardDescription>Your earnings per successful payment</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {transactions.length === 0 ? (
+                  {loadingTransactions ? (
+                    <div className="py-8 flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                    </div>
+                  ) : transactions.length === 0 ? (
                     <motion.p 
                       className="text-center text-muted-foreground py-8"
                       initial={{ opacity: 0, scale: 0.9 }}

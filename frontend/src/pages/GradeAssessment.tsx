@@ -225,7 +225,7 @@ const GradeAssessment = () => {
   };
 
   const calculateRecommendedGrade = () => {
-    let gradeScores: { [key: number]: { correct: number; total: number } } = {};
+    const gradeScores: { [key: number]: { correct: number; total: number } } = {};
 
     // Initialize score tracking for each grade
     questions.forEach((question) => {
@@ -243,7 +243,7 @@ const GradeAssessment = () => {
     });
 
     // Calculate percentage for each grade
-    let gradePercentages: { [key: number]: number } = {};
+    const gradePercentages: { [key: number]: number } = {};
     Object.entries(gradeScores).forEach(([grade, scores]) => {
       gradePercentages[parseInt(grade)] = (scores.correct / scores.total) * 100;
     });

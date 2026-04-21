@@ -74,7 +74,7 @@ export const VideoPlayer = ({
 
   // Detect YouTube vs native video
   useEffect(() => {
-    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/?|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const ytRegex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/?|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
     const match = videoUrl?.match(ytRegex);
     if (match && match[1]) {
       setIsYouTube(true);

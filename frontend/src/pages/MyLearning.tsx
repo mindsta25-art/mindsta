@@ -101,7 +101,7 @@ const MyLearning = () => {
         setLoadingData(true);
         const [studentData, lessons, progress, enrollmentsData] = await Promise.all([
           getStudentByUserId(user.id),
-          getLessons(),
+          getLessons(undefined, undefined, undefined, true),
           getUserProgress(user.id),
           getEnrollments(),
         ]);

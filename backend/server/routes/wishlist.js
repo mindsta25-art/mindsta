@@ -22,7 +22,6 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/add', requireAuth, async (req, res) => {
   try {
     console.log('[Wishlist] POST /add called by user:', req.user?.id);
-    console.log('[Wishlist] Request body:', req.body);
     
     const { subject, grade, term } = req.body;
     if (!subject || !grade) {

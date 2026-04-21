@@ -48,6 +48,129 @@ export function clearApiCache(): void {
   inFlight.clear();
 }
 
+// ---------------------------------------------------------------------------
+// Silent token refresh — prevents auto-logout for active users (like Udemy)
+// ---------------------------------------------------------------------------
+
+/** True while a refresh request is in flight — prevents duplicate refresh calls */
+let _refreshing = false;
+/**
+ * Pending refresh promise shared across concurrent 401s.
+ * Resolves to: true = new token stored, false = server explicitly rejected (log out),
+ * null = network/server error (do NOT log out — may be transient).
+ */
+let _refreshPromise: Promise<boolean | null> | null = null;
+
+/**
+ * Decode the JWT exp claim (no library needed — just base-64 decode the payload).
+ * Returns the expiry timestamp in ms, or 0 on error.
+ */
+function _jwtExpiry(token: string): number {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return (payload.exp ?? 0) * 1000;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Call the /auth/refresh endpoint directly (bypasses apiRequest to avoid 401 loops).
+ * Returns:
+ *   true  — new token obtained and stored
+ *   false — server explicitly rejected the token (401/403); caller should log the user out
+ *   null  — network/server error; the token may still be valid; caller should NOT log out
+ */
+async function _doRefresh(): Promise<boolean | null> {
+  const token = localStorage.getItem('authToken');
+  if (!token) return false;
+  try {
+    const API_BASE = getApiBaseUrl();
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    });
+    // Server explicitly rejected the token — safe to log out
+    if (res.status === 401 || res.status === 403) return false;
+    // Any other non-OK status (500, 503, etc.) is a server/infra problem — don't log out
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.token) return null;
+    // Persist the new token
+    localStorage.setItem('authToken', data.token);
+    try {
+      const stored = localStorage.getItem('currentUser');
+      if (stored) {
+        const user = JSON.parse(stored);
+        user.token = data.token;
+        localStorage.setItem('currentUser', JSON.stringify(user));
+      }
+    } catch { /* ignore */ }
+    return true;
+  } catch {
+    // fetch() threw — network is unavailable; do NOT log the user out
+    return null;
+  }
+}
+
+/**
+ * Shared entry-point for silent refresh.
+ * Concurrent callers all await the same underlying Promise.
+ */
+function _refreshOnce(): Promise<boolean | null> {
+  if (_refreshing && _refreshPromise) return _refreshPromise;
+  _refreshing = true;
+  _refreshPromise = _doRefresh().finally(() => {
+    _refreshing = false;
+    _refreshPromise = null;
+  });
+  return _refreshPromise;
+}
+
+/** Handle for the hourly refresh interval — stored so AuthContext can clear it on logout */
+let _refreshIntervalId: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Proactively refresh the token on app start if it expires within 7 days,
+ * then schedules an hourly check so long-running sessions never expire mid-visit.
+ * Call this once from AuthContext/App.tsx when a user is confirmed authenticated.
+ */
+export function scheduleTokenRefresh(): void {
+  // Clear any prior interval to avoid duplicate timers (e.g. after re-login)
+  if (_refreshIntervalId !== null) {
+    clearInterval(_refreshIntervalId);
+    _refreshIntervalId = null;
+  }
+
+  const _tryRefreshIfNeeded = () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    const expiry = _jwtExpiry(token);
+    if (!expiry) return;
+    const msUntilExpiry = expiry - Date.now();
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
+    // Refresh if expiring within 7 days OR recently expired (within 90-day grace window)
+    if (msUntilExpiry < SEVEN_DAYS && msUntilExpiry > -NINETY_DAYS) {
+      _refreshOnce();
+    }
+  };
+
+  // Immediate check on app load
+  _tryRefreshIfNeeded();
+
+  // Hourly repeating check so long-lived sessions stay refreshed
+  _refreshIntervalId = setInterval(_tryRefreshIfNeeded, 60 * 60 * 1000);
+}
+
+/** Stop the scheduled refresh — call on explicit logout */
+export function cancelTokenRefresh(): void {
+  if (_refreshIntervalId !== null) {
+    clearInterval(_refreshIntervalId);
+    _refreshIntervalId = null;
+  }
+}
+
 /**
  * Bust cached entries that match a resource prefix.
  * Called automatically after every POST / PUT / PATCH / DELETE so the next
@@ -72,17 +195,16 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
-const IS_DEV = import.meta.env.DEV;
 
-// Only log in development
-const log = IS_DEV ? console.log.bind(console) : () => {};
-const warn = IS_DEV ? console.warn.bind(console) : () => {};
-const error = console.error.bind(console); // always log real errors
+// Logging suppressed — no user/app data on console
+const log = (_msg: string, ..._args: any[]) => {}; // eslint-disable-line @typescript-eslint/no-unused-vars
+const warn = (_msg: string, ..._args: any[]) => {}; // eslint-disable-line @typescript-eslint/no-unused-vars
+const error = (_msg: string, ..._args: any[]) => {}; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 /**
  * Make an API request with timeout
  */
-async function apiRequest(endpoint: string, options: RequestInit = {}) {
+async function apiRequest(endpoint: string, options: RequestInit = {}, _isRetry = false) {
   const url = `${API_BASE_URL}${endpoint}`;
   
   log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
@@ -144,15 +266,36 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
         throw error;
       }
 
-      // Only clear token and redirect if on a protected page
-      log('🔄 Clearing expired token and redirecting to login');
+      // On protected pages: try a silent token refresh once before redirecting
+      if (!_isRetry) {
+        warn('🔄 Attempting silent token refresh...');
+        const refreshed = await _refreshOnce();
+        if (refreshed === true) {
+          // Retry the original request with the new token
+          return apiRequest(endpoint, options, true);
+        }
+        if (refreshed === null) {
+          // Network / infra error — token may still be valid; surface a network error
+          // instead of logging the user out
+          warn('⚠️ Refresh request failed due to network error — keeping session alive');
+          const netErr: any = new Error('Network error — please check your connection and try again');
+          netErr.response = { status: 0, statusText: 'Network Error', data: { message: netErr.message } };
+          throw netErr;
+        }
+      }
+
+      // refreshed === false (or _isRetry): server explicitly rejected our token — log out
+      log('🔄 Token rejected by server, clearing session and redirecting to login');
       localStorage.removeItem('authToken');
       localStorage.removeItem('currentUser');
+      clearApiCache();
       
       // Small delay to avoid immediate redirect during page load
       setTimeout(() => {
         window.location.href = '/auth?mode=login&reason=session-expired';
       }, 100);
+      // Return here so the code below doesn't also try to parse the 401 response body
+      return undefined as any;
     }
     
     // Handle 304 Not Modified - return empty array or cached data

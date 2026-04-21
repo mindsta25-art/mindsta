@@ -176,42 +176,65 @@ export const CoursePreviewDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0">
         {/* Premium Header with Gradient */}
-        <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white p-6 sm:p-8">
-          <DialogHeader>
-            <div className="flex-1">
-              <DialogTitle className="text-2xl sm:text-3xl font-bold mb-2">{course.title}</DialogTitle>
-              {course.subtitle && (
-                <DialogDescription className="text-base sm:text-lg text-white/90">{course.subtitle}</DialogDescription>
-              )}
-            </div>
-          </DialogHeader>
+        <div className="relative bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white p-6 sm:p-8 overflow-hidden">
+          {/* Thumbnail as blurred background when available */}
+          {course.imageUrl && (
+            <img
+              src={course.imageUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm scale-110 pointer-events-none"
+            />
+          )}
+          <div className="relative flex gap-4 sm:gap-6 items-start">
+            {/* Thumbnail */}
+            {course.imageUrl && (
+              <div className="flex-shrink-0 hidden sm:block">
+                <img
+                  src={course.imageUrl}
+                  alt={course.title}
+                  className="w-28 h-20 sm:w-36 sm:h-24 object-cover rounded-lg shadow-lg border-2 border-white/30"
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <DialogHeader>
+                <div className="flex-1">
+                  <DialogTitle className="text-2xl sm:text-3xl font-bold mb-2">{course.title}</DialogTitle>
+                  {course.subtitle && (
+                    <DialogDescription className="text-base sm:text-lg text-white/90">{course.subtitle}</DialogDescription>
+                  )}
+                </div>
+              </DialogHeader>
 
-          {/* Course Metadata - White on gradient */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-4">
-            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
-              <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="font-medium text-sm sm:text-base">
-                {course.grade === "Common Entrance" ? "Common Entrance" : `Grade ${course.grade}`}
-              </span>
-            </div>
-            {course.rating && course.rating > 0 && (
-              <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
-                <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-amber-300 text-amber-300" />
-                <span className="font-bold text-sm sm:text-base">{course.rating.toFixed(1)}</span>
-                {course.ratingsCount && (
-                  <span className="text-white/80 text-xs sm:text-sm">({course.ratingsCount})</span>
+              {/* Course Metadata - White on gradient */}
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-4">
+                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+                  <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="font-medium text-sm sm:text-base">
+                    {course.grade === "Common Entrance" ? "Common Entrance" : `Grade ${course.grade}`}
+                  </span>
+                </div>
+                {course.rating && course.rating > 0 && (
+                  <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-amber-300 text-amber-300" />
+                    <span className="font-bold text-sm sm:text-base">{course.rating.toFixed(1)}</span>
+                    {course.ratingsCount && (
+                      <span className="text-white/80 text-xs sm:text-sm">({course.ratingsCount})</span>
+                    )}
+                  </div>
                 )}
+                {course.enrolledStudents && course.enrolledStudents > 0 && (
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+                    <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="text-xs sm:text-sm">{course.enrolledStudents.toLocaleString()} students</span>
+                  </div>
+                )}
+                <Badge className={`${getDifficultyColor(course.difficulty)} text-xs sm:text-sm`}>
+                  {course.difficulty?.charAt(0).toUpperCase() + course.difficulty?.slice(1).toLowerCase()}
+                </Badge>
               </div>
-            )}
-            {course.enrolledStudents && course.enrolledStudents > 0 && (
-              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
-                <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="text-xs sm:text-sm">{course.enrolledStudents.toLocaleString()} students</span>
-              </div>
-            )}
-            <Badge className={`${getDifficultyColor(course.difficulty)} text-xs sm:text-sm`}>
-              {course.difficulty?.charAt(0).toUpperCase() + course.difficulty?.slice(1).toLowerCase()}
-            </Badge>
+            </div>
           </div>
         </div>
 
@@ -294,7 +317,7 @@ export const CoursePreviewDialog = ({
                 Course Content
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                {course.curriculum?.length || 0} lessons • {getTotalLectures()} lectures • {formatDuration(getTotalDuration())} total
+                {course.curriculum?.length || 0} lessons • {getTotalLectures()} lectures • {formatDuration(getTotalDuration())} total
               </p>
             </div>
 

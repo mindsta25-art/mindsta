@@ -90,7 +90,6 @@ router.get('/:id', async (req, res) => {
 // Create new subject (admin only)
 router.post('/', requireAdmin, async (req, res) => {
   try {
-    console.log('[SubjectCreate] Request body:', req.body);
     const { name } = req.body;
 
     if (!name || !name.trim()) {

@@ -165,6 +165,7 @@ class MonitoringService extends EventEmitter {
    * Log API request
    */
   logRequest(req, res, responseTime, error = null) {
+    if (!this.logger) return;
     const logData = {
       method: req.method,
       url: req.url,

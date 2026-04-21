@@ -5,6 +5,7 @@ import Student from '../models/Student.js';
 import UserProgress from '../models/UserProgress.js';
 import Enrollment from '../models/Enrollment.js';
 import Quiz from '../models/Quiz.js';
+import Lesson from '../models/Lesson.js';
 import { SystemSettings } from '../models/index.js';
 import { ACHIEVEMENTS, checkAchievements, calculateCoinRewards } from '../config/achievements.js';
 import { 
@@ -175,8 +176,22 @@ router.get('/analytics', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     const student = await Student.findOne({ userId: req.user.userId });
-    const progress = await UserProgress.find({ userId: req.user.userId }).populate('lessonId');
-    const enrollments = await Enrollment.find({ userId: req.user.userId });
+    const [progressRaw, enrollments] = await Promise.all([
+      UserProgress.find({ userId: req.user.userId }).lean(),
+      Enrollment.find({ userId: req.user.userId }),
+    ]);
+    // Bulk-fetch referenced lessons in one query instead of N populate() calls
+    const lessonIds = [...new Set(progressRaw.filter(p => p.lessonId).map(p => p.lessonId.toString()))];
+    const lessonMap = {};
+    if (lessonIds.length > 0) {
+      const lessons = await Lesson.find({ _id: { $in: lessonIds } }).select('subject').lean();
+      for (const l of lessons) lessonMap[l._id.toString()] = l;
+    }
+    // Attach lesson to each progress record (replaces populate)
+    const progress = progressRaw.map(p => ({
+      ...p,
+      lessonId: p.lessonId ? (lessonMap[p.lessonId.toString()] || null) : null,
+    }));
 
     // Calculate subject performance
     const subjectStats = {};
@@ -539,7 +554,18 @@ router.get('/milestones', requireAuth, async (req, res) => {
 router.get('/mastery', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
-    const progress = await UserProgress.find({ userId: req.user.userId }).populate('lessonId');
+    const progressRaw = await UserProgress.find({ userId: req.user.userId }).lean();
+    // Bulk-fetch referenced lessons (no N+1 populate)
+    const lessonIds = [...new Set(progressRaw.filter(p => p.lessonId).map(p => p.lessonId.toString()))];
+    const lessonMap = {};
+    if (lessonIds.length > 0) {
+      const lessons = await Lesson.find({ _id: { $in: lessonIds } }).select('subject').lean();
+      for (const l of lessons) lessonMap[l._id.toString()] = l;
+    }
+    const progress = progressRaw.map(p => ({
+      ...p,
+      lessonId: p.lessonId ? (lessonMap[p.lessonId.toString()] || null) : null,
+    }));
 
     // Calculate mastery for each subject
     const subjectData = {};
@@ -578,8 +604,8 @@ router.get('/mastery', requireAuth, async (req, res) => {
       };
     });
 
-    user.subjectMastery = masteryUpdates;
-    await user.save();
+    // Persist mastery update without blocking the response (fire-and-forget)
+    User.findByIdAndUpdate(req.user.userId, { $set: { subjectMastery: masteryUpdates } }).exec().catch(() => {});
 
     // Format response with next level info
     const masteryList = masteryUpdates.map(m => {
@@ -666,71 +692,72 @@ router.get('/admin/leaderboard', requireAuth, requireAdmin, async (req, res) => 
 // Get leaderboard
 router.get('/leaderboard', requireAuth, async (req, res) => {
   try {
-    const { timeframe = 'allTime', scope = 'global' } = req.query;
-    const currentUser = await User.findById(req.user.userId);
-    const student = await Student.findOne({ userId: req.user.userId });
+    const { timeframe = 'allTime' } = req.query;
+    const currentUserId = req.user.userId;
 
-    let filter = { userType: 'student' };
-    
-    // Filter by global leaderboard (school filtering removed since schoolName field is removed)
-    
-    // Get all users with their progress
-    const users = await User.find(filter).select('_id fullName coins leaderboardSettings');
-    
-    const leaderboardData = await Promise.all(users.map(async (user) => {
-      // Skip if user has hidden their profile
-      if (!user.leaderboardSettings?.visible) {
-        return null;
-      }
+    // Build timeframe date filter for UserProgress
+    let completedAtFilter = {};
+    if (timeframe === 'week') {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      completedAtFilter = { $gte: cutoff };
+    } else if (timeframe === 'month') {
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 1);
+      completedAtFilter = { $gte: cutoff };
+    }
 
-      const userStudent = await Student.findOne({ userId: user._id });
-      const progress = await UserProgress.find({ userId: user._id });
-      
-      let completedLessons = progress.filter(p => p.completed).length;
-      
-      // Filter by timeframe
-      if (timeframe === 'week') {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        completedLessons = progress.filter(p => 
-          p.completed && p.completedAt && new Date(p.completedAt) > oneWeekAgo
-        ).length;
-      } else if (timeframe === 'month') {
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-        completedLessons = progress.filter(p => 
-          p.completed && p.completedAt && new Date(p.completedAt) > oneMonthAgo
-        ).length;
-      }
+    // Aggregate completed lesson counts per user in one query
+    const progressMatch = { completed: true };
+    if (completedAtFilter.$gte) progressMatch.completedAt = completedAtFilter;
+    const progressCounts = await UserProgress.aggregate([
+      { $match: progressMatch },
+      { $group: { _id: '$userId', completedLessons: { $sum: 1 } } },
+    ]);
+    const progressMap = {};
+    for (const p of progressCounts) progressMap[p._id.toString()] = p.completedLessons;
 
+    // Fetch all students for streak data in one query
+    const students = await Student.find({}).select('userId currentStreak').lean();
+    const streakMap = {};
+    for (const s of students) streakMap[s.userId.toString()] = s.currentStreak || 0;
+
+    // Fetch all student users with leaderboard visibility enabled
+    const users = await User.find({
+      userType: 'student',
+      $or: [
+        { 'leaderboardSettings.visible': true },
+        { 'leaderboardSettings.visible': { $exists: false } },
+      ],
+    }).select('_id fullName coins leaderboardSettings').lean();
+
+    const leaderboardData = users.map(user => {
+      const uid = user._id.toString();
       return {
-        userId: user._id.toString(),
-        name: user.leaderboardSettings?.showFullName ? user.fullName : user.fullName.split(' ')[0],
+        userId: uid,
+        name: user.leaderboardSettings?.showFullName
+          ? user.fullName
+          : (user.fullName || '').split(' ')[0],
         coins: user.coins || 0,
-        completedLessons,
-        streak: userStudent?.currentStreak || 0,
-        isCurrentUser: user._id.toString() === req.user.userId,
+        completedLessons: progressMap[uid] || 0,
+        streak: streakMap[uid] || 0,
+        isCurrentUser: uid === currentUserId,
       };
-    }));
+    });
 
-    // Remove null entries and sort by coins
-    const validLeaderboard = leaderboardData
-      .filter(entry => entry !== null)
-      .sort((a, b) => b.coins - a.coins);
-
-    // Add rankings
-    const rankedLeaderboard = validLeaderboard.map((entry, index) => ({
+    // Sort by coins descending, assign ranks
+    leaderboardData.sort((a, b) => b.coins - a.coins);
+    const rankedLeaderboard = leaderboardData.map((entry, index) => ({
       ...entry,
       rank: index + 1,
     }));
 
-    // Find current user's position
-    const userPosition = rankedLeaderboard.find(entry => entry.isCurrentUser);
+    const userPosition = rankedLeaderboard.find(e => e.isCurrentUser);
 
     res.json({
-      leaderboard: rankedLeaderboard.slice(0, 100), // Top 100
+      leaderboard: rankedLeaderboard.slice(0, 100),
       userPosition,
-      totalParticipants: validLeaderboard.length,
+      totalParticipants: rankedLeaderboard.length,
     });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
