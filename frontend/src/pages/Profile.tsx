@@ -197,7 +197,7 @@ const Profile = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <StudentHeader studentName="" />
-        <main className="pt-20 pb-16">
+        <main className="pt-2 sm:pt-6 pb-12 sm:pb-16">
           <div className="container mx-auto px-4 max-w-4xl space-y-6 py-8">
             <Skeleton className="h-52 w-full rounded-2xl" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -214,7 +214,7 @@ const Profile = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <StudentHeader studentName={fullName} />
 
-      <main className="pt-20 pb-16">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16">
         <div className="container mx-auto px-4 max-w-4xl py-8 space-y-6">
 
           {/* ── Hero / Avatar Banner ──────────────────────────────────────── */}
@@ -483,10 +483,10 @@ const Profile = () => {
               <CardContent className="pt-4">
                 <div className="grid sm:grid-cols-2 gap-2">
                   {[
-                    { label: 'My Learning', desc: 'View enrolled courses', href: '/my-learning', icon: BookOpen, gradient: 'from-cyan-500 to-blue-500' },
+                    { label: 'My Learning', desc: 'View enrolled lessons', href: '/my-learning', icon: BookOpen, gradient: 'from-cyan-500 to-blue-500' },
                     { label: 'Achievements', desc: 'Badges & milestones', href: '/achievements', icon: Award, gradient: 'from-amber-500 to-orange-500' },
                     { label: 'Progress', desc: 'Analytics & streaks', href: '/progress', icon: TrendingUp, gradient: 'from-indigo-500 to-violet-500' },
-                    { label: 'Browse Courses', desc: 'Find new subjects', href: '/browse', icon: GraduationCap, gradient: 'from-emerald-500 to-cyan-500' },
+                    { label: 'Browse Lessons', desc: 'Find new subjects', href: '/browse', icon: GraduationCap, gradient: 'from-emerald-500 to-cyan-500' },
                   ].map(link => (
                     <Link key={link.href} to={link.href}
                       className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 transition-all group"

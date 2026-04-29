@@ -37,7 +37,7 @@ const QuizSchema = new Schema(
     },
     term: {
       type: String,
-      enum: ['First Term', 'Second Term', 'Third Term'],
+      enum: ['First Term', 'Second Term', 'Third Term', 'Common Entrance'],
       required: true,
       index: true,
     },

@@ -23,7 +23,7 @@ router.post('/add', requireAuth, async (req, res) => {
   try {
     console.log('[Wishlist] POST /add called by user:', req.user?.id);
     
-    const { subject, grade, term } = req.body;
+    const { subject, grade, term, imageUrl } = req.body;
     if (!subject || !grade) {
       console.log('[Wishlist] Validation failed: missing subject or grade');
       return res.status(400).json({ message: 'Subject and grade are required' });
@@ -43,7 +43,7 @@ router.post('/add', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'Item already in wishlist' });
     }
 
-    wishlist.items.push({ subject, grade, term, addedAt: new Date() });
+    wishlist.items.push({ subject, grade, term, imageUrl: imageUrl || '', addedAt: new Date() });
     console.log('[Wishlist] Saving wishlist with', wishlist.items.length, 'items');
     await wishlist.save();
     console.log('[Wishlist] Wishlist saved successfully');

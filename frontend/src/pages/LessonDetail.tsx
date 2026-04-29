@@ -322,7 +322,7 @@ const LessonDetail = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <StudentHeader studentName={studentName} />
-        <div className="pt-24 container mx-auto px-4 flex items-center justify-center" style={{minHeight: 'calc(100vh - 96px)'}}>
+        <div className="pt-2 sm:pt-6 container mx-auto px-4 flex items-center justify-center" style={{minHeight: 'calc(100vh - 80px)'}}>
           <div className="text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-3"></div>
             <p className="text-sm font-semibold text-muted-foreground">Loading lesson...</p>
@@ -332,12 +332,12 @@ const LessonDetail = () => {
     );
   }
 
-  // Show access denied if user hasn't purchased this course
+  // Show access denied if user hasn't purchased this Lesson
   if (!hasAccess && lesson) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <StudentHeader studentName={studentName} />
-        <main className="pt-24 pb-16 container mx-auto px-4 sm:px-6">
+        <main className="pt-2 sm:pt-6 pb-12 sm:pb-16 container mx-auto px-4 sm:px-6">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="px-4 py-12 sm:px-6 sm:py-16 text-center">
               <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
@@ -345,7 +345,7 @@ const LessonDetail = () => {
               </div>
               <h2 className="text-2xl font-bold mb-2">Lesson Locked</h2>
               <p className="text-muted-foreground mb-6">
-                Purchase this course to access this lesson and all course materials.
+                Purchase this lesson to access this lesson and all lesson materials.
               </p>
               <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-6">
                 <h3 className="font-semibold text-lg mb-1">{lesson.title}</h3>
@@ -368,7 +368,7 @@ const LessonDetail = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <StudentHeader studentName={studentName} />
-        <div className="pt-24 container mx-auto px-4 flex items-center justify-center" style={{minHeight: 'calc(100vh - 96px)'}}>
+        <div className="pt-2 sm:pt-6 container mx-auto px-4 flex items-center justify-center" style={{minHeight: 'calc(100vh - 80px)'}}>
           <div className="text-center">
             <div className="text-6xl mb-4">📖</div>
             <p className="text-xl font-bold text-muted-foreground mb-4">Lesson not found</p>
@@ -483,7 +483,7 @@ const LessonDetail = () => {
                   </div>
                 )}
 
-                {/* Course Info Card */}
+                {/*Lesson Info Card */}
                 <Card>
                   <CardContent className="p-6">
                     <Badge variant="secondary" className="mb-3">

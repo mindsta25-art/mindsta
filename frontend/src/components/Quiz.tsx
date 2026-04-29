@@ -329,7 +329,7 @@ export const Quiz = ({ questions, quizTitle, onComplete, onBackToSubject, onBack
                       ) : (
                         <XCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
                       )}
-                      <span>{idx + 1}. {q.question}</span>
+                      <span dangerouslySetInnerHTML={{ __html: `${idx + 1}. ${q.question}` }} />
                     </div>
                     <div className="space-y-1 ml-7">
                       {q.options.map((opt, oi) => {
@@ -360,8 +360,11 @@ export const Quiz = ({ questions, quizTitle, onComplete, onBackToSubject, onBack
                     </div>
                     {q.explanation && (
                       <div className="mt-3 ml-7 p-3 text-sm bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
-                        <span className="font-semibold text-blue-900 dark:text-blue-300">💡 Explanation:</span>
-                        <span className="text-blue-800 dark:text-blue-200"> {q.explanation}</span>
+                        <span className="font-semibold text-blue-900 dark:text-blue-300">💡 Explanation: </span>
+                        <span
+                          className="text-blue-800 dark:text-blue-200"
+                          dangerouslySetInnerHTML={{ __html: q.explanation }}
+                        />
                       </div>
                     )}
                   </CardContent>
@@ -431,7 +434,7 @@ export const Quiz = ({ questions, quizTitle, onComplete, onBackToSubject, onBack
         </div>
 
         <CardTitle
-          className="text-2xl"
+          className="text-2xl break-words [&_*]:max-w-full [&_img]:max-w-full"
           dangerouslySetInnerHTML={{ __html: question.question }}
         />
         {question.imageUrl && (

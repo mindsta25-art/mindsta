@@ -1,7 +1,7 @@
 import express from 'express';
 import Cart from '../models/Cart.js';
 import Topic from '../models/Topic.js';
-import { Lesson } from '../models/index.js';
+import { Lesson, CommonEntrance, Enrollment } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -142,7 +142,9 @@ router.post('/add-lesson', requireAuth, async (req, res) => {
     cart.abandonedEmailSentAt = null;
 
     await cart.save();
-    await cart.populate('items.lessonId');
+    // NOTE: Do NOT populate items.lessonId here — the frontend isInCart check compares
+    // item.lessonId (string) against the lesson id string. Populating converts it to a
+    // full document object, breaking that equality check.
 
     res.json({ message: 'Lesson added to cart', cart });
   } catch (error) {
@@ -216,6 +218,47 @@ router.post('/add', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('[Cart] Error in POST /add:', error);
     res.status(500).json({ message: 'Error adding to cart', error: error.message });
+  }
+});
+
+// Add Common Entrance exam to cart
+router.post('/add-common-entrance', requireAuth, async (req, res) => {
+  try {
+    const { commonEntranceId } = req.body;
+    if (!commonEntranceId) return res.status(400).json({ message: 'Common Entrance exam ID is required' });
+
+    const exam = await CommonEntrance.findById(commonEntranceId);
+    if (!exam) return res.status(404).json({ message: 'Common Entrance exam not found' });
+    if (!exam.isPublished) return res.status(403).json({ message: 'Exam is not available' });
+
+    // Prevent re-purchase of already-owned exams
+    const alreadyEnrolled = await Enrollment.findOne({ userId: req.user.id, commonEntranceId: exam._id, isActive: true });
+    if (alreadyEnrolled) return res.status(400).json({ message: 'You already own this exam' });
+
+    let cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) cart = new Cart({ userId: req.user.id, items: [] });
+
+    const exists = cart.items.find(item => item.itemType === 'common-entrance' && item.commonEntranceId?.toString() === commonEntranceId);
+    if (exists) return res.status(400).json({ message: 'Exam already in cart' });
+
+    cart.items.push({
+      itemType: 'common-entrance',
+      commonEntranceId: exam._id,
+      title: exam.title,
+      subject: exam.subject,
+      grade: 'Common Entrance',
+      term: 'Common Entrance',
+      price: exam.price,
+      imageUrl: exam.imageUrl,
+      addedAt: new Date(),
+    });
+    cart.abandonedEmailSentAt = null;
+    await cart.save();
+
+    res.json({ message: 'Exam added to cart', cart });
+  } catch (error) {
+    console.error('[Cart] Error in POST /add-common-entrance:', error);
+    res.status(500).json({ message: 'Error adding exam to cart', error: error.message });
   }
 });
 

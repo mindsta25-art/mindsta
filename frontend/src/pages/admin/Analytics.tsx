@@ -339,10 +339,12 @@ const Analytics = () => {
               <CardContent>
                 <div className="space-y-3">
                   {analytics.gradeDistribution.map((item) => (
-                    <div key={item.grade}>
+                    <div key={String(item.grade)}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">Grade {item.grade}</span>
-                        <Badge variant="secondary">{item.students} students</Badge>
+                        <span className="text-sm font-medium">
+                          {item.grade === 'common-entrance' ? (item.label || 'Common Entrance') : `Grade ${item.grade}`}
+                        </span>
+                        <Badge variant="secondary">{item.students} {item.grade === 'common-entrance' ? 'purchases' : 'students'}</Badge>
                       </div>
                       <Progress value={(item.students / maxStudents) * 100} />
                     </div>

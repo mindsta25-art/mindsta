@@ -99,7 +99,7 @@ const LessonSchema = new Schema(
     },
     term: {
       type: String,
-      enum: ['First Term', 'Second Term', 'Third Term'],
+      enum: ['First Term', 'Second Term', 'Third Term', 'Common Entrance'],
       required: true,
     },
     order: {

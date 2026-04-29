@@ -45,16 +45,21 @@ const EnrollmentSchema = new mongoose.Schema(
       required: false,
       default: null,
     },
+    // Optional: tracks a Common Entrance exam purchase
+    commonEntranceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CommonEntrance',
+      required: false,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Compound index — includes lessonId so multiple per-lesson enrollments can exist
-// for the same subject+grade+term. Run scripts/fix-enrollment-index.js once to drop
-// the old unique (userId, subject, grade, term) index from the database.
-EnrollmentSchema.index({ userId: 1, subject: 1, grade: 1, term: 1, lessonId: 1 });
+// Compound index — includes lessonId and commonEntranceId so multiple per-item enrollments can exist
+EnrollmentSchema.index({ userId: 1, subject: 1, grade: 1, term: 1, lessonId: 1, commonEntranceId: 1 });
 
 // Index for quick lookup by user
 EnrollmentSchema.index({ userId: 1, isActive: 1 });

@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
-import { Student, Payment, Referral, ReferralProfile, ReferralTransaction, User, Enrollment, Cart, Notification, SystemSettings } from '../models/index.js';
+import { Student, Payment, Referral, ReferralProfile, ReferralTransaction, User, Enrollment, Cart, Notification, SystemSettings, CommonEntrance } from '../models/index.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { sendPaymentSuccessEmail, sendCommissionEarnedEmail } from '../services/emailService.js';
 import { createAdminAlert } from './admin-alerts.js';
@@ -288,7 +288,10 @@ router.post('/initialize', requireAuth, async (req, res) => {
         grade: item.grade,
         term: item.term,
         price: item.price || 0,
+        title: item.title || item.lessonTitle || '',
+        imageUrl: item.imageUrl || '',
         lessonId: item.lessonId || null,
+        commonEntranceId: item.commonEntranceId || null,
       })),
     });
 
@@ -335,6 +338,7 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
                 grade: item.grade,
                 term: item.term,
                 lessonId: item.lessonId || null,
+                commonEntranceId: item.commonEntranceId || null,
               },
               {
                 userId: req.user.id,
@@ -346,6 +350,7 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
                 purchasedAt: payment.paidAt,
                 isActive: true,
                 lessonId: item.lessonId || null,
+                commonEntranceId: item.commonEntranceId || null,
               },
               { upsert: true, new: true }
             );
@@ -353,8 +358,18 @@ router.get('/verify/:reference', requireAuth, async (req, res) => {
               subject: item.subject,
               grade: item.grade,
               term: item.term,
+              title: item.title || '',
               lessonId: item.lessonId || null,
+              commonEntranceId: item.commonEntranceId || null,
             });
+            // Increment enrolledStudents counter on the CE exam
+            if (!wasAlreadySuccess && item.commonEntranceId) {
+              try {
+                await CommonEntrance.findByIdAndUpdate(item.commonEntranceId, { $inc: { enrolledStudents: 1 } });
+              } catch (ceCountErr) {
+                console.error('[CE enrolledStudents increment error]:', ceCountErr.message);
+              }
+            }
           } catch (enrollError) {
             console.error(`[Enrollment Error for ${item.subject}]:`, enrollError.message);
           }

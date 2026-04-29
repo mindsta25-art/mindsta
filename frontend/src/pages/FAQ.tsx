@@ -20,8 +20,8 @@ const FAQPage = () => {
       category: 'Getting Started',
       questions: [
         {
-          q: 'How do I enroll in a course?',
-          a: 'To enroll in a course, browse our course catalog, select your grade and subject, then click the "Enroll Now" button. Payment options will be presented for your chosen course.',
+          q: 'How do I enroll in a lessons?',
+          a: 'To enroll in a lesson, browse our lesson catalog, select your grade and subject, then click the "Enroll Now" button. Payment options will be presented for your chosen lesson.',
         },
         {
           q: 'How do I access my enrolled lessons?',
@@ -42,12 +42,9 @@ const FAQPage = () => {
         },
         {
           q: 'Can I get a refund?',
-          a: 'Refund requests are evaluated on a case-by-case basis within 7 days of purchase. Please contact our support team with your order details.',
+          a: 'Normally, we do not offer refunds for digital products. However, if you encounter any issues with your purchase, please contact our support team to discuss your situation.',
         },
-        {
-          q: 'Do you offer discounts for multiple lessons?',
-          a: 'Yes! We offer bundle discounts when you enroll in multiple lessons. Check our Bundles page for current offers.',
-        },
+      
       ],
     },
     {
@@ -99,7 +96,7 @@ const FAQPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Header />
       
-      <main className="pt-24 pb-16">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="mb-8">
             <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">

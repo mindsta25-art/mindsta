@@ -31,6 +31,8 @@ interface EnrichedCartItem {
   lessonId?: string; // present for lesson-level purchases
   lessonTitle?: string;
   imageUrl?: string;
+  commonEntranceId?: string; // present for Common Entrance exam purchases
+  itemType?: string; // 'lesson' | 'common-entrance'
 }
 
 const Checkout = () => {
@@ -63,7 +65,7 @@ const Checkout = () => {
     fetchStudentName();
   }, [user]);
 
-  // Fetch course details for cart items
+  // Fetch Lesson details for cart items
   useEffect(() => {
     const enrichCartItems = async () => {
       if (!cart?.items || cart.items.length === 0) {
@@ -76,6 +78,11 @@ const Checkout = () => {
         const enriched = await Promise.all(
           cart.items.map(async (item) => {
             try {
+              // Common Entrance items: no extra enrichment needed
+              if ((item as any).itemType === 'common-entrance' || (item as any).commonEntranceId) {
+                return { ...item } as EnrichedCartItem;
+              }
+
               if (item.lessonId) {
                 const lesson = await getLessonPreviewById(item.lessonId);
                 if (lesson) {
@@ -139,7 +146,7 @@ const Checkout = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <StudentHeader studentName={studentName} />
-      <main className="pt-24 pb-16 container mx-auto px-4">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16 container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
           <div className="mb-6">
             <h1 className="text-2xl font-bold">Checkout</h1>
@@ -173,8 +180,15 @@ const Checkout = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-base mb-1">{item.subject}</h3>
-                            <p className="text-xs text-muted-foreground mb-2">Grade {item.grade}{item.term && ` • ${item.term}`}</p>
+                            <h3 className="font-bold text-base mb-0.5">{item.lessonTitle || item.subject}</h3>
+                            {item.lessonTitle && (
+                              <p className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">{item.subject}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {(item as any).commonEntranceId || (item as any).itemType === 'common-entrance'
+                                ? 'Common Entrance Exam'
+                                : `Grade ${item.grade}${item.term ? ` • ${item.term}` : ''}`}
+                            </p>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                               {item.rating > 0 && (
                                 <span className="flex items-center gap-1">
@@ -249,7 +263,10 @@ const Checkout = () => {
                             grade: item.grade,
                             term: item.term || undefined,
                             price: item.price,
+                            title: item.lessonTitle || item.subject,
+                            imageUrl: item.imageUrl || '',
                             lessonId: item.lessonId || undefined,
+                            commonEntranceId: (item as any).commonEntranceId || undefined,
                           }));
                           
                           console.log('Initializing payment with:', { total, items });

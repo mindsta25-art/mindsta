@@ -40,7 +40,7 @@ const About = () => {
     },
     {
       title: "Flexible Schedule",
-      description: "Learn anytime, anywhere with 24/7 access to comprehensive course materials.",
+      description: "Learn anytime, anywhere with 24/7 access to comprehensive lesson materials.",
       icon: Clock,
       color: "from-purple-500 to-pink-500"
     },

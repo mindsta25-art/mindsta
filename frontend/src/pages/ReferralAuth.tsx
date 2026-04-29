@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff, Loader2, TrendingUp, DollarSign, Users } from "lucide-react";
+import { BookOpen, Gift, Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff, Loader2, TrendingUp, DollarSign, Users, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { signIn, signUp, requestPasswordReset } from "@/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,7 @@ const ReferralAuth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -105,6 +106,7 @@ const ReferralAuth = () => {
         title: "Welcome Back! 🎉",
         description: "Successfully logged in!",
       });
+      setLoginAttempts(0);
       
       // Force refresh user context
       refreshUser();
@@ -123,6 +125,7 @@ const ReferralAuth = () => {
         navigate('/verify-email', { state: { email: loginEmail, resent: false } });
         return;
       }
+      setLoginAttempts((n) => n + 1);
       toast({
         title: "Login Failed",
         description: error?.message || "Invalid email or password. Please try again.",
@@ -386,6 +389,22 @@ const ReferralAuth = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Login attempt warning */}
+                {loginAttempts > 0 && (
+                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      {loginAttempts === 1
+                        ? "1 failed login attempt."
+                        : `${loginAttempts} failed login attempts.`}{" "}
+                      Please check your email and password.
+                      {loginAttempts >= 3 && (
+                        <>{" "}<button type="button" className="underline font-semibold" onClick={() => setShowForgotPasswordDialog(true)}>Forgot your password?</button></>
+                      )}
+                    </p>
+                  </div>
+                )}
 
                 <Button
                   type="submit"

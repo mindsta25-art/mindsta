@@ -62,10 +62,14 @@ router.get('/detailed', requireAdmin, async (req, res) => {
 
     // Grade distribution
     const students = await Student.find();
-    const gradeDistribution = [1, 2, 3, 4, 5, 6].map(g => ({
-      grade: g,
-      students: students.filter(s => parseInt(s.grade) === g).length
-    }));
+    const ceEnrollmentCount = await Enrollment.countDocuments({ commonEntranceId: { $ne: null }, isActive: true });
+    const gradeDistribution = [
+      ...[1, 2, 3, 4, 5, 6].map(g => ({
+        grade: g,
+        students: students.filter(s => parseInt(s.grade) === g).length
+      })),
+      { grade: 'common-entrance', label: 'Common Entrance', students: ceEnrollmentCount },
+    ];
 
     // User growth (last 6 months)
     const sixMonthsAgo = new Date();

@@ -136,7 +136,7 @@ export function AdminHeader() {
                 variant="ghost"
                 size="icon"
                 onClick={toggleTheme}
-                className="rounded-full h-9 w-9 hover:bg-muted"
+                className="rounded-full h-9 w-9 hover:bg-muted text-foreground hover:text-foreground"
                 aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {theme === "dark" ? (
@@ -159,7 +159,7 @@ export function AdminHeader() {
         {/* Admin Profile Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2.5 px-2.5 h-10 rounded-full hover:bg-muted">
+            <Button variant="ghost" className="gap-2.5 px-2.5 h-10 rounded-full hover:bg-muted text-foreground hover:text-foreground">
               <Avatar className="h-8 w-8 ring-2 ring-purple-200 dark:ring-purple-800">
                 <AvatarFallback className="bg-gradient-to-br from-purple-600 to-pink-600 text-white font-bold text-sm">
                   {initials}
@@ -192,14 +192,14 @@ export function AdminHeader() {
             </div>
 
             <div className="p-1">
-              <DropdownMenuItem onClick={() => navigate("/admin/settings")} className="gap-2 rounded-md">
+              <DropdownMenuItem onClick={() => navigate("/admin/settings")} className="gap-2 rounded-md text-foreground hover:text-foreground">
                 <Settings className="w-4 h-4 text-muted-foreground" />
                 Settings
               </DropdownMenuItem>
               
               <DropdownMenuSeparator className="my-1" />
               
-              <DropdownMenuItem onClick={() => setShowLogoutDialog(true)} className="gap-2 rounded-md text-destructive focus:text-destructive focus:bg-destructive/10">
+              <DropdownMenuItem onClick={() => setShowLogoutDialog(true)} className="gap-2 rounded-md text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive">
                 <LogOut className="w-4 h-4" />
                 Sign Out
               </DropdownMenuItem>

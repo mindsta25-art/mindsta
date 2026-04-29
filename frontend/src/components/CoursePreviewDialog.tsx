@@ -273,7 +273,14 @@ export const CoursePreviewDialog = ({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Duration</p>
-                  <p className="text-base sm:text-xl font-bold">{formatDuration(getTotalDuration())}</p>
+                  <p className="text-base sm:text-xl font-bold">
+                    {course.duration
+                      ? course.duration < 60
+                        ? `${course.duration}m`
+                        : `${Math.floor(course.duration / 60)}h${course.duration % 60 > 0 ? ` ${course.duration % 60}m` : ''}`
+                      : getTotalDuration() > 0
+                      ? formatDuration(getTotalDuration())
+                      : '\u2014'}</p>
                 </div>
               </CardContent>
             </Card>
@@ -332,6 +339,7 @@ export const CoursePreviewDialog = ({
                       <Button
                         variant="ghost"
                         className="w-full justify-between px-3 sm:px-4 py-3 h-auto hover:bg-muted/50"
+                        title={section.title}
                         onClick={() => toggleSection(sectionIdx)}
                       >
                         <div className="flex items-start gap-2 sm:gap-3 text-left flex-1 min-w-0">
@@ -341,7 +349,7 @@ export const CoursePreviewDialog = ({
                             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0" />
                           )}
                           <div className="flex-1 min-w-0 space-y-0.5">
-                            <div className="font-semibold text-sm sm:text-base leading-snug">
+                            <div className="font-semibold text-sm sm:text-base leading-snug break-words">
                               Lesson {sectionIdx + 1}: {section.title}
                             </div>
                             {section.description && (
@@ -371,7 +379,7 @@ export const CoursePreviewDialog = ({
                                     <LectureIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0 mt-0.5 sm:mt-0" />
                                     <div className="flex-1 min-w-0">
                                       <div className="text-xs sm:text-sm font-medium flex items-center gap-1.5 flex-wrap">
-                                        <span className="leading-snug">{lecture.title}</span>
+                                        <span className="leading-snug break-words min-w-0">{lecture.title}</span>
                                         {isPreview && (
                                           <Badge variant="outline" className="text-[10px] sm:text-xs bg-green-50 text-green-700 border-green-300 flex-shrink-0">
                                             Preview
@@ -694,7 +702,7 @@ export const CoursePreviewDialog = ({
                   }}
                 >
                   <BookOpen className="w-4 h-4 mr-2" />
-                  Go to Course
+                  Go to Lesson
                 </Button>
               ) : (
                 <>

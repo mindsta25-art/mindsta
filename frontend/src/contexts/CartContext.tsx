@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { getCart, addToCart as addToCartAPI, removeFromCart as removeFromCartAPI, clearCart as clearCartAPI, getCartCount, type Cart, type CartItem } from '@/api/cart';
+import { getCart, addToCart as addToCartAPI, addCommonEntranceToCart as addCEToCartAPI, removeFromCart as removeFromCartAPI, clearCart as clearCartAPI, getCartCount, type Cart, type CartItem } from '@/api/cart';
+import { api } from '@/lib/apiClient';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -8,10 +9,12 @@ interface CartContextType {
   cartCount: number;
   loading: boolean;
   addToCart: (item: { subject: string; grade: string; term?: string; price?: number; lessonId?: string; title?: string }) => Promise<void>;
+  addCommonEntranceToCart: (examId: string, examTitle: string) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
   isInCart: (subject: string, grade: string, term?: string, lessonId?: string) => boolean;
+  isCommonEntranceInCart: (examId: string) => boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -40,7 +43,8 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
     try {
       setLoading(true);
-      const cartData = await getCart();
+      // Bypass the 30-second GET cache so post-payment cart state is always fresh
+      const cartData = await api.get('/cart', undefined, 0) as Cart;
       setCart(cartData);
       setCartCount(cartData.items.length);
     } catch (error) {
@@ -149,15 +153,36 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
   const isInCart = (subject: string, grade: string, term?: string, lessonId?: string): boolean => {
     if (!cart) return false;
-    
     if (lessonId) {
-      // For lesson-level items, check if this specific lessonId is in cart
-      return cart.items.some(item => item.lessonId === lessonId);
-    } else {
-      // For subject-level items, check by subject/grade/term
-      return cart.items.some(
-        item => item.subject === subject && item.grade === grade && item.term === term && !item.lessonId
-      );
+      return cart.items.some(item => {
+        // item.lessonId may be a plain string ID or a populated lesson object (from older API responses)
+        const itemId = (item.lessonId as any)?._id?.toString() ?? item.lessonId?.toString();
+        return itemId === lessonId;
+      });
+    }
+    return cart.items.some(item => item.subject === subject && item.grade === grade && item.term === term && !item.lessonId);
+  };
+
+  const isCommonEntranceInCart = (examId: string): boolean => {
+    if (!cart) return false;
+    return cart.items.some((item: any) => item.commonEntranceId?.toString() === examId || item.commonEntranceId === examId);
+  };
+
+  const addCommonEntranceToCart = async (examId: string, examTitle: string) => {
+    if (!user) {
+      toast({ title: 'Please log in', description: 'You need to be logged in to add items to cart', variant: 'destructive' });
+      return;
+    }
+    try {
+      setLoading(true);
+      const updatedCart = await addCEToCartAPI(examId);
+      setCart(updatedCart);
+      setCartCount(updatedCart.items.length);
+      toast({ title: 'Added to cart', description: `${examTitle} has been added to your cart` });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.response?.data?.message || 'Failed to add to cart', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -168,10 +193,12 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         cartCount,
         loading,
         addToCart,
+        addCommonEntranceToCart,
         removeFromCart,
         clearCart,
         refreshCart,
         isInCart,
+        isCommonEntranceInCart,
       }}
     >
       {children}

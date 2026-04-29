@@ -65,6 +65,7 @@ const Auth = () => {
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken" | "unverified">("idle");
   const emailCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
 
   const loginForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -113,6 +114,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (!isLogin) setEmailStatus("idle");
+    setLoginAttempts(0);
   }, [isLogin]);
 
   // Handle redirect from Google OAuth when user needs OTP verification
@@ -181,6 +183,7 @@ const Auth = () => {
         return;
       }
 
+      setLoginAttempts(0);
       toast({ title: "Welcome back!", description: "Logged in successfully." });
       refreshUser();
       navigate('/dashboard');
@@ -194,6 +197,7 @@ const Auth = () => {
         toast({ title: "Admin Access Blocked", description: "Please use the admin portal to log in.", variant: "destructive" });
         setTimeout(() => navigate("/admin-auth"), 2000);
       } else {
+        setLoginAttempts((n) => n + 1);
         toast({ title: "Login Failed", description: error.message || "Invalid email or password.", variant: "destructive" });
       }
     } finally {
@@ -636,6 +640,22 @@ const Auth = () => {
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Login attempt warning */}
+              {isLogin && loginAttempts > 0 && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    {loginAttempts === 1
+                      ? "1 failed login attempt."
+                      : `${loginAttempts} failed login attempts.`}{" "}
+                    Please check your email and password.
+                    {loginAttempts >= 3 && (
+                      <>{" "}<button type="button" className="underline font-semibold" onClick={() => setShowForgotPasswordDialog(true)}>Forgot your password?</button></>
+                    )}
+                  </p>
+                </div>
               )}
 
               {/* Submit */}

@@ -349,7 +349,7 @@ const LeaderboardPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <StudentHeader studentName={studentName} />
 
-      <main className="pt-24 pb-16 container mx-auto px-4 max-w-3xl">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16 container mx-auto px-4 max-w-3xl">
         {/* ── Hero heading ── */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}

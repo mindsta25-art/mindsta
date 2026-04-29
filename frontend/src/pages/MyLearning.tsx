@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,13 +46,16 @@ import { getStudentByUserId } from "@/api/students";
 import { getLessons, type Lesson } from "@/api/lessons";
 import { getUserProgress, type UserProgress } from "@/api/progress";
 import { getEnrollments, type Enrollment } from "@/api/enrollments";
+import { getCommonExams, type CommonExam } from "@/api/commonEntrance";
 import { isEnrolled as isEnrolledUtil } from "@/utils/enrollmentUtils";
 import { getPublicAdvancedSettings } from "@/api/settings";
+import { api } from "@/lib/apiClient";
 
 interface EnrolledCourse {
   subject: string;
   grade: string;
   term?: string;
+  lessonTitle?: string;       // set for per-lesson enrollments
   lessonsTotal: number;
   lessonsCompleted: number;
   lessonsInProgress: number;   // started (videoPosition > 0) but not yet completed
@@ -72,6 +75,7 @@ const MyLearning = () => {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [allLessons, setAllLessons] = useState<Lesson[]>([]);
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
+  const [enrolledCEExams, setEnrolledCEExams] = useState<CommonExam[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [filterSubject, setFilterSubject] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,7 +109,6 @@ const MyLearning = () => {
           getUserProgress(user.id),
           getEnrollments(),
         ]);
-
         if (studentData) {
           setStudentName(studentData.fullName);
         }
@@ -113,6 +116,19 @@ const MyLearning = () => {
         setAllLessons(lessons);
         setUserProgress(progress);
         setEnrollments(enrollmentsData);
+
+        // Load enrolled Common Entrance exams
+        const ceEnrollmentIds = enrollmentsData
+          .filter(e => e.isActive && e.commonEntranceId)
+          .map(e => e.commonEntranceId!.toString());
+        if (ceEnrollmentIds.length > 0) {
+          try {
+            const allCE = await getCommonExams();
+            setEnrolledCEExams(allCE.filter(exam => ceEnrollmentIds.includes(exam.id)));
+          } catch {
+            // non-fatal
+          }
+        }
 
         // Filter lessons to only include enrolled ones.
         // Per-lesson enrollments (enrollment.lessonId is set) only grant access to that specific
@@ -128,7 +144,7 @@ const MyLearning = () => {
           });
         });
 
-        // Helper: determine the course map key for a lesson.
+        // Helper: determine the Lesson map key for a lesson.
         // Per-lesson enrollments get their own card (keyed by lessonId) so the student only
         // sees the lessons they actually purchased, not every lesson in the subject.
         const courseKeyForLesson = (lesson: { id: string; subject: string; grade: string; term?: string }) => {
@@ -146,6 +162,9 @@ const MyLearning = () => {
         // First, create entries for all ACTIVE enrollments (even if no lessons exist yet).
         // Per-lesson enrollments use a lessonId-suffixed key so they appear as separate cards.
         for (const enrollment of activeEnrollments) {
+          // CE enrollments are shown in the separate Common Entrance section — skip them here
+          if (enrollment.commonEntranceId || enrollment.grade === 'Common Entrance') continue;
+
           const key = enrollment.lessonId
             ? `${enrollment.subject}-${enrollment.grade}-${enrollment.term || 'general'}-${enrollment.lessonId}`
             : `${enrollment.subject}-${enrollment.grade}-${enrollment.term || 'general'}`;
@@ -177,6 +196,14 @@ const MyLearning = () => {
           if (courseMap.has(key)) {
             const course = courseMap.get(key)!;
             course.lessonsTotal += 1;
+
+            // For per-lesson enrollments, capture the lesson title
+            const perLessonEnroll = activeEnrollments.find(e =>
+              e.lessonId && isEnrolledUtil(e, lesson.subject, lesson.grade, lesson.term, lesson.id)
+            );
+            if (perLessonEnroll && !course.lessonTitle) {
+              course.lessonTitle = lesson.title;
+            }
 
             const lessonProgress = progress.find(p => p.lessonId === lesson.id);
             if (lessonProgress) {
@@ -243,6 +270,38 @@ const MyLearning = () => {
     };
 
     fetchData();
+  }, [user]);
+
+  // Refresh CE enrollments when page becomes visible (e.g. after returning from purchase)
+  const ceRefreshRef = useRef(false);
+  useEffect(() => {
+    const refreshCE = async () => {
+      if (!user || ceRefreshRef.current) return;
+      ceRefreshRef.current = true;
+      try {
+        const enrollmentsData = await api.get('/enrollments', undefined, 0) as Enrollment[];
+        const ceEnrollmentIds = enrollmentsData
+          .filter(e => e.isActive && e.commonEntranceId)
+          .map(e => e.commonEntranceId!.toString());
+        if (ceEnrollmentIds.length > 0) {
+          const allCE = await getCommonExams();
+          setEnrolledCEExams(allCE.filter(exam => ceEnrollmentIds.includes(exam.id)));
+        } else {
+          setEnrolledCEExams([]);
+        }
+      } catch { /* non-fatal */ } finally {
+        ceRefreshRef.current = false;
+      }
+    };
+    const onVisible = () => { if (!document.hidden) refreshCE(); };
+    const onFocus = () => refreshCE();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const filteredAndSorted = () => {
@@ -701,8 +760,9 @@ const MyLearning = () => {
                         course.progress === 100
                           ? 'text-green-800 dark:text-green-200'
                           : 'text-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
-                      }`}>{course.subject}</h4>
+                      }`}>{course.lessonTitle || course.subject}</h4>
                       <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {course.lessonTitle ? course.subject + ' · ' : ''}
                         {course.grade === 'Common Entrance' ? 'CE' : `Gr. ${course.grade}`}
                         {course.term ? ` · ${course.term.replace(' Term', '')}` : ''}
                       </p>
@@ -721,10 +781,12 @@ const MyLearning = () => {
 
                     {/* Stats row */}
                     <div className="flex items-center gap-2 flex-wrap">
+                      {course.lessonsTotal > 0 && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full">
                         <CheckCircle className="w-2.5 h-2.5 flex-shrink-0" />
                         {course.lessonsCompleted}/{course.lessonsTotal}
                       </span>
+                      )}
                       {course.lastAccessed && (
                         <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full">
                           <Clock className="w-2.5 h-2.5 flex-shrink-0" />
@@ -847,7 +909,7 @@ const MyLearning = () => {
                           {course.progress}% complete
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {course.lessonsCompleted} completed
+                          {course.lessonsTotal > 0 ? `${course.lessonsCompleted} completed` : ''}
                         </span>
                       </div>
                       <Progress
@@ -997,6 +1059,65 @@ const MyLearning = () => {
 
 
           </>
+        )}
+
+        {/* Common Entrance Exams Section */}
+        {enrolledCEExams.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-purple-500" />
+              Common Entrance Exams
+            </h2>
+            <Card
+              className="hover:shadow-lg transition-all duration-200 cursor-pointer group overflow-hidden"
+              onClick={() => navigate('/my-common-entrance')}
+            >
+              <div className="flex flex-col sm:flex-row">
+                {/* Left: gradient panel */}
+                <div className="sm:w-48 h-32 sm:h-auto flex-shrink-0 bg-gradient-to-br from-purple-500 via-pink-500 to-fuchsia-500 flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-20">
+                    {enrolledCEExams.slice(0, 3).map((exam, i) => exam.imageUrl && (
+                      <img key={exam.id} src={exam.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ opacity: 1 / (i + 1) }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ))}
+                  </div>
+                  <GraduationCap className="w-14 h-14 text-white relative z-10 drop-shadow-lg" />
+                </div>
+                {/* Right: content */}
+                <CardContent className="flex-1 p-5 flex flex-col justify-between gap-3">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-bold text-lg group-hover:text-purple-600 transition-colors leading-snug">
+                          Common Entrance Practice Exams
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {enrolledCEExams.length} exam{enrolledCEExams.length !== 1 ? 's' : ''} purchased · tap to view all
+                        </p>
+                      </div>
+                      <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 border-0 flex-shrink-0 text-sm font-bold px-3 py-1">
+                        {enrolledCEExams.length}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {Array.from(new Set(enrolledCEExams.map(e => e.subject))).slice(0, 4).map(subject => (
+                        <Badge key={subject} variant="outline" className="text-xs">{subject}</Badge>
+                      ))}
+                      {new Set(enrolledCEExams.map(e => e.subject)).size > 4 && (
+                        <Badge variant="outline" className="text-xs">+{new Set(enrolledCEExams.map(e => e.subject)).size - 4} more</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md font-bold"
+                    onClick={(e) => { e.stopPropagation(); navigate('/my-common-entrance'); }}
+                  >
+                    <GraduationCap className="w-4 h-4 mr-2" />
+                    View My Exams
+                  </Button>
+                </CardContent>
+              </div>
+            </Card>
+          </div>
         )}
         </div>
       </main>

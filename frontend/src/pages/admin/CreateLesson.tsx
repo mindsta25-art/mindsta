@@ -359,11 +359,11 @@ const CreateLesson = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Course Overview (For Student Preview)</Label>
+                  <Label>Lesson Overview (For Student Preview)</Label>
                   <Textarea
                     value={form.overview}
                     onChange={(e) => setForm({ ...form, overview: e.target.value })}
-                    placeholder="What will students learn in this course?"
+                    placeholder="What will students learn in this lesson?"
                     className="min-h-[100px]"
                   />
                 </div>
@@ -384,7 +384,16 @@ const CreateLesson = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-2" data-field-error={fe(form.grade) || undefined}>
                     <Label>Grade Level *</Label>
-                    <Select value={form.grade} onValueChange={(v) => setForm({ ...form, grade: v })}>
+                    <Select
+                      value={form.grade}
+                      onValueChange={(v) => {
+                        // Auto-set term for Common Entrance; clear term if switching away from CE
+                        const newTerm = v === 'Common Entrance'
+                          ? 'Common Entrance'
+                          : form.term === 'Common Entrance' ? '' : form.term;
+                        setForm({ ...form, grade: v, term: newTerm });
+                      }}
+                    >
                       <SelectTrigger className={fe(form.grade) ? "border-destructive" : ""}><SelectValue placeholder="Grade" /></SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6].map((g) => (
@@ -400,12 +409,21 @@ const CreateLesson = () => {
                     <Select value={form.term} onValueChange={(v) => setForm({ ...form, term: v })}>
                       <SelectTrigger className={fe(form.term) ? "border-destructive" : ""}><SelectValue placeholder="Term" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="First Term">First Term</SelectItem>
-                        <SelectItem value="Second Term">Second Term</SelectItem>
-                        <SelectItem value="Third Term">Third Term</SelectItem>
+                        {form.grade === 'Common Entrance' ? (
+                          <SelectItem value="Common Entrance">Common Entrance</SelectItem>
+                        ) : (
+                          <>
+                            <SelectItem value="First Term">First Term</SelectItem>
+                            <SelectItem value="Second Term">Second Term</SelectItem>
+                            <SelectItem value="Third Term">Third Term</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                     {fe(form.term) && <p className="text-xs text-destructive">Term is required</p>}
+                    {form.grade === 'Common Entrance' && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">Common Entrance lessons are automatically assigned the "Common Entrance" term.</p>
+                    )}
                   </div>
                   <div className="space-y-2" data-field-error={fe(form.difficulty) || undefined}>
                     <Label>Difficulty *</Label>
@@ -560,12 +578,12 @@ const CreateLesson = () => {
               </CardContent>
             </Card>
 
-            {/* Course Details */}
+            {/* Lesson Details */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-green-600" />
-                  Course Details (Shown on Student Overview)
+                  Lesson Details (Shown on Student Overview)
                 </CardTitle>
                 <CardDescription>These appear on the student's subject overview page</CardDescription>
               </CardHeader>
@@ -659,8 +677,8 @@ const CreateLesson = () => {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg">📑 Course Curriculum (Optional)</CardTitle>
-                    <CardDescription>Add sections and lectures to structure your course content</CardDescription>
+                    <CardTitle className="text-lg">📑 Lesson Curriculum (Optional)</CardTitle>
+                    <CardDescription>Add sections and lectures to structure your lesson content</CardDescription>
                   </div>
                   <Button
                     type="button"
@@ -676,7 +694,7 @@ const CreateLesson = () => {
               <CardContent className="space-y-4">
                 {curriculum.length === 0 ? (
                   <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground">
-                    <p className="text-sm">No sections yet. Click "Add Section" to begin structuring your course.</p>
+                    <p className="text-sm">No sections yet. Click "Add Section" to begin structuring your lesson.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">

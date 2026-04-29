@@ -141,8 +141,9 @@ const SubjectLessonsPage = () => {
   const [answerText, setAnswerText] = useState<{ [key: string]: string }>({});
   const [submittingAnswer, setSubmittingAnswer] = useState<string | null>(null);
 
-  // Get term from URL query params
+  // Get term/lessonId from URL query params
   const termParam = searchParams.get('term');
+  const lessonIdParam = searchParams.get('lessonId');
   const gradeParam = searchParams.get('grade') || grade;
   
   // Decode and use subject name directly - React Router already decodes URL params
@@ -213,7 +214,7 @@ const SubjectLessonsPage = () => {
         const quizzesData = await getQuizzesByFilters(subjectName, gradeParam, termName);
         console.log('[SubjectLessons] Fetched quizzes:', quizzesData);
 
-        setLessons(lessonsData.map(l => ({
+        const mappedLessons = lessonsData.map(l => ({
           id: l.id,
           title: l.title,
           description: l.description,
@@ -224,7 +225,13 @@ const SubjectLessonsPage = () => {
           targetAudience: l.targetAudience,
           duration: l.duration || 30,
           videoUrl: l.videoUrl,
-        })));
+        }));
+        // If a specific lessonId is in the URL (e.g. from My Learning), show only that lesson
+        const filteredLessons = lessonIdParam
+          ? mappedLessons.filter(l => l.id === lessonIdParam)
+          : mappedLessons;
+        const displayLessons = filteredLessons.length > 0 ? filteredLessons : mappedLessons;
+        setLessons(displayLessons);
         setQuizzes(quizzesData);
         setProgress(progressData.map(p => ({
           lessonId: p.lessonId,
@@ -232,18 +239,19 @@ const SubjectLessonsPage = () => {
           videoWatchPercent: p.videoWatchPercent,
         })));
         
-        // Auto-select first lesson and pre-load its quiz so the Complete button is correctly gated
-        if (lessonsData.length > 0 && !selectedLesson) {
+        // Auto-select the target lesson (or first lesson)
+        if (displayLessons.length > 0 && !selectedLesson) {
+          const autoLesson = displayLessons[0];
           setSelectedLesson({
-            id: lessonsData[0].id,
-            title: lessonsData[0].title,
-            description: lessonsData[0].description,
-            content: lessonsData[0].content || '',
-            duration: lessonsData[0].duration || 30,
-            videoUrl: lessonsData[0].videoUrl,
+            id: autoLesson.id,
+            title: autoLesson.title,
+            description: autoLesson.description,
+            content: autoLesson.content || '',
+            duration: autoLesson.duration || 30,
+            videoUrl: autoLesson.videoUrl,
           });
           try {
-            const firstLessonQuiz = await getQuizByLessonId(lessonsData[0].id);
+            const firstLessonQuiz = await getQuizByLessonId(autoLesson.id);
             if (firstLessonQuiz && firstLessonQuiz.questions && firstLessonQuiz.questions.length > 0) {
               setQuizTitle(firstLessonQuiz.title || "Lesson Quiz");
               const mapped = firstLessonQuiz.questions.map((q: any, idx: number) => ({
@@ -256,8 +264,40 @@ const SubjectLessonsPage = () => {
               }));
               setSelectedQuiz(firstLessonQuiz);
               setQuizQuestions(mapped);
+            } else {
+              // Fallback: try matching from already-fetched quizzesData by lessonId field
+              const fallbackQuiz = quizzesData.find((q: any) => q.lessonId === autoLesson.id);
+              if (fallbackQuiz && fallbackQuiz.questions && fallbackQuiz.questions.length > 0) {
+                setQuizTitle(fallbackQuiz.title || "Lesson Quiz");
+                const mapped = fallbackQuiz.questions.map((q: any, idx: number) => ({
+                  id: q.id || String(idx + 1),
+                  question: q.question,
+                  options: q.options,
+                  correct_answer: q.options[q.correctAnswer] ?? '',
+                  explanation: q.explanation || null,
+                  order_number: idx + 1,
+                }));
+                setSelectedQuiz(fallbackQuiz);
+                setQuizQuestions(mapped);
+              }
             }
-          } catch {/* no quiz for first lesson */}
+          } catch {
+            // Fallback: try matching from already-fetched quizzesData by lessonId field
+            const fallbackQuiz = quizzesData.find((q: any) => q.lessonId === autoLesson.id);
+            if (fallbackQuiz && fallbackQuiz.questions && fallbackQuiz.questions.length > 0) {
+              setQuizTitle(fallbackQuiz.title || "Lesson Quiz");
+              const mapped = fallbackQuiz.questions.map((q: any, idx: number) => ({
+                id: q.id || String(idx + 1),
+                question: q.question,
+                options: q.options,
+                correct_answer: q.options[q.correctAnswer] ?? '',
+                explanation: q.explanation || null,
+                order_number: idx + 1,
+              }));
+              setSelectedQuiz(fallbackQuiz);
+              setQuizQuestions(mapped);
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -268,7 +308,7 @@ const SubjectLessonsPage = () => {
     };
 
     fetchLessonsAndProgress();
-  }, [user, gradeParam, subjectName, termParam]);
+  }, [user, gradeParam, subjectName, termParam, lessonIdParam]);
 
   // Fetch reviews and stats
   useEffect(() => {
@@ -716,7 +756,7 @@ const SubjectLessonsPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <StudentHeader studentName={studentName} />
-        <main className="pt-24 pb-16 container mx-auto px-4 sm:px-6">
+        <main className="pt-2 sm:pt-6 pb-12 sm:pb-16 container mx-auto px-4 sm:px-6">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="px-4 py-12 sm:px-6 sm:py-16 text-center">
               <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
@@ -760,7 +800,7 @@ const SubjectLessonsPage = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/browse')}
+              onClick={() => navigate('/my-learning')}
               className="gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -786,16 +826,18 @@ const SubjectLessonsPage = () => {
                 {sidebarOpen ? 'Hide' : 'Show'} Curriculum
               </span>
             </Button>
+            {lessons.length > 1 && (
             <div className="hidden lg:flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md">
               <Award className="w-4 h-4 text-yellow-600" />
               <span className="text-sm font-medium">{completedCount}/{lessons.length} Completed</span>
             </div>
+            )}
           </div>
         </div>
         <Progress value={progressPercent} className="h-1" />
       </div>
 
-      <main className="pt-[120px] pb-8">
+      <main className="pt-[120px] pb-16">
         <div className="flex">
           {/* Main Content Area */}
           <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'mr-0 lg:mr-96' : 'mr-0'}`}>
@@ -803,7 +845,7 @@ const SubjectLessonsPage = () => {
               {/* Video Player Section - Always at Top */}
               {selectedLesson ? (
                 <div className="mb-6">
-                  <div className="container mx-auto px-4 max-w-5xl">
+                  <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
                     {selectedLesson.videoUrl ? (
                       <>
                         {showResumeBanner && videoResumePos > 30 && (
@@ -848,7 +890,7 @@ const SubjectLessonsPage = () => {
                   </div>
 
                   {/* Lesson Title and Actions */}
-                  <div className="container mx-auto px-4 max-w-5xl mt-6">
+                  <div className="container mx-auto px-4 sm:px-6 max-w-5xl mt-6">
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h1 className="text-2xl font-bold mb-2">{selectedLesson.title}</h1>
@@ -968,8 +1010,7 @@ const SubjectLessonsPage = () => {
               ) : (
                 <div className="mb-6">
                   <div className="bg-gradient-to-br from-purple-100 via-pink-50 to-orange-50 dark:from-purple-950/30 dark:via-pink-950/20 dark:to-orange-950/20 p-8 border-b">
-                    <div className="container mx-auto px-4 max-w-5xl">
-                      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">{subjectName}</h1>
+                    <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
                       <p className="text-muted-foreground mb-6">
                         {grade === "Common Entrance" ? "Common Entrance" : `Grade ${gradeParam}`}
                         {termParam ? ` • ${termParam.split('-').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ')}` : ''}
@@ -995,7 +1036,7 @@ const SubjectLessonsPage = () => {
               )}
 
               {/* Tabs Section */}
-              <div className="container mx-auto px-4 max-w-5xl">
+              <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
                 <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:w-auto lg:inline-grid mb-6">
                   <TabsTrigger value="overview" className="gap-2">
@@ -1023,9 +1064,32 @@ const SubjectLessonsPage = () => {
                 <TabsContent value="overview" className="space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle>About This Course</CardTitle>
+                      <CardTitle>About This Lesson</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* Duration badge */}
+                      {lessons.length > 0 && lessons[0].duration > 0 && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="w-4 h-4 flex-shrink-0" />
+                          <span>
+                            {lessons[0].duration < 60
+                              ? `${lessons[0].duration} minutes`
+                              : `${Math.floor(lessons[0].duration / 60)}h${lessons[0].duration % 60 > 0 ? ` ${lessons[0].duration % 60}m` : ''}`}
+                          </span>
+                          {gradeParam && (
+                            <>
+                              <span className="text-muted-foreground/40">•</span>
+                              <span>{gradeParam === 'Common Entrance' ? 'Common Entrance' : `Grade ${gradeParam}`}</span>
+                            </>
+                          )}
+                          {termParam && (
+                            <>
+                              <span className="text-muted-foreground/40">•</span>
+                              <span>{termParam.split('-').map((w: string) => w[0]?.toUpperCase() + w.slice(1)).join(' ')}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                       {/* Show first lesson's overview if available */}
                       {lessons.length > 0 && lessons[0].overview ? (
                         <div className="prose dark:prose-invert max-w-none">
@@ -1103,7 +1167,11 @@ const SubjectLessonsPage = () => {
                           <div className="text-sm text-muted-foreground">Completed</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">{Math.floor(totalDuration / 60)}h</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {totalDuration < 60
+                              ? `${totalDuration}m`
+                              : `${Math.floor(totalDuration / 60)}h${totalDuration % 60 > 0 ? ` ${totalDuration % 60}m` : ''}`}
+                          </div>
                           <div className="text-sm text-muted-foreground">Total Time</div>
                         </div>
                         <div className="text-center p-4 bg-muted rounded-lg">
@@ -1195,6 +1263,74 @@ const SubjectLessonsPage = () => {
                         <p className="text-muted-foreground">Loading quizzes...</p>
                       </CardContent>
                     </Card>
+                  ) : selectedLesson ? (
+                    // A lesson is selected but getQuizByLessonId returned nothing — show available quizzes as fallback
+                    quizzes.length > 0 ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Brain className="w-5 h-5" />
+                          Available Quizzes
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-2">{quizzes.length} quiz{quizzes.length !== 1 ? 'zes' : ''} available for this subject</p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {quizzes.map((quiz, index) => {
+                            return (
+                              <motion.div
+                                key={quiz.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="p-4 border rounded-lg hover:border-primary hover:bg-accent transition-all"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 cursor-pointer" onClick={() => handleStartQuiz(quiz.id)}>
+                                    <h4 className="font-semibold text-lg mb-1">{quiz.title}</h4>
+                                    {quiz.description && (
+                                      <p className="text-sm text-muted-foreground mb-3">{quiz.description}</p>
+                                    )}
+                                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                                      <div className="flex items-center gap-1">
+                                        <Award className="w-4 h-4" />
+                                        <span>{quiz.questionCount || quiz.questions?.length || 0} questions</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <Target className="w-4 h-4" />
+                                        <span>{quiz.passingScore || 70}% to pass</span>
+                                      </div>
+                                      {quiz.timeLimit && (
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="w-4 h-4" />
+                                          <span>{Math.round(quiz.timeLimit / 60)} minutes</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    className="flex-shrink-0 ml-4"
+                                    onClick={() => handleStartQuiz(quiz.id)}
+                                    disabled={loadingQuiz}
+                                  >
+                                    {loadingQuiz ? 'Loading...' : 'Take Quiz'}
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    ) : (
+                    <Card>
+                      <CardContent className="py-16 text-center">
+                        <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-xl font-bold text-muted-foreground mb-2">No quiz for this lesson</p>
+                        <p className="text-muted-foreground">This lesson doesn't have a quiz attached yet.</p>
+                      </CardContent>
+                    </Card>
+                    )
                   ) : quizzes.length > 0 ? (
                     <Card>
                       <CardHeader>
@@ -1379,7 +1515,7 @@ const SubjectLessonsPage = () => {
                       <div className="mt-8">
                         <label className="text-sm font-medium mb-2 block">Your Question</label>
                         <Textarea
-                          placeholder="What would you like to know about this course?"
+                          placeholder="What would you like to know about this lesson?"
                           value={newQuestionText}
                           onChange={(e) => setNewQuestionText(e.target.value)}
                           rows={4}
@@ -1524,7 +1660,7 @@ const SubjectLessonsPage = () => {
                   <div className="p-6">
                     <h3 className="font-bold text-lg mb-1">Lesson Content</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {lessons.length} lessons • {quizzes.length} quizzes • {Math.floor(totalDuration / 60)}h {totalDuration % 60}m
+                      {lessons.length > 1 ? `${lessons.length} lessons · ` : ''}{totalDuration > 0 ? `${Math.floor(totalDuration / 60) > 0 ? `${Math.floor(totalDuration / 60)}h ` : ''}${totalDuration % 60}m` : ''}
                     </p>
                     <div className="space-y-4">
                       {/* Lessons Section */}

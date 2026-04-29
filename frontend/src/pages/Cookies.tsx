@@ -180,7 +180,7 @@ export default function Cookies() {
                 
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-semibold text-foreground mb-2">Paystack</h4>
-                  <p className="text-sm">Processes payments securely for course subscriptions.</p>
+                  <p className="text-sm">Processes payments securely for lesson subscriptions.</p>
                   <a href="https://paystack.com/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline text-sm">
                     Learn more →
                   </a>

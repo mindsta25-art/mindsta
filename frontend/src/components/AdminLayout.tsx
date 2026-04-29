@@ -119,7 +119,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   useEffect(() => {
     const contentPages = [
       '/admin/content',
-      '/admin/subjects'
+      '/admin/subjects',
+      '/admin/common-entrance',
+      '/admin/create-common-entrance',
     ];
     const isOnContentPage = contentPages.some(page => location.pathname.startsWith(page)) ||
                            location.search.includes('create=lesson') ||
@@ -220,11 +222,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           label: "Analytics",
           path: "/admin/analytics",
         },
-        {
-          icon: FileText,
-          label: "Reports",
-          path: "/admin/reports",
-        },
       ]
     },
     // Content Management Section
@@ -247,6 +244,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           label: "Lesson Management",
           path: "/admin/lesson-management",
         },
+      ]
+    },
+    // Feedback Section
+    {
+      section: "Feedback",
+      items: [
         {
           icon: MessageSquare,
           label: "Q&A Management",
@@ -261,9 +264,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         },
       ]
     },
-    // User Management Section
+    // Students Section
     {
-      section: "Users",
+      section: "Students",
       items: [
         {
           icon: Users,
@@ -278,6 +281,17 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           countKey: 'tickets' as const,
         },
         {
+          icon: Trophy,
+          label: "Leaderboard",
+          path: "/admin/leaderboard",
+        },
+      ]
+    },
+    // Communication Section
+    {
+      section: "Communication",
+      items: [
+        {
           icon: Mail,
           label: "Newsletter",
           path: "/admin/newsletter",
@@ -289,17 +303,17 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           path: "/admin/notifications",
           countKey: 'notifications' as const,
         },
-        {
-          icon: Trophy,
-          label: "Leaderboard",
-          path: "/admin/leaderboard",
-        },
       ]
     },
     // Financial Section
     {
       section: "Financial",
       items: [
+        {
+          icon: FileText,
+          label: "Reports",
+          path: "/admin/reports",
+        },
         {
           icon: TrendingUp,
           label: "Financial Report",
@@ -446,8 +460,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   if (item.path === "/admin/content") {
                     const isContentActive = isActive(item.path) ||
                       location.pathname === '/admin/create-lesson' ||
-                      location.pathname === '/admin/create-quiz';
-                    
+                      location.pathname === '/admin/create-quiz' ||
+                      location.pathname === '/admin/create-common-entrance' ||
+                      location.pathname === '/admin/common-entrance';
+
                     return (
                       <div key={item.path}>
                         <div className="flex flex-col gap-1">
@@ -521,6 +537,18 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                               >
                                 <BookMarked className="w-4 h-4 flex-shrink-0" />
                                 <span>Subject Management</span>
+                              </Link>
+                              <Link
+                                to="/admin/common-entrance"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                  location.pathname.startsWith('/admin/common-entrance') || location.pathname === '/admin/create-common-entrance'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                              >
+                                <GraduationCap className="w-4 h-4 flex-shrink-0" />
+                                <span>Common Entrance</span>
                               </Link>
                             </div>
                           )}

@@ -66,6 +66,7 @@ import {
 import { signOut } from "@/api";
 import { getStudentByUserId, updateStudentGrade } from "@/api";
 import { searchLessons, type Lesson } from "@/api/lessons";
+import { getCommonExams, type CommonExam } from "@/api/commonEntrance";
 import { formatCurrency } from "@/config/siteConfig";
 import {
   AlertDialog,
@@ -93,6 +94,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<Lesson[]>([]);
+  const [ceSuggestions, setCeSuggestions] = useState<CommonExam[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [wishBump, setWishBump] = useState(false);
   const [cartBump, setCartBump] = useState(false);
@@ -183,10 +185,10 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   };
 
   const handleSuggestionClick = (lesson: Lesson) => {
-    const p = new URLSearchParams();
-    if (lesson.term) p.set('term', lesson.term);
-    if (lesson.id) p.set('lessonId', lesson.id);
-    navigate(`/subjects/${lesson.grade}/${encodeURIComponent(lesson.subject)}${p.toString() ? `?${p}` : ''}`);
+    // Navigate to search results so the student sees enrollment-aware buttons
+    // (Continue Learning if purchased, Add to Cart if not)
+    const query = lesson.title || lesson.subject;
+    navigate(`/search?q=${encodeURIComponent(query)}`);
     setSearchQuery('');
     setShowSuggestions(false);
   };
@@ -195,16 +197,29 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchSuggestions([]);
+      setCeSuggestions([]);
       setShowSuggestions(false);
       return;
     }
     const timer = setTimeout(async () => {
       try {
-        const results = await searchLessons(searchQuery.trim(), undefined, undefined, 5);
+        const q = searchQuery.trim().toLowerCase();
+        const [results, allCE] = await Promise.all([
+          searchLessons(searchQuery.trim(), undefined, undefined, 5),
+          getCommonExams(),
+        ]);
+        const filteredCE = (allCE || []).filter(
+          (exam) =>
+            exam.title?.toLowerCase().includes(q) ||
+            exam.subject?.toLowerCase().includes(q) ||
+            'common entrance'.includes(q)
+        ).slice(0, 3);
         setSearchSuggestions(results || []);
-        setShowSuggestions((results || []).length > 0);
+        setCeSuggestions(filteredCE);
+        setShowSuggestions((results || []).length > 0 || filteredCE.length > 0);
       } catch {
         setSearchSuggestions([]);
+        setCeSuggestions([]);
         setShowSuggestions(false);
       }
     }, 350);
@@ -282,22 +297,38 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/dashboard")}
-                className={`font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
+                className={`font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
               >
                 <Home className="w-4 h-4 mr-2" />
                 Dashboard
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/browse")}
-                className={`font-medium transition-colors ${location.pathname === '/browse' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
-              >
-                Browse Lessons
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={`font-medium transition-colors ${['/browse', '/common-entrance'].includes(location.pathname) ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
+                  >
+                    Browse
+                    <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  <DropdownMenuLabel>Browse Content</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/browse")}>
+                    <BookOpen className="w-4 h-4 mr-2 text-indigo-500" />
+                    Browse Lessons
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/common-entrance")}>
+                    <GraduationCap className="w-4 h-4 mr-2 text-purple-500" />
+                    Common Entrance
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 onClick={() => navigate("/my-learning")}
-                className={`font-medium transition-colors ${location.pathname === '/my-learning' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600'}`}
+                className={`font-medium transition-colors ${location.pathname === '/my-learning' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
               >
                 My Learning
               </Button>
@@ -320,8 +351,9 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="font-medium">
+                  <Button variant="ghost" className={`font-medium transition-colors ${['/leaderboard', '/progress', '/achievements'].some(p => location.pathname.startsWith(p)) ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400'}`}>
                     Progress
+                    <ChevronDown className="w-3.5 h-3.5 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-52">
@@ -344,8 +376,8 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             </nav>
           </div>
 
-          {/* Search Bar - Desktop */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-4" ref={searchRef}>
+          {/* Search Bar - Desktop (lg+) */}
+          <div className="hidden lg:flex flex-1 max-w-md mx-4" ref={searchRef}>
             <form onSubmit={handleSearch} className="w-full relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -358,7 +390,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               />
               
               {/* Search Suggestions Dropdown */}
-              {showSuggestions && searchSuggestions.length > 0 && (
+              {showSuggestions && (searchSuggestions.length > 0 || ceSuggestions.length > 0) && (
                 <Card className="absolute top-full mt-2 w-full shadow-lg border-2 z-50 max-h-96 overflow-auto">
                   <CardContent className="p-0">
                     <div className="p-2 bg-muted/30 border-b flex items-center gap-2">
@@ -401,6 +433,35 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                         </div>
                       </button>
                     ))}
+                    {ceSuggestions.map((exam) => (
+                      <button
+                        key={exam.id}
+                        onClick={() => { navigate(`/common-entrance?examId=${exam.id}`); setSearchQuery(''); setShowSuggestions(false); }}
+                        className="w-full p-3 hover:bg-muted/50 transition-colors text-left border-b last:border-b-0 group"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded flex-shrink-0 overflow-hidden flex items-center justify-center">
+                            {exam.imageUrl ? (
+                              <img src={exam.imageUrl} alt={exam.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <GraduationCap className="w-6 h-6 text-white" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                              {exam.title}
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">
+                                Common Entrance
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">{exam.subject}</span>
+                            </div>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                        </div>
+                      </button>
+                    ))}
                     <button
                       onClick={handleSearch}
                       className="w-full p-3 bg-muted/30 hover:bg-muted/50 transition-colors text-center font-medium text-sm text-indigo-600"
@@ -423,7 +484,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                   size="icon"
                   onClick={toggleTheme}
                   aria-label="Toggle theme"
-                  className="hidden md:flex hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  className="hidden md:flex hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400"
                 >
                   {theme === 'dark' ? (
                     <Sun className="w-5 h-5" />
@@ -444,7 +505,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden md:flex relative hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                  className="hidden md:flex relative hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400"
                   onClick={() => navigate("/wishlist")}
                   aria-label="Wishlist"
                 >
@@ -464,7 +525,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden md:flex relative hover:bg-purple-100 dark:hover:bg-purple-950/40"
+                  className="hidden md:flex relative hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400"
                   onClick={() => navigate("/cart")}
                   aria-label="Shopping cart"
                 >
@@ -577,7 +638,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             <div className="hidden md:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 px-2 lg:px-3 hover:bg-purple-100 dark:hover:bg-purple-950/40 rounded-lg">
+                  <Button variant="ghost" className="gap-2 px-2 lg:px-3 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg">
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-600 text-white text-sm font-semibold">
                         {getInitials(displayName)}
@@ -645,13 +706,13 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
               </DropdownMenu>
             </div>
 
-            {/* Mobile Search Toggle */}
+            {/* Search Toggle — shown on screens below lg */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden hover:bg-purple-100 dark:hover:bg-purple-950/40"
+                  className="lg:hidden hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400"
                   onClick={() => { setMobileSearchOpen(v => !v); setSearchQuery(''); setShowSuggestions(false); }}
                   aria-label={mobileSearchOpen ? 'Close search' : 'Search'}
                 >
@@ -666,7 +727,7 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden hover:bg-purple-100 dark:hover:bg-purple-950/40"
+                  className="lg:hidden hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400"
                   onClick={() => { setMobileMenuOpen(true); setMobileSearchOpen(false); setSearchQuery(''); }}
                   aria-label="Open menu"
                 >
@@ -679,9 +740,9 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
         </div>
       </div>
 
-      {/* Mobile Search Overlay — full-width, slides down from header */}
+      {/* Search Overlay — full-width, slides down from header (shown on screens below lg) */}
       {mobileSearchOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white/98 dark:bg-gray-900/98 backdrop-blur-md border-b border-border shadow-xl z-40 animate-in slide-in-from-top-2 duration-150">
+        <div className="lg:hidden absolute top-full left-0 right-0 bg-white/98 dark:bg-gray-900/98 backdrop-blur-md border-b border-border shadow-xl z-40 animate-in slide-in-from-top-2 duration-150">
           <div className="container mx-auto px-4 py-3">
             <form onSubmit={(e) => { handleSearch(e); setMobileSearchOpen(false); }} className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -774,9 +835,10 @@ const StudentHeaderComponent = ({ studentName }: StudentHeaderProps) => {
             {/* ── Learning ── */}
             <p className="px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Learning</p>
             {[
-              { label: "Dashboard",      icon: Home,       path: "/dashboard",   active: location.pathname === "/dashboard" },
-              { label: "Browse Lessons", icon: BookOpen,   path: "/browse",      active: location.pathname === "/browse" },
-              { label: "My Learning",    icon: GraduationCap, path: "/my-learning", active: location.pathname === "/my-learning" },
+              { label: "Dashboard",        icon: Home,          path: "/dashboard",        active: location.pathname === "/dashboard" },
+              { label: "Browse Lessons",   icon: BookOpen,      path: "/browse",           active: location.pathname === "/browse" },
+              { label: "Common Entrance",  icon: GraduationCap, path: "/common-entrance",  active: location.pathname === "/common-entrance" },
+              { label: "My Learning",      icon: GraduationCap, path: "/my-learning",      active: location.pathname === "/my-learning" },
             ].map(({ label, icon: Icon, path, active }) => (
               <Button key={path} variant="ghost" onClick={() => { navigate(path); setMobileMenuOpen(false); }}
                 className={`w-full justify-start text-sm h-11 rounded-lg font-medium ${active ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'hover:bg-muted'}`}>

@@ -13,6 +13,7 @@ export interface CartItem {
   price: number;
   addedAt: string;
   lessonId?: string; // set when item is a specific lesson purchase
+  commonEntranceId?: string; // set when item is a Common Entrance exam
 }
 
 export interface Cart {
@@ -73,6 +74,14 @@ export const addToCart = async (item: {
     console.error('[Cart API] Error response:', error.response?.data);
     throw error;
   }
+};
+
+/**
+ * Add Common Entrance exam to cart
+ */
+export const addCommonEntranceToCart = async (commonEntranceId: string): Promise<Cart> => {
+  const result = await api.post('/cart/add-common-entrance', { commonEntranceId });
+  return result.cart ?? result;
 };
 
 /**

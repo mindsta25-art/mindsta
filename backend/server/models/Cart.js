@@ -4,7 +4,7 @@ const cartItemSchema = new mongoose.Schema({
   // Item type: 'topic' or 'lesson'
   itemType: {
     type: String,
-    enum: ['topic', 'lesson', 'subject'],
+    enum: ['topic', 'lesson', 'subject', 'common-entrance'],
     default: 'lesson',
   },
   // Reference to Topic or Lesson
@@ -15,6 +15,10 @@ const cartItemSchema = new mongoose.Schema({
   lessonId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lesson',
+  },
+  commonEntranceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CommonEntrance',
   },
   // Metadata for quick access
   title: {

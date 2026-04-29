@@ -58,14 +58,14 @@ const tourSteps: TourStep[] = [
     icon: <GraduationCap className="w-14 h-14 text-white" />,
     gradient: 'from-teal-500 to-green-500',
     features: [
-      { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'View progress for every course at a glance' },
+      { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'View progress for every lesson at a glance' },
       { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Complete quizzes to finish lessons' },
       { icon: <CheckCircle className="w-4 h-4 text-emerald-400" />, text: 'Access your full learning history' },
     ]
   },
   {
     title: 'Cart & Wishlist',
-    description: 'Found a great course? Add it to your cart or save it to your wishlist for later. Enroll in multiple lessons at once and manage your learning journey with ease.',
+    description: 'Found a great lesson? Add it to your cart or save it to your wishlist for later. Enroll in multiple lessons at once and manage your learning journey with ease.',
     icon: <ShoppingCart className="w-14 h-14 text-white" />,
     gradient: 'from-orange-500 to-rose-500',
     features: [

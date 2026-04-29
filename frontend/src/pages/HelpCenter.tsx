@@ -38,7 +38,7 @@ const HelpCenter = () => {
       description: 'Learn the basics of using Mindsta',
       articles: [
         'How to create an account',
-        'Enrolling in your first course',
+        'Enrolling in your first lesson',
         'Navigating the dashboard',
         'Setting up your profile',
       ],
@@ -50,7 +50,7 @@ const HelpCenter = () => {
       description: 'Everything about lessons and lessons',
       articles: [
         'How to access lessons',
-        'Understanding course structure',
+        'Understanding lesson structure',
         'Tracking your progress',
         'Taking quizzes and tests',
       ],
@@ -62,7 +62,7 @@ const HelpCenter = () => {
       description: 'Payment methods, refunds, and billing',
       articles: [
         'Accepted payment methods',
-        'How to purchase a course',
+        'How to purchase a lesson',
         'Refund policy',
         'Bundle discounts',
       ],

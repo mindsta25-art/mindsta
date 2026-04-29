@@ -462,7 +462,7 @@ const ReferralPayouts = () => {
               <div className="flex-1">
                 <h3 className="font-semibold text-foreground mb-2">Commission Structure</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Referrers earn a <strong className="text-purple-600">10% commission</strong> on every course/lesson 
+                  Referrers earn a <strong className="text-purple-600">10% commission</strong> on every lesson/lesson 
                   purchase made by their referred students. The commission is calculated at the time of payment 
                   and tracked in real-time.
                 </p>

@@ -189,7 +189,7 @@ const NotificationBell = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className="relative hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400"
           aria-label="Notifications"
         >
           <Bell className="w-5 h-5" />

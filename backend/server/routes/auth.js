@@ -16,7 +16,7 @@ import { requireAuth, requireAuthIgnoreExpiry } from '../middleware/auth.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = '30d';
+const JWT_EXPIRES_IN = '90d';
 
 // Generate 6-digit OTP
 const generateOTP = () => {

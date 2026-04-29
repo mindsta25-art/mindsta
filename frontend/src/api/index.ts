@@ -54,6 +54,9 @@ export * from './reviews';
 // Search History API
 export * from './search-history';
 
+// Common Entrance API
+export * from './commonEntrance';
+
 
 
 

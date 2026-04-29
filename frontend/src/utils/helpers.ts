@@ -174,3 +174,12 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
     return success;
   }
 };
+
+/**
+ * Strips HTML tags from a string, returning plain text.
+ * Use this when displaying rich-text content (from RichTextEditor) in plain contexts.
+ */
+export const stripHtml = (html: string | undefined | null): string => {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+};

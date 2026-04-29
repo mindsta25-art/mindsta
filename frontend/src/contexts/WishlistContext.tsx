@@ -7,11 +7,14 @@ interface WishlistContextType {
   wishlist: Wishlist | null;
   wishlistCount: number;
   loading: boolean;
-  addToWishlist: (item: { subject: string; grade: string; term?: string }) => Promise<void>;
+  addToWishlist: (item: { subject: string; grade: string; term?: string; imageUrl?: string }) => Promise<void>;
   removeFromWishlist: (itemId: string) => Promise<void>;
   clearWishlist: () => Promise<void>;
   refreshWishlist: () => Promise<void>;
   isInWishlist: (subject: string, grade: string, term?: string) => boolean;
+  isCommonEntranceInWishlist: (examId: string) => boolean;
+  addCommonEntranceToWishlist: (exam: { id: string; title: string; subject: string; imageUrl?: string }) => Promise<void>;
+  removeCommonEntranceFromWishlist: (examId: string) => Promise<void>;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
@@ -43,7 +46,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     if (user) refreshWishlist(); else { setWishlist(null); setWishlistCount(0); }
   }, [user, refreshWishlist]);
 
-  const addToWishlist = useCallback(async (item: { subject: string; grade: string; term?: string }) => {
+  const addToWishlist = useCallback(async (item: { subject: string; grade: string; term?: string; imageUrl?: string }) => {
     if (!user) {
       toast({ title: 'Please log in', description: 'Log in to save items to your wishlist', variant: 'destructive' });
       return;
@@ -90,9 +93,24 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     return wishlist.items.some(i => i.subject === subject && i.grade === grade && i.term === term);
   }, [wishlist]);
 
+  const isCommonEntranceInWishlist = useCallback((examId: string): boolean => {
+    if (!wishlist) return false;
+    return wishlist.items.some(i => i.term === `ce:${examId}`);
+  }, [wishlist]);
+
+  const addCommonEntranceToWishlist = useCallback(async (exam: { id: string; title: string; subject: string; imageUrl?: string }) => {
+    await addToWishlist({ subject: exam.title, grade: 'Common Entrance', term: `ce:${exam.id}`, imageUrl: exam.imageUrl || '' });
+  }, [addToWishlist]);
+
+  const removeCommonEntranceFromWishlist = useCallback(async (examId: string) => {
+    if (!wishlist) return;
+    const item = wishlist.items.find(i => i.term === `ce:${examId}`);
+    if (item) await removeFromWishlist(item._id);
+  }, [wishlist, removeFromWishlist]);
+
   const value = useMemo(
-    () => ({ wishlist, wishlistCount, loading, addToWishlist, removeFromWishlist, clearWishlist, refreshWishlist, isInWishlist }),
-    [wishlist, wishlistCount, loading, addToWishlist, removeFromWishlist, clearWishlist, refreshWishlist, isInWishlist]
+    () => ({ wishlist, wishlistCount, loading, addToWishlist, removeFromWishlist, clearWishlist, refreshWishlist, isInWishlist, isCommonEntranceInWishlist, addCommonEntranceToWishlist, removeCommonEntranceFromWishlist }),
+    [wishlist, wishlistCount, loading, addToWishlist, removeFromWishlist, clearWishlist, refreshWishlist, isInWishlist, isCommonEntranceInWishlist, addCommonEntranceToWishlist, removeCommonEntranceFromWishlist]
   );
 
   return (

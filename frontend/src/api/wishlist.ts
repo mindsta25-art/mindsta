@@ -5,6 +5,7 @@ export interface WishlistItem {
   subject: string;
   grade: string;
   term?: string;
+  imageUrl?: string;
   addedAt: string;
 }
 
@@ -20,7 +21,7 @@ export const getWishlist = async (): Promise<Wishlist> => {
   return res;
 };
 
-export const addToWishlist = async (item: { subject: string; grade: string; term?: string; }): Promise<Wishlist> => {
+export const addToWishlist = async (item: { subject: string; grade: string; term?: string; imageUrl?: string; }): Promise<Wishlist> => {
   try {
     console.log('[Wishlist API] Adding to wishlist:', item);
     const res = await api.post('/wishlist/add', item);

@@ -75,7 +75,7 @@ const ProgressPage = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <StudentHeader studentName={studentInfo?.fullName} />
-        <main className="pt-24 pb-16">
+        <main className="pt-2 sm:pt-6 pb-12 sm:pb-16">
           <div className="container mx-auto px-4 max-w-7xl">
             <Skeleton className="h-12 w-64 mb-8" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -94,7 +94,7 @@ const ProgressPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <StudentHeader studentName={studentInfo?.fullName} />
       
-      <main className="pt-24 pb-16">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16">
         <div className="container mx-auto px-4 max-w-7xl">
           {/* Header */}
           <motion.div

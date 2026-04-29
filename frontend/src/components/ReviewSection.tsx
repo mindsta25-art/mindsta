@@ -447,7 +447,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ lessonId, isAuthenticated
           <DialogHeader>
             <DialogTitle>{editingReview ? 'Edit Your Review' : 'Write a Review'}</DialogTitle>
             <DialogDescription>
-              Share your experience with this course to help other learners
+              Share your experience with this to help other learners
             </DialogDescription>
           </DialogHeader>
 
@@ -497,7 +497,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ lessonId, isAuthenticated
                 id="comment"
                 value={reviewForm.comment}
                 onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
-                placeholder="What did you like or dislike about this course?"
+                placeholder="What did you like or dislike about this lesson?"
                 rows={6}
                 maxLength={2000}
               />

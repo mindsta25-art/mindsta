@@ -303,7 +303,7 @@ const Settings = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <StudentHeader studentName={studentName} />
 
-      <main className="pt-24 pb-16 container mx-auto px-4">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16 container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header with gradient */}
           <div className="mb-8">

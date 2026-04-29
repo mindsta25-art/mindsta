@@ -15,6 +15,7 @@ export interface Enrollment {
   purchasedAt: string;
   isActive: boolean;
   lessonId?: string; // set for per-lesson purchases; null/absent for legacy subject-level enrollments
+  commonEntranceId?: string; // set when this enrollment is for a Common Entrance exam
   createdAt: string;
   updatedAt: string;
 }

@@ -1,6 +1,7 @@
 import User from './User.js';
 import Student from './Student.js';
 import Lesson from './Lesson.js';
+import CommonEntrance from './CommonEntrance.js';
 import Quiz from './Quiz.js';
 import UserProgress from './UserProgress.js';
 import Referral from './Referral.js';
@@ -28,6 +29,7 @@ export {
   User,
   Student,
   Lesson,
+  CommonEntrance,
   Quiz,
   UserProgress,
   Referral,

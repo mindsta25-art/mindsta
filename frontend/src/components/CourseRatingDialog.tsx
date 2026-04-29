@@ -123,7 +123,7 @@ export const CourseRatingDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{existingReview ? 'Update Your Review' : 'Rate This Course'}</DialogTitle>
+          <DialogTitle>{existingReview ? 'Update Your Review' : 'Rate This Lesson'}</DialogTitle>
           <DialogDescription>
             Share your experience with {subject} - {grade === "Common Entrance" ? "Common Entrance" : `Grade ${grade}`}
           </DialogDescription>
@@ -183,7 +183,7 @@ export const CourseRatingDialog = ({
           <div className="space-y-2">
             <label className="text-sm font-semibold">Your Review</label>
             <Textarea
-              placeholder="Share your thoughts about this course... What did you like? What could be improved?"
+              placeholder="Share your thoughts about this lesson... What did you like? What could be improved?"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={5}

@@ -74,6 +74,7 @@ import { getSystemSettings } from "@/api/settings";
 import { formatCurrency } from "@/config/siteConfig";
 import { recordSearch, getSearchKeywords } from "@/api/search-history";
 import { getRatingStats } from "@/api/reviews";
+import { stripHtml } from "@/utils/helpers";
 
 interface Course {
   id: string;
@@ -121,7 +122,7 @@ const CATEGORY_COLOR_PALETTE: string[] = [
 const Browselessons = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { addToCart, isInCart } = useCart();
+  const { addToCart, isInCart, addCommonEntranceToCart, isCommonEntranceInCart } = useCart();
   const { wishlist, addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -193,8 +194,10 @@ const Browselessons = () => {
 
   // Review rating cache: courseId → { avgRating, totalReviews }
   const [reviewCache, setReviewCache] = useState<Record<string, { avg: number; total: number }>>({});
-  
-  // Preview dialog state
+
+  // Common Entrance exams — loaded when grade filter = 'Common Entrance'
+  const [ceExams, setCeExams] = useState<import('@/api/commonEntrance').CommonExam[]>([]);
+  const [ceLoading, setCeLoading] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [selectedCourseForPreview, setSelectedCourseForPreview] = useState<Lesson | null>(null);
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null);
@@ -223,7 +226,7 @@ const Browselessons = () => {
     } catch { return []; }
   })());
 
-  const terms = ["First Term", "Second Term", "Third Term"];
+  const terms = ["First Term", "Second Term", "Third Term", "Common Entrance"];
   const grades = ["1", "2", "3", "4", "5", "6", "Common Entrance"];
 
   // Animation variants
@@ -421,6 +424,14 @@ const Browselessons = () => {
 
     return () => clearTimeout(timer);
   }, [searchQuery, lessons, user, selectedGrade, selectedSubject, selectedTerm]);
+
+  // Load Common Entrance exams on mount (and also refresh when grade filter = 'Common Entrance')
+  useEffect(() => {
+    setCeLoading(true);
+    import('@/api/commonEntrance').then(({ getCommonExams }) =>
+      getCommonExams().then(setCeExams).catch(() => setCeExams([])).finally(() => setCeLoading(false))
+    );
+  }, []);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -1188,7 +1199,12 @@ const Browselessons = () => {
       );
       if (item) removeFromWishlist(item._id);
     } else {
-      addToWishlist({ subject: course.subject, grade: course.grade, term: course.term });
+      // Pass thumbnail to wishlist so it can be persisted server-side
+      const imgUrl = course.imageUrl || course.thumbnail || '';
+      if (imgUrl) {
+        try { localStorage.setItem(`wish_img:${encodeURIComponent(course.subject)}:${course.grade}:${encodeURIComponent(course.term || '')}`, imgUrl); } catch { /* ignore */ }
+      }
+      addToWishlist({ subject: course.subject, grade: course.grade, term: course.term, imageUrl: imgUrl });
     }
   };
 
@@ -1553,7 +1569,7 @@ const Browselessons = () => {
                   </TabsTrigger>
                   <TabsTrigger value="purchased" className="text-base font-semibold data-[state=active]:bg-green-50 dark:data-[state=active]:bg-green-900/20 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-300">
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    My Purchased ({enrollments.length})
+                    My Purchased ({enrollments.filter(e => !e.commonEntranceId).length + ceExams.filter(exam => enrollments.some(e => e.commonEntranceId === exam.id && e.isActive)).length})
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -1618,7 +1634,13 @@ const Browselessons = () => {
                             transition={{ delay: index * 0.05 }}
                             onClick={() => {
                               setShowSuggestions(false);
-                              handleViewCourse(course);
+                              if (course.enrolled) {
+                                // Already purchased — go directly to the lesson
+                                handleViewCourse(course);
+                              } else {
+                                // Not purchased — go to search results where they can preview/add to cart
+                                navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                              }
                             }}
                             className="w-full text-left p-3 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-200 border border-transparent hover:border-purple-200 dark:hover:border-purple-800 group"
                           >
@@ -1682,13 +1704,18 @@ const Browselessons = () => {
                           </motion.button>
                         ))}
                       </div>
-                      {searchSuggestions.length >= 6 && (
-                        <div className="text-center py-2 border-t border-purple-100 dark:border-purple-900 mt-2">
-                          <p className="text-xs text-muted-foreground">
-                            Showing top {searchSuggestions.length} results. Use filters for more options.
-                          </p>
-                        </div>
-                      )}
+                      <div className="border-t border-purple-100 dark:border-purple-900 mt-2 pt-2 px-1">
+                        <button
+                          onClick={() => {
+                            setShowSuggestions(false);
+                            navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 py-2 text-sm font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 transition-colors"
+                        >
+                          <Search className="w-3.5 h-3.5" />
+                          View all results for "{searchQuery}"
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -2330,6 +2357,94 @@ const Browselessons = () => {
               </div>
             </Card>
           </motion.div>
+        ) : filteredlessons.length === 0 && selectedGrade === 'Common Entrance' ? (
+          // CE grade selected but no regular lessons — show CE exams directly
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+                  <GraduationCap className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Common Entrance Exams</h3>
+                  <p className="text-xs text-muted-foreground">50-question practice exams for Common Entrance</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/common-entrance')}>
+                View All <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            {ceLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => <Card key={i} className="animate-pulse"><CardContent className="h-48 pt-6" /></Card>)}
+              </div>
+            ) : ceExams.length === 0 ? (
+              <Card className="p-8 text-center border-dashed">
+                <GraduationCap className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No Common Entrance exams available yet.</p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {ceExams.map((exam) => {
+                  const isEnrolledCE = enrollments.some(e => e.commonEntranceId === exam.id || (e as any).examId === exam.id);
+                  const inCartCE = isCommonEntranceInCart(exam.id);
+                  return (
+                    <motion.div
+                      key={exam.id}
+                      whileHover={{ y: -4 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
+                      className="rounded-2xl overflow-hidden border-2 border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer group bg-white dark:bg-gray-900"
+                      onClick={() => navigate('/common-entrance')}
+                    >
+                      <div className="relative h-32 bg-gradient-to-br from-purple-600 via-pink-500 to-rose-400 flex items-center justify-center overflow-hidden">
+                        {exam.imageUrl ? <img src={exam.imageUrl} alt={exam.title} className="absolute inset-0 w-full h-full object-cover opacity-30" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : null}
+                        <div className="relative z-10 flex flex-col items-center gap-1">
+                          <Trophy className="w-10 h-10 text-white drop-shadow-lg" />
+                          <span className="text-white text-xs font-bold tracking-wide uppercase opacity-90">Common Entrance</span>
+                        </div>
+                        <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
+                        <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/10" />
+                        <div className="absolute top-3 right-3">
+                          <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/30">EXAM</span>
+                        </div>
+                      </div>
+                      <div className="p-4 flex flex-col gap-3">
+                        <div>
+                          <h4 className="font-bold text-sm leading-snug line-clamp-2 group-hover:text-purple-600 transition-colors">{exam.title}</h4>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">{exam.subject}</span>
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full"><BookOpen className="w-3 h-3" />{exam.questionCount} Qs</span>
+                            <span className="inline-flex items-center gap-1 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" />{Math.round(exam.timeLimit / 60)} min</span>
+                          </div>
+                        </div>
+                        <div className="flex items-baseline justify-between mt-auto">
+                          <span className="text-xl font-extrabold text-gray-900 dark:text-white">{exam.price === 0 ? <span className="text-green-600">FREE</span> : formatCurrency(exam.price)}</span>
+                        </div>
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" className="flex-shrink-0 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-purple-700 dark:text-purple-300 px-3" title="View exam details" onClick={() => navigate('/common-entrance')}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          {isEnrolledCE ? (
+                            <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold" title="Start this exam" onClick={() => navigate('/common-entrance')}>
+                              <CheckCircle className="w-4 h-4 mr-1.5" /> Start Exam
+                            </Button>
+                          ) : inCartCE ? (
+                            <Button size="sm" variant="secondary" className="flex-1" title="View your cart" onClick={() => navigate('/cart')}>
+                              <ShoppingCart className="w-4 h-4 mr-1.5" /> In Cart
+                            </Button>
+                          ) : (
+                            <Button size="sm" className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold shadow-md" title={exam.price === 0 ? 'Enroll for free' : 'Add to cart'} onClick={() => addCommonEntranceToCart(exam.id, exam.title)}>
+                              <ShoppingCart className="w-4 h-4 mr-1.5" />{exam.price === 0 ? 'Enroll Free' : 'Add to Cart'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
         ) : filteredlessons.length === 0 ? (
           // lessons exist but filters returned nothing
           <motion.div
@@ -2400,77 +2515,85 @@ const Browselessons = () => {
                         Suggested for {grade === 'Common Entrance' ? 'Common Entrance' : `Grade ${grade}`} students
                       </p>
                     </div>
-                    {/* Mobile: horizontal card list · Desktop: 4-col grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {suggestions.map(course => (
-                        <div
-                          key={course.id}
-                          className="group cursor-pointer"
-                          onClick={() => { clearFilters(); handleViewCourse(course); }}
-                        >
-                          {/* ── Mobile horizontal card ── */}
-                          <div className="sm:hidden rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-md flex items-stretch active:scale-[0.985] transition-all duration-150">
-                            <div className="relative flex-shrink-0 w-[90px] bg-gradient-to-br from-purple-500 via-pink-500 to-indigo-500 overflow-hidden">
-                              {(course.imageUrl || course.thumbnail) && (
-                                <img src={course.imageUrl || course.thumbnail} alt={course.subject} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                              )}
-                              {!(course.imageUrl || course.thumbnail) && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <BookOpen className="w-6 h-6 text-white/80" />
+                        <Card key={course.id} className="group overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-200 border-0 bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-900 dark:to-purple-950/20 flex flex-col">
+                          {/* Thumbnail */}
+                          <div className="relative h-36 bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500 overflow-hidden">
+                            {(course.imageUrl || course.thumbnail) ? (
+                              <>
+                                <img
+                                  src={course.imageUrl || course.thumbnail}
+                                  alt={course.subject}
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  loading="lazy"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors" />
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                  <span className="text-2xl font-extrabold text-white">{course.subject.charAt(0)}</span>
                                 </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0 p-3 flex flex-col gap-1">
-                              <h4 className="font-bold text-[13px] leading-snug line-clamp-2 text-foreground group-hover:text-purple-600 transition-colors">
+                              </div>
+                            )}
+                            {course.rating > 0 && (
+                              <div className="absolute bottom-2 left-2 flex items-center gap-0.5 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full shadow">
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span className="text-[11px] font-bold text-amber-600">{course.rating.toFixed(1)}</span>
+                              </div>
+                            )}
+                          </div>
+                          {/* Content */}
+                          <CardContent className="p-3 flex flex-col gap-2 flex-1">
+                            <div>
+                              <h4 className="font-bold text-sm line-clamp-2 leading-snug group-hover:text-purple-600 transition-colors">
                                 {course.lessonTitle || course.subject}
                               </h4>
-                              <p className="text-[11px] text-muted-foreground truncate">
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
                                 {course.lessonTitle ? `${course.subject} · ` : ''}{course.grade === 'Common Entrance' ? 'CE' : `Gr. ${course.grade}`} · {course.term.replace(' Term', '')}
                               </p>
-                              <div className="flex items-center gap-2 mt-auto">
-                                {course.rating > 0 && (
-                                  <div className="flex items-center gap-0.5">
-                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                                    <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">{course.rating.toFixed(1)}</span>
-                                  </div>
-                                )}
-                                <span className="ml-auto text-sm font-extrabold text-purple-600 dark:text-purple-400">{formatCurrency(course.price)}</span>
+                            </div>
+                            <div className="mt-auto pt-2 border-t border-gray-100 dark:border-gray-800">
+                              <div className="flex items-baseline justify-between mb-1.5">
+                                <span className="text-base font-extrabold text-gray-900 dark:text-white leading-none">{formatCurrency(course.price)}</span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <button
+                                  className="flex-shrink-0 px-2.5 py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); handlePreviewCourse(course); }}
+                                  disabled={loadingPreviewId === course.id}
+                                  title="Preview"
+                                >
+                                  {loadingPreviewId === course.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                                </button>
+                                <button
+                                  className={`flex-1 text-[11px] font-bold py-1.5 rounded-lg transition-colors shadow-sm ${
+                                    isInCart(course.subject, course.grade, course.term, course.lessonId)
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-300'
+                                      : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                                  }`}
+                                  onClick={(e) => { e.stopPropagation(); handleAddToCart(course); }}
+                                >
+                                  {isInCart(course.subject, course.grade, course.term, course.lessonId) ? (
+                                    <><CheckCircle className="w-3 h-3 inline mr-1" />In Cart</>
+                                  ) : (
+                                    <><ShoppingCart className="w-3 h-3 inline mr-1" />Add to Cart</>
+                                  )}
+                                </button>
                               </div>
                             </div>
-                          </div>
-
-                          {/* ── Desktop card (unchanged) ── */}
-                          <Card className="hidden sm:block border hover:shadow-md hover:border-purple-300 dark:hover:border-purple-700 transition-all overflow-hidden">
-                            <div className="h-14 flex items-center justify-center bg-gradient-to-br from-purple-400 via-pink-400 to-indigo-400 relative">
-                              {(course.imageUrl || course.thumbnail) ? (
-                                <img src={course.imageUrl || course.thumbnail} alt={course.subject} className="absolute inset-0 w-full h-full object-cover" />
-                              ) : (
-                                <BookOpen className="w-5 h-5 text-white" />
-                              )}
-                            </div>
-                            <CardContent className="p-2.5">
-                              <p className="font-semibold text-xs truncate group-hover:text-purple-600 transition-colors">{course.lessonTitle || course.subject}</p>
-                              <p className="text-xs text-muted-foreground">{course.lessonTitle ? `${course.subject} · ` : ''}{course.term}</p>
-                              <div className="flex items-center justify-between mt-1">
-                                <p className="text-sm font-bold text-purple-600">{formatCurrency(course.price)}</p>
-                                {course.rating > 0 && (
-                                  <div className="flex items-center gap-0.5">
-                                    <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                                    <span className="text-[10px] font-semibold text-amber-600">{course.rating.toFixed(1)}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
                     <p className="text-center text-sm text-muted-foreground mt-4">
-                      Click any course above to view it, or{' '}
+                      Or{' '}
                       <button className="text-purple-600 underline font-medium hover:text-purple-700" onClick={clearFilters}>
                         clear all filters
                       </button>{' '}
-                      to browse everything.
+                      to browse all lessons.
                     </p>
                   </div>
                 );
@@ -2479,6 +2602,103 @@ const Browselessons = () => {
           </motion.div>
         ) : (
           <>
+          {/* ── Common Entrance Exams Section ── */}
+          {selectedGrade === 'Common Entrance' && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+                    <GraduationCap className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">Common Entrance Exams</h3>
+                    <p className="text-xs text-muted-foreground">50-question practice exams for Common Entrance</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/common-entrance')}>
+                  View All <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              {ceLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[...Array(3)].map((_, i) => <Card key={i} className="animate-pulse"><CardContent className="h-48 pt-6" /></Card>)}
+                </div>
+              ) : ceExams.length === 0 ? (
+                <Card className="p-8 text-center border-dashed">
+                  <GraduationCap className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No Common Entrance exams available yet.</p>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {ceExams.slice(0, 6).map((exam) => (
+                    <motion.div
+                      key={exam.id}
+                      whileHover={{ y: -4 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
+                      className="rounded-2xl overflow-hidden border-2 border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer group bg-white dark:bg-gray-900"
+                      onClick={() => navigate('/common-entrance')}
+                    >
+                      {/* Exam card header — always gradient */}
+                      <div className="relative h-32 bg-gradient-to-br from-purple-600 via-pink-500 to-rose-400 flex items-center justify-center overflow-hidden">
+                        {exam.imageUrl ? (
+                          <img src={exam.imageUrl} alt={exam.title} className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity duration-300" loading="lazy" />
+                        ) : null}
+                        <div className="relative z-10 flex flex-col items-center gap-1">
+                          <Trophy className="w-10 h-10 text-white drop-shadow-lg" />
+                          <span className="text-white text-xs font-bold tracking-wide uppercase opacity-90">Common Entrance</span>
+                        </div>
+                        {/* Decorative circles */}
+                        <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
+                        <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/10" />
+                        {/* Exam badge */}
+                        <div className="absolute top-3 right-3">
+                          <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/30">EXAM</span>
+                        </div>
+                      </div>
+
+                      {/* Card body */}
+                      <div className="p-4 flex flex-col gap-3">
+                        <h4 className="font-bold text-sm leading-snug line-clamp-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                          {exam.title}
+                        </h4>
+
+                        {/* Badges row */}
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                            {exam.subject}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 px-2 py-0.5 rounded-full">
+                            <BookOpen className="w-2.5 h-2.5" />
+                            {exam.questionCount ?? 50} Questions
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                            <Clock className="w-2.5 h-2.5" />
+                            {Math.round((exam.timeLimit ?? 3000) / 60)} min
+                          </span>
+                        </div>
+
+                        {/* Price + CTA */}
+                        <div className="flex items-center justify-between mt-auto pt-1 border-t border-purple-100 dark:border-purple-900">
+                          {exam.price === 0 ? (
+                            <span className="text-sm font-bold text-green-600">FREE</span>
+                          ) : (
+                            <span className="text-base font-black text-purple-700 dark:text-purple-300">{formatCurrency(exam.price)}</span>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate('/common-entrance'); }}
+                            title="Browse all common entrance exams"
+                            className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 flex items-center gap-1 transition-colors"
+                          >
+                            View Exams <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -2727,7 +2947,11 @@ const Browselessons = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-3 right-3 h-9 w-9 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg"
+                        className={`absolute top-3 right-3 h-9 w-9 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg ${
+                          isInWishlist(course.subject, course.grade, course.term)
+                            ? 'hover:text-red-500'
+                            : 'hover:text-red-500'
+                        }`}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleToggleWishlist(course);
@@ -2737,7 +2961,7 @@ const Browselessons = () => {
                           className={`w-5 h-5 transition-all ${
                             isInWishlist(course.subject, course.grade, course.term)
                               ? 'fill-red-500 text-red-500 scale-110'
-                              : 'text-gray-600 hover:text-red-500 hover:scale-110'
+                              : 'text-gray-600'
                           }`}
                         />
                       </Button>
@@ -2835,7 +3059,7 @@ const Browselessons = () => {
                     )}
 
                     <CardDescription className="text-xs line-clamp-2 leading-relaxed">
-                      {course.description}
+                      {stripHtml(course.description)}
                     </CardDescription>
                   </CardHeader>
 
@@ -2861,7 +3085,7 @@ const Browselessons = () => {
                             <Button 
                               variant="outline"
                               size="sm"
-                              className="flex-shrink-0 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-purple-700 dark:text-purple-300 px-3"
+                              className="flex-shrink-0 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-purple-700 dark:text-purple-300 hover:text-purple-700 dark:hover:text-purple-300 px-3"
                               onClick={() => handlePreviewCourse(course)}
                               disabled={loadingPreviewId === course.id}
                             >
@@ -3109,6 +3333,65 @@ const Browselessons = () => {
             </div>
           </motion.div>
         )}
+
+        {/* My Common Entrance Exams — purchased CE section */}
+        {(() => {
+          const purchasedCE = ceExams.filter(exam => enrollments.some(e => e.commonEntranceId === exam.id && e.isActive));
+          if (purchasedCE.length === 0) return null;
+          return (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-10 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+                    <GraduationCap className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">My Common Entrance Exams</h3>
+                    <p className="text-xs text-muted-foreground">Your purchased CE exams — ready to start</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/common-entrance')}>
+                  View All <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {purchasedCE.map((exam) => (
+                  <motion.div
+                    key={exam.id}
+                    whileHover={{ y: -4 }}
+                    transition={{ type: 'spring', stiffness: 300 }}
+                    className="rounded-2xl overflow-hidden border-2 border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 shadow-sm hover:shadow-xl transition-all duration-200 cursor-pointer group bg-white dark:bg-gray-900"
+                    onClick={() => navigate(`/common-entrance?examId=${exam.id}`)}
+                  >
+                    <div className="relative h-32 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center overflow-hidden">
+                      {exam.imageUrl ? <img src={exam.imageUrl} alt={exam.title} className="absolute inset-0 w-full h-full object-cover opacity-30" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : null}
+                      <div className="relative z-10 flex flex-col items-center gap-1">
+                        <Trophy className="w-10 h-10 text-white drop-shadow-lg" />
+                        <span className="text-white text-xs font-bold tracking-wide uppercase opacity-90">Common Entrance</span>
+                      </div>
+                      <div className="absolute top-3 right-3">
+                        <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/30">PURCHASED</span>
+                      </div>
+                    </div>
+                    <div className="p-4 flex flex-col gap-3">
+                      <div>
+                        <h4 className="font-bold text-sm leading-snug line-clamp-2 group-hover:text-green-600 transition-colors">{exam.title}</h4>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          <span className="inline-flex items-center gap-1 text-[11px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full font-medium">{exam.subject}</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full"><BookOpen className="w-3 h-3" />{exam.questionCount} Qs</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full"><Clock className="w-3 h-3" />{Math.round(exam.timeLimit / 60)} min</span>
+                        </div>
+                      </div>
+                      <Button size="sm" className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold shadow-md" onClick={(e) => { e.stopPropagation(); navigate(`/common-entrance?examId=${exam.id}`); }}>
+                        <CheckCircle className="w-4 h-4 mr-1.5" /> Start Exam
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          );
+        })()}
 
         {/* Recommended for You Section */}
         {(() => {

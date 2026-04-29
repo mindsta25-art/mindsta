@@ -9,7 +9,7 @@ interface RatingSummaryProps {
 
 /**
  * Compact rating summary component that fetches and displays
- * rating statistics for a lesson. Perfect for course cards.
+ * rating statistics for a lesson. Perfect for lesson cards.
  */
 const RatingSummary: React.FC<RatingSummaryProps> = ({ lessonId, className = '' }) => {
   const [stats, setStats] = useState<RatingStats | null>(null);

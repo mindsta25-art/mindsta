@@ -14,7 +14,8 @@ export interface DashboardStats {
 }
 
 interface GradeDistribution {
-  grade: number;
+  grade: number | string;
+  label?: string;
   students: number;
 }
 
@@ -104,16 +105,30 @@ export const getDetailedAnalytics = async (params?: {
 };
 
 /**
- * Export analytics data in specified format
+ * Export analytics data in specified format.
+ * For CSV, uses a raw fetch so the response is returned as text rather than parsed JSON.
  */
-export const exportAnalytics = async (format: 'json' | 'csv' = 'json', type: string = 'all'): Promise<Blob | any> => {
-  try {
-    const result = await api.get('/analytics/export', { format, type });
-    return result;
-  } catch (error) {
-    console.error('Error exporting analytics:', error);
-    throw error;
+export const exportAnalytics = async (format: 'json' | 'csv' = 'json', type: string = 'all'): Promise<string | any> => {
+  const token = localStorage.getItem('authToken');
+  const baseUrl = import.meta.env.VITE_API_URL
+    || (import.meta.env.PROD ? 'https://api.mindsta.com.ng/api' : 'http://localhost:3000/api');
+  const url = `${baseUrl}/analytics/export?format=${format}&type=${encodeURIComponent(type)}`;
+
+  const res = await fetch(url, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Export failed' }));
+    throw new Error(err.error || 'Export failed');
   }
+
+  if (format === 'csv') {
+    return res.text();
+  }
+  return res.json();
 };
 
 /**

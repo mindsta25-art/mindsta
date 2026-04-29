@@ -4,6 +4,7 @@ const wishlistItemSchema = new mongoose.Schema({
   subject: { type: String, required: true },
   grade: { type: String, required: true },
   term: { type: String },
+  imageUrl: { type: String, default: '' },
   addedAt: { type: Date, default: Date.now },
 });
 

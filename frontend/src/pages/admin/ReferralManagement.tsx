@@ -661,7 +661,7 @@ const ReferralManagement = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>Commission transactions from course purchases</CardDescription>
+                <CardDescription>Commission transactions from lesson purchases</CardDescription>
               </CardHeader>
               <CardContent>
                 {transactions.length === 0 ? (

@@ -36,6 +36,7 @@ import gamificationRoutes from './routes/gamification.js';
 import newsletterRoutes from './routes/newsletter.js';
 import ticketsRoutes from './routes/tickets.js';
 import adminAlertsRoutes from './routes/admin-alerts.js';
+import commonEntranceRoutes from './routes/common-entrance.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { startActivityMonitor } from './middleware/activityTracker.js';
 import { startAbandonedCartScheduler } from './services/abandonedCartScheduler.js';
@@ -431,6 +432,7 @@ app.use('/api/gamification', apiLimiter, gamificationRoutes);
 app.use('/api/newsletter', apiLimiter, newsletterRoutes);
 app.use('/api/tickets', apiLimiter, ticketsRoutes);
 app.use('/api/admin-alerts', strictLimiter, adminAlertsRoutes);
+app.use('/api/common-entrance', apiLimiter, queueMiddleware('standard'), commonEntranceRoutes);
 app.use('/api/admin', apiLimiter, queueMiddleware('standard'), adminRoutes);
 
 // 404 handler for unmatched routes

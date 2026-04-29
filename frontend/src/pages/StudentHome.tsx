@@ -318,91 +318,33 @@ const StudentHome = () => {
 
   // Group enrolled lessons into course-level entries (collective view, not individual lessons)
   const recentlessons = (() => {
-    const courseMap = new Map<string, {
-      subject: string;
-      grade: string;
-      term?: string;
-      lessonId?: string;
-      enrollmentDate?: Date;
-      lessonsTotal: number;
-      lessonsCompleted: number;
-      progressWeight: number;
-      progress: number;
-      nextLesson?: EnrolledLesson;
-      thumbnailUrl?: string;
-      lastAccessed?: Date;
-    }>();
-
-    for (const lesson of enrolledLessons) {
-      // Determine whether this lesson was a per-lesson purchase or subject-level.
-      // Use direct Set lookup (matches what the enrollment filter above used).
-      const _nx = (s: string | undefined | null) => (s ?? '').toLowerCase().trim();
-      const isPerLesson = lesson.id && enrollments.some(e => e.lessonId && String(e.lessonId) === lesson.id);
-      const key = isPerLesson
-        ? `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}-${lesson.id}`
-        : `${lesson.subject}-${lesson.grade}-${lesson.term || 'general'}`;
-
-      // Find the specific enrollment for date/metadata
-      const matchedEnrollment = isPerLesson
-        ? enrollments.find(e => e.lessonId && String(e.lessonId) === lesson.id)
-        : enrollments.find(e =>
-            !e.lessonId &&
-            _nx(e.subject) === _nx(lesson.subject) &&
-            _nx(e.grade)   === _nx(lesson.grade) &&
-            _nx(e.term)    === _nx(lesson.term)
-          );
-      if (!courseMap.has(key)) {
-        courseMap.set(key, {
+    // One card per individual lesson — show lessons the user has accessed or is learning.
+    return enrolledLessons
+      .map((lesson) => {
+        const lessonProg = progress.find(p => p.lessonId === lesson.id);
+        const lastAccessed = lessonProg?.lastAccessedAt
+          ? new Date(lessonProg.lastAccessedAt)
+          : undefined;
+        const lessonProgress = lessonProg
+          ? lessonProg.completed
+            ? 100
+            : Math.round(Math.min(lessonProg.videoWatchPercent || 0, 99))
+          : 0;
+        return {
           subject: lesson.subject,
           grade: lesson.grade,
           term: lesson.term,
-          lessonId: isPerLesson ? lesson.id : undefined,
-          enrollmentDate: matchedEnrollment
-            ? new Date(matchedEnrollment.purchasedAt || matchedEnrollment.createdAt)
-            : undefined,
-          lessonsTotal: 0,
-          lessonsCompleted: 0,
-          progressWeight: 0,
-          progress: 0,
-        });
-      }
-      const course = courseMap.get(key)!;
-      course.lessonsTotal += 1;
-
-      if (!course.thumbnailUrl && lesson.imageUrl) {
-        course.thumbnailUrl = lesson.imageUrl;
-      }
-
-      const lessonProg = progress.find(p => p.lessonId === lesson.id);
-      if (lessonProg) {
-        if (lessonProg.completed) {
-          course.lessonsCompleted += 1;
-          course.progressWeight += 1;
-        } else {
-          // Partial credit for in-progress lessons: use video watch % (capped at 0.99)
-          const watchPct = (lessonProg.videoWatchPercent || 0) / 100;
-          course.progressWeight += Math.min(watchPct, 0.99);
-          if (!course.nextLesson) {
-            course.nextLesson = lesson;
-          }
-        }
-        const accessedDate = new Date(lessonProg.lastAccessedAt);
-        if (!course.lastAccessed || accessedDate > course.lastAccessed) {
-          course.lastAccessed = accessedDate;
-        }
-      } else if (!course.nextLesson) {
-        course.nextLesson = lesson;
-      }
-    }
-
-    courseMap.forEach((course) => {
-      course.progress = course.lessonsTotal > 0
-        ? Math.round((course.progressWeight / course.lessonsTotal) * 100)
-        : 0;
-    });
-
-    return Array.from(courseMap.values())
-      .filter(course => course.lastAccessed !== undefined)
+          lessonId: lesson.id,
+          lessonsTotal: 1,
+          lessonsCompleted: lessonProg?.completed ? 1 : 0,
+          progressWeight: lessonProgress / 100,
+          progress: lessonProgress,
+          nextLesson: lesson,
+          thumbnailUrl: lesson.imageUrl,
+          lastAccessed,
+        };
+      })
+      .filter(entry => entry.lastAccessed !== undefined)
       .sort((a, b) => b.lastAccessed!.getTime() - a.lastAccessed!.getTime())
       .slice(0, 8);
   })();
@@ -474,7 +416,7 @@ const StudentHome = () => {
     },
     {
       icon: BookMarked,
-      label: 'Enrolled Subjects',
+      label: 'Enrolled Lessons',
       value: totalEnrollments.toString(),
       gradient: 'from-blue-500 to-cyan-500',
     },
@@ -1068,7 +1010,7 @@ const StudentHome = () => {
                             {/* Subject / grade / lesson fraction */}
                             <p className="text-xs text-muted-foreground mb-2">
                               Grade {course.grade}{course.term ? ` · ${course.term}` : ''}
-                              {' · '}<span className="font-medium text-foreground/70">{course.lessonsCompleted}/{course.lessonsTotal}</span> lessons
+                              {course.lessonsTotal > 1 && <>{' · '}<span className="font-medium text-foreground/70">{course.lessonsCompleted}/{course.lessonsTotal}</span> lessons</>}
                             </p>
 
                             {/* Progress bar */}

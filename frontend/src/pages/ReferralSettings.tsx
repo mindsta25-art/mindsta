@@ -193,7 +193,7 @@ const ReferralSettings = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background">
       <ReferralHeader />
-      <div className="max-w-5xl mx-auto px-6 pb-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-6 pt-2 sm:pt-6 pb-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Referral Settings</h1>

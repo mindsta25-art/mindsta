@@ -92,7 +92,7 @@ const AchievementsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-950 dark:via-purple-950/20 dark:to-gray-950">
       <StudentHeader />
 
-      <main className="container mx-auto px-4 py-6 sm:py-10 max-w-6xl mt-20">
+      <main className="container mx-auto px-4 pt-2 sm:pt-6 pb-12 sm:pb-16 max-w-6xl">
         {/* Hero Header */}
         <motion.div
           initial={{ opacity: 0, y: -12 }}

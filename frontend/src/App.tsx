@@ -69,6 +69,8 @@ const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContentManagement = lazy(() => import("./pages/admin/ContentManagement"));
 const CreateLesson = lazy(() => import("./pages/admin/CreateLesson"));
 const CreateQuiz = lazy(() => import("./pages/admin/CreateQuiz"));
+const CreateCommonEntrance = lazy(() => import("./pages/admin/CreateCommonEntrance"));
+const CommonEntranceManagement = lazy(() => import("./pages/admin/CommonEntranceManagement"));
 const LessonManagement = lazy(() => import("./pages/admin/LessonManagement"));
 const SubjectManagement = lazy(() => import("./pages/admin/SubjectManagement"));
 const TopicManagement = lazy(() => import("./pages/admin/TopicManagement"));
@@ -85,6 +87,8 @@ const NewsletterSubscribers = lazy(() => import("./pages/admin/NewsletterSubscri
 const TicketManagement = lazy(() => import("./pages/admin/TicketManagement"));
 const LeaderboardManagement = lazy(() => import("./pages/admin/LeaderboardManagement"));
 const DraftLessons = lazy(() => import("./pages/admin/DraftLessons"));
+const CommonEntrance = lazy(() => import("./pages/CommonEntrance"));
+const MyCommonEntrance = lazy(() => import("./pages/MyCommonEntrance"));
 
 // React Query removed
 
@@ -143,11 +147,16 @@ function IdleTimerWrapper({ children }: { children: React.ReactNode }) {
     navigate("/auth");
   };
 
+  // Only enable idle auto-logout for admin users.
+  // Students (like Udemy) stay logged in indefinitely while their JWT is valid —
+  // the token refresh mechanism in AuthContext/apiClient keeps them signed in.
+  const isAdminUser = user?.userType === 'admin';
+
   const { showWarning, countdown, continueSession } = useIdleTimer({
-    idleMinutes: 10,
-    warningMinutes: 2,
+    idleMinutes: 30,
+    warningMinutes: 5,
     onLogout: handleLogout,
-    enabled: !!user,
+    enabled: isAdminUser,
   });
 
   return (
@@ -669,6 +678,48 @@ const App = () => (
                       <LeaderboardManagement />
                     </ProtectedRoute>
                   } 
+                />
+                <Route
+                  path="/admin/common-entrance"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <CommonEntranceManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/create-common-entrance"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <CreateCommonEntrance />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/edit-common-entrance/:id"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <CreateCommonEntrance />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Student Common Entrance */}
+                <Route
+                  path="/common-entrance"
+                  element={
+                    <ProtectedRoute>
+                      <CommonEntrance />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-common-entrance"
+                  element={
+                    <ProtectedRoute>
+                      <MyCommonEntrance />
+                    </ProtectedRoute>
+                  }
                 />
                 
                 {/* Public Info Pages */}

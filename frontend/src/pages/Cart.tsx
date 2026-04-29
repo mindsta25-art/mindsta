@@ -68,7 +68,7 @@ const Cart = () => {
     fetchStudentName();
   }, [user]);
 
-  // Fetch course details for cart items
+  // Fetch lesson details for cart items
   useEffect(() => {
     const enrichCartItems = async () => {
       if (!cart?.items || cart.items.length === 0) {
@@ -134,7 +134,7 @@ const Cart = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <StudentHeader studentName={studentName} />
-        <div className="pt-24 container mx-auto px-4">
+        <div className="pt-2 sm:pt-6 container mx-auto px-4">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-1/4"></div>
             <div className="h-64 bg-gray-200 dark:bg-gray-800 rounded"></div>
@@ -159,7 +159,7 @@ const Cart = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <StudentHeader studentName={studentName} />
 
-      <main className="pt-24 pb-16 container mx-auto px-4">
+      <main className="pt-2 sm:pt-6 pb-12 sm:pb-16 container mx-auto px-4">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-6 sm:mb-8">
@@ -182,7 +182,7 @@ const Cart = () => {
                 </p>
                 <Button onClick={() => navigate("/browse")} size="lg" className="gap-2 w-full sm:w-auto">
                   <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Browse Courses
+                  Browse Lessons
                 </Button>
               </div>
             </Card>
@@ -195,7 +195,7 @@ const Cart = () => {
                   <Card key={item._id} className="overflow-hidden hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex gap-3 sm:gap-4">
-                        {/* Course Thumbnail */}
+                        {/* Lesson Thumbnail */}
                         <div className="relative w-20 h-14 sm:w-28 sm:h-16 md:w-32 md:h-20 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded flex-shrink-0 overflow-hidden">
                           {item.imageUrl ? (
                             <img
@@ -211,7 +211,7 @@ const Cart = () => {
                           )}
                         </div>
 
-                        {/* Course Info */}
+                        {/* Lesson Info */}
                         <div className="flex-1 min-w-0">
                           <h3 className="font-bold text-base sm:text-lg mb-1 line-clamp-2">
                             {item.lessonTitle || item.subject}
@@ -315,7 +315,7 @@ const Cart = () => {
                       <div className="flex items-start gap-2 sm:gap-3 text-xs sm:text-sm">
                         <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full mt-1.5 flex-shrink-0"></div>
                         <span className="text-muted-foreground">
-                          Lifetime access to course materials
+                          Lifetime access to lesson materials
                         </span>
                       </div>
                       <div className="flex items-start gap-2 sm:gap-3 text-xs sm:text-sm">

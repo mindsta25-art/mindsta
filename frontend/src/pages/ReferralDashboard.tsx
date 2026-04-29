@@ -210,7 +210,7 @@ export default function ReferralDashboard() {
     />
     <ReferralOnboardingTour />
     <ReferralHeader />
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-background dark:via-background dark:to-background pt-2 sm:pt-6 px-4 md:px-8 pb-4 md:pb-8">
       <div className="max-w-7xl mx-auto">
         {/* Header & Nav */}
         <motion.div 

@@ -500,9 +500,9 @@ const AdminDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5 text-purple-500" />
-                  Recent Course Purchases
+                  Recent Lesson Purchases
                 </CardTitle>
-                <CardDescription>Latest enrollment purchases in the system</CardDescription>
+                <CardDescription>Latest lesson purchases in the system</CardDescription>
               </CardHeader>
               <CardContent>
                 {recentPurchases.length === 0 ? (

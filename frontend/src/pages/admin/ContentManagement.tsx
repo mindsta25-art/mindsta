@@ -789,7 +789,7 @@ const ContentManagement = () => {
       (item.type === "lesson" && (item as Lesson).subject.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (item.type === "quiz" && (item as Quiz).lessonTitle?.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesTab = selectedTab === "all" || item.type === selectedTab.replace("s", "");
+    const matchesTab = selectedTab === "all" || item.type === (selectedTab === 'quizzes' ? 'quiz' : selectedTab === 'lessons' ? 'lesson' : selectedTab);
     
     const matchesGrade = 
       filterGrade === "all" || 
@@ -1050,15 +1050,15 @@ const ContentManagement = () => {
 
                         <div className="space-y-2">
                           <div className="space-y-2">
-                            <Label className="text-sm font-medium">Course Overview (For Student Preview)</Label>
+                            <Label className="text-sm font-medium">Lesson Overview (For Student Preview)</Label>
                             <Textarea
                               value={lessonForm.overview}
                               onChange={(e) => setLessonForm({ ...lessonForm, overview: e.target.value })}
-                              placeholder="What will students learn in this course? List key topics, skills, and learning outcomes..."
+                              placeholder="What will students learn in this lesson? List key topics, skills, and learning outcomes..."
                               className="min-h-[120px] resize-y"
                             />
                           </div>
-                          <p className="text-xs text-muted-foreground">This overview helps students decide if this course is right for them before purchasing</p>
+                          <p className="text-xs text-muted-foreground">This overview helps students decide if this lesson is right for them before purchasing</p>
                         </div>
 
 
@@ -1224,12 +1224,12 @@ const ContentManagement = () => {
                       </CardContent>
                     </Card>
 
-                    {/* Course Metadata Card - What You'll Learn, Requirements, Target Audience */}
+                    {/* Lesson Metadata Card - What You'll Learn, Requirements, Target Audience */}
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-lg flex items-center gap-2">
                           <CheckCircle className="w-5 h-5 text-green-600" />
-                          Course Details (Shown on Student Overview)
+                          Lesson Details (Shown on Student Overview)
                         </CardTitle>
                         <CardDescription>
                           These appear on the student's subject overview page to help them understand what they'll learn
@@ -1388,10 +1388,10 @@ const ContentManagement = () => {
                         <div className="flex items-center justify-between">
                           <div>
                             <CardTitle className="text-lg flex items-center gap-2">
-                              📑 Course Curriculum (Optional)
+                              📑 Lesson Curriculum (Optional)
                             </CardTitle>
                             <CardDescription>
-                              Add sections and lectures to structure your course content
+                              Add sections and lectures to structure your lesson content
                             </CardDescription>
                           </div>
                           <Button
@@ -1409,7 +1409,7 @@ const ContentManagement = () => {
                       <CardContent className="space-y-4">
                         {curriculum.length === 0 ? (
                           <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground">
-                            <p className="text-sm">No sections yet. Click "Add Section" to begin structuring your course.</p>
+                            <p className="text-sm">No sections yet. Click "Add Section" to begin structuring your lesson.</p>
                           </div>
                         ) : (
                           <div className="space-y-4">
@@ -2482,7 +2482,7 @@ const ContentManagement = () => {
                                                   </div>
                                                 </div>
                                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                                  <Button variant="ghost" size="sm" onClick={() => openEditDialog(item as any, 'quiz')}><Edit className="w-4 h-4" /></Button>
+                                                  <Button variant="ghost" size="sm" title="Edit quiz" onClick={() => navigate(`/admin/create-quiz?edit=${item.id}`)}><Edit className="w-4 h-4" /></Button>
                                                   <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id as string, 'quiz')}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                                                 </div>
                                               </motion.div>
@@ -2556,7 +2556,7 @@ const ContentManagement = () => {
                                                         </div>
                                                       </div>
                                                       <div className="flex items-center gap-1 flex-shrink-0">
-                                                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(item as any, 'quiz')}><Edit className="w-4 h-4" /></Button>
+                                                        <Button variant="ghost" size="sm" title="Edit quiz" onClick={() => navigate(`/admin/create-quiz?edit=${item.id}`)}><Edit className="w-4 h-4" /></Button>
                                                         <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id as string, 'quiz')}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                                                       </div>
                                                     </motion.div>
@@ -2712,7 +2712,7 @@ const ContentManagement = () => {
                   <div className="space-y-4 border rounded-lg p-4">
                     <h4 className="font-semibold text-sm flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-600" />
-                      Course Details (Shown on Student Overview)
+                    Lesson Details (Shown on Student Overview)
                     </h4>
                     <div className="space-y-2">
                       <Label className="text-sm">What Students Will Learn</Label>
